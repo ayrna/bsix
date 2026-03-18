@@ -1,0 +1,44 @@
+# # # # #  pbc  # # # # # 
+
+
+# - - Description - - #
+
+Mayo Clinic Primary Biliary Cirrhosis
+
+
+# - - Info - - #
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 312 entries, 0 to 311
+Data columns (total 8 columns):
+ #   Column       Non-Null Count  Dtype   
+---  ------       --------------  -----   
+ 0   event        312 non-null    int64   
+ 1   time         312 non-null    int64   
+ 2   num_age      312 non-null    float64 
+ 3   fac_sex      312 non-null    category
+ 4   fac_trt      312 non-null    category
+ 5   fac_ascites  312 non-null    category
+ 6   fac_hepato   312 non-null    category
+ 7   fac_spiders  312 non-null    category
+dtypes: category(5), float64(1), int64(2)
+memory usage: 9.0 KB
+
+
+
+# - - Stats - - #
+
+            event         time     num_age
+count  312.000000   312.000000  312.000000
+mean     0.400641  2006.362179   50.019007
+std      0.490816  1123.280843   10.581261
+min      0.000000    41.000000   26.277892
+25%      0.000000  1191.000000   42.238877
+50%      0.000000  1839.500000   49.794661
+75%      1.000000  2697.250000   56.714579
+max      1.000000  4556.000000   78.439425
+
+
+# - - Reference - - #
+
+https://stat.ethz.ch/R-manual/R-devel/library/survival/html/pbc.html

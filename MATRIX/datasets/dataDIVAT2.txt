@@ -1,0 +1,42 @@
+# # # # #  dataDIVAT2  # # # # # 
+
+
+# - - Description - - #
+
+Données Informatisées et Validées en Transplantation
+
+
+# - - Info - - #
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 1522 entries, 0 to 1521
+Data columns (total 6 columns):
+ #   Column            Non-Null Count  Dtype   
+---  ------            --------------  -----   
+ 0   event             1522 non-null   int64   
+ 1   time              1522 non-null   float64 
+ 2   fac_hla           1522 non-null   category
+ 3   fac_retransplant  1522 non-null   category
+ 4   fac_ecd           1522 non-null   category
+ 5   num_age           1522 non-null   int64   
+dtypes: category(3), float64(1), int64(2)
+memory usage: 40.3 KB
+
+
+
+# - - Stats - - #
+
+             event         time      num_age
+count  1522.000000  1522.000000  1522.000000
+mean      0.281866     6.788023    49.408016
+std       0.450056     4.150375    14.143382
+min       0.000000     1.002053    18.000000
+25%       0.000000     3.333333    39.000000
+50%       0.000000     5.993155    51.000000
+75%       1.000000     9.839151    60.000000
+max       1.000000    17.207392    83.000000
+
+
+# - - Reference - - #
+
+https://rdrr.io/cran/RISCA/man/dataDIVAT2.html

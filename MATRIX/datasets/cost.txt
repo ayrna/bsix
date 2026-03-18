@@ -1,0 +1,51 @@
+# # # # #  cost  # # # # # 
+
+
+# - - Description - - #
+
+Copenhagen Stroke Study
+
+
+# - - Info - - #
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 518 entries, 0 to 517
+Data columns (total 15 columns):
+ #   Column           Non-Null Count  Dtype   
+---  ------           --------------  -----   
+ 0   event            518 non-null    int64   
+ 1   time             518 non-null    int64   
+ 2   fac_sex          518 non-null    category
+ 3   fac_hypTen       518 non-null    category
+ 4   fac_ihd          518 non-null    category
+ 5   fac_prevStroke   518 non-null    category
+ 6   fac_othDisease   518 non-null    category
+ 7   fac_alcohol      518 non-null    category
+ 8   fac_diabetes     518 non-null    category
+ 9   fac_smoke        518 non-null    category
+ 10  fac_atrialFib    518 non-null    category
+ 11  fac_hemor        518 non-null    category
+ 12  num_age          518 non-null    int64   
+ 13  num_strokeScore  518 non-null    int64   
+ 14  num_cholest      518 non-null    float64 
+dtypes: category(10), float64(1), int64(4)
+memory usage: 25.6 KB
+
+
+
+# - - Stats - - #
+
+            event         time     num_age  num_strokeScore  num_cholest
+count  518.000000   518.000000  518.000000       518.000000   518.000000
+mean     0.779923  1920.316602   73.291506        43.528958     6.000193
+std      0.414699  1404.461996   11.324046        13.012348     1.392360
+min      0.000000     1.000000   25.000000         0.000000     1.500000
+25%      1.000000   622.250000   68.000000        37.000000     5.100000
+50%      1.000000  1794.500000   75.000000        46.000000     5.900000
+75%      1.000000  3286.500000   81.000000        54.000000     6.800000
+max      1.000000  4262.000000   95.000000        58.000000    11.600000
+
+
+# - - Reference - - #
+
+https://rdrr.io/cran/pec/man/cost.html

@@ -1,0 +1,44 @@
+# # # # #  TRACE  # # # # # 
+
+
+# - - Description - - #
+
+Trandolapril Cardiac Evaluation study group of myocardial infarction
+
+
+# - - Info - - #
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 1485 entries, 0 to 1484
+Data columns (total 8 columns):
+ #   Column        Non-Null Count  Dtype   
+---  ------        --------------  -----   
+ 0   event         1485 non-null   int64   
+ 1   time          1485 non-null   float64 
+ 2   num_wmi       1485 non-null   float64 
+ 3   num_age       1485 non-null   float64 
+ 4   fac_sex       1485 non-null   category
+ 5   fac_chf       1485 non-null   category
+ 6   fac_diabetes  1485 non-null   category
+ 7   fac_vf        1485 non-null   category
+dtypes: category(4), float64(3), int64(1)
+memory usage: 52.4 KB
+
+
+
+# - - Stats - - #
+
+             event         time      num_wmi      num_age
+count  1485.000000  1485.000000  1485.000000  1485.000000
+mean      0.386532     5.694829     1.456633    65.401813
+std       0.487119     2.005640     0.385316    11.200988
+min       0.000000     1.003000     0.300000    22.944000
+25%       0.000000     4.472000     1.100000    57.873000
+50%       0.000000     6.439000     1.500000    66.476000
+75%       1.000000     7.165000     1.800000    73.738000
+max       1.000000     8.482000     3.000000    92.110000
+
+
+# - - Reference - - #
+
+https://rdrr.io/cran/timereg/man/TRACE.html

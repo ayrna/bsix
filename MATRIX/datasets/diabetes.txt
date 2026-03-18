@@ -1,0 +1,42 @@
+# # # # #  diabetes  # # # # # 
+
+
+# - - Description - - #
+
+Diabetic Retinopathy Study
+
+
+# - - Info - - #
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 391 entries, 0 to 390
+Data columns (total 6 columns):
+ #   Column      Non-Null Count  Dtype   
+---  ------      --------------  -----   
+ 0   event       391 non-null    int64   
+ 1   time        391 non-null    float64 
+ 2   num_agedx   391 non-null    int64   
+ 3   fac_trteye  391 non-null    category
+ 4   fac_treat   391 non-null    category
+ 5   fac_adult   391 non-null    category
+dtypes: category(3), float64(1), int64(2)
+memory usage: 10.5 KB
+
+
+
+# - - Stats - - #
+
+            event        time   num_agedx
+count  391.000000  391.000000  391.000000
+mean     0.388747   35.879064   20.759591
+std      0.488090   21.216765   14.807777
+min      0.000000    1.371119    1.000000
+25%      0.000000   14.212161   10.000000
+50%      0.000000   38.862434   16.000000
+75%      1.000000   54.371976   30.000000
+max      1.000000   75.025962   58.000000
+
+
+# - - Reference - - #
+
+https://rdrr.io/cran/timereg/man/diabetes.html

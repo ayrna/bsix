@@ -1,0 +1,64 @@
+# # # # #  smarto  # # # # # 
+
+
+# - - Description - - #
+
+Secondary Manifestations of ARterial Disease
+
+
+# - - Info - - #
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 1021 entries, 0 to 1020
+Data columns (total 28 columns):
+ #   Column        Non-Null Count  Dtype   
+---  ------        --------------  -----   
+ 0   event         1021 non-null   int64   
+ 1   time          1021 non-null   float64 
+ 2   fac_sex       1021 non-null   category
+ 3   fac_diabetes  1021 non-null   category
+ 4   fac_cerebral  1021 non-null   category
+ 5   fac_aaa       1021 non-null   category
+ 6   fac_periph    1021 non-null   category
+ 7   fac_stenosis  1021 non-null   category
+ 8   fac_albumin   1021 non-null   category
+ 9   fac_smoking   1021 non-null   category
+ 10  fac_alcohol   1021 non-null   category
+ 11  num_age       1021 non-null   int64   
+ 12  num_systbp    1021 non-null   float64 
+ 13  num_diastbp   1021 non-null   float64 
+ 14  num_systh     1021 non-null   float64 
+ 15  num_diasth    1021 non-null   float64 
+ 16  num_length    1021 non-null   float64 
+ 17  num_weight    1021 non-null   float64 
+ 18  num_bmi       1021 non-null   float64 
+ 19  num_chol      1021 non-null   float64 
+ 20  num_hdl       1021 non-null   float64 
+ 21  num_ldl       1021 non-null   float64 
+ 22  num_trig      1021 non-null   float64 
+ 23  num_homoc     1021 non-null   float64 
+ 24  num_glut      1021 non-null   float64 
+ 25  num_creat     1021 non-null   float64 
+ 26  num_imt       1021 non-null   float64 
+ 27  num_packyrs   1021 non-null   float64 
+dtypes: category(9), float64(17), int64(2)
+memory usage: 160.8 KB
+
+
+
+# - - Stats - - #
+
+             event         time      num_age   num_systbp  num_diastbp    num_systh   num_diasth   num_length   num_weight      num_bmi     num_chol      num_hdl      num_ldl     num_trig    num_homoc     num_glut    num_creat      num_imt  num_packyrs
+count  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000  1021.000000
+mean      0.112635  1446.300686    59.141038   139.024486    79.830558   140.948090    81.401567     1.741851    81.011753    26.662106     5.192752     1.244701     3.186445     1.692880    14.335357     6.416552   107.471107     0.957228    22.976885
+std       0.316301   643.210006    10.328795    19.093382     9.627355    22.690074    12.132979     0.089000    13.551277     3.810191     1.052600     0.370879     1.001498     0.712098     5.933178     2.104386   109.445771     0.328295    20.083913
+min       0.000000     1.000000    23.000000    97.000000    55.000000    88.000000    49.000000     1.420000    42.000000    16.050000     2.400000     0.550000     0.700000     0.390000     5.100000     3.100000    47.000000     0.360000     0.000000
+25%       0.000000   989.000000    52.000000   125.000000    73.000000   124.000000    73.000000     1.690000    72.000000    24.160000     4.400000     0.980000     2.480000     1.150000    10.600000     5.300000    78.000000     0.750000     6.100000
+50%       0.000000  1289.000000    59.000000   137.000000    79.000000   139.000000    81.000000     1.750000    81.000000    26.280000     5.100000     1.180000     3.100000     1.550000    13.000000     5.800000    90.000000     0.880000    20.800000
+75%       0.000000  2072.000000    67.000000   151.000000    86.000000   155.000000    89.000000     1.800000    89.000000    28.690000     5.800000     1.420000     3.790000     2.040000    16.400000     6.500000   101.000000     1.080000    35.000000
+max       1.000000  2554.000000    79.000000   211.000000   124.000000   244.000000   130.000000     2.050000   140.000000    43.270000    10.800000     3.310000     9.170000     3.980000    88.000000    18.700000  1099.000000     4.020000   104.000000
+
+
+# - - Reference - - #
+
+https://rdrr.io/cran/hdnom/man/smarto.html

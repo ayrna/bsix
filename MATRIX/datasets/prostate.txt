@@ -1,0 +1,53 @@
+# # # # #  prostate  # # # # # 
+
+
+# - - Description - - #
+
+Prostate Cancer
+
+
+# - - Info - - #
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 467 entries, 0 to 466
+Data columns (total 17 columns):
+ #   Column     Non-Null Count  Dtype   
+---  ------     --------------  -----   
+ 0   event      467 non-null    int64   
+ 1   time       467 non-null    int64   
+ 2   fac_stage  467 non-null    category
+ 3   fac_rx     467 non-null    category
+ 4   fac_pf     467 non-null    category
+ 5   fac_hx     467 non-null    category
+ 6   fac_ekg    467 non-null    category
+ 7   fac_bm     467 non-null    category
+ 8   num_age    467 non-null    float64 
+ 9   num_wt     467 non-null    float64 
+ 10  num_sbp    467 non-null    int64   
+ 11  num_dbp    467 non-null    int64   
+ 12  num_hg     467 non-null    float64 
+ 13  num_sz     467 non-null    float64 
+ 14  num_sg     467 non-null    float64 
+ 15  num_ap     467 non-null    float64 
+ 16  num_sdate  467 non-null    int64   
+dtypes: category(6), float64(6), int64(5)
+memory usage: 43.2 KB
+
+
+
+# - - Stats - - #
+
+            event        time     num_age      num_wt     num_sbp     num_dbp      num_hg      num_sz      num_sg      num_ap    num_sdate
+count  467.000000  467.000000  467.000000  467.000000  467.000000  467.000000  467.000000  467.000000  467.000000  467.000000   467.000000
+mean     0.702355   36.985011   71.458244   99.036403   14.379015    8.143469   13.464978   14.231263   10.252677   12.509481  3039.571734
+std      0.457713   22.598611    7.021111   13.471029    2.426567    1.471757    1.912863   11.893756    2.006526   64.151022   219.452520
+min      0.000000    1.000000   48.000000   69.000000    8.000000    4.000000    5.899414    0.000000    5.000000    0.099991  2652.000000
+25%      0.000000   17.000000   70.000000   90.000000   13.000000    7.000000   12.298828    5.000000    9.000000    0.500000  2865.000000
+50%      1.000000   35.000000   73.000000   98.000000   14.000000    8.000000   13.699219   10.000000   10.000000    0.699951  3021.000000
+75%      1.000000   57.000000   76.000000  107.000000   16.000000    9.000000   14.699219   20.500000   11.000000    3.000000  3204.000000
+max      1.000000   76.000000   89.000000  152.000000   30.000000   18.000000   18.199219   62.000000   15.000000  999.875000  3465.000000
+
+
+# - - Reference - - #
+
+https://hbiostat.org/data/repo/Cprostate.html
