@@ -81,4 +81,4 @@ class RandomSurvForest(BaseSurvival):
 
         shap_explainer = explainer_risk(X_background)
 
-        self._plot_xai(shap_explainer, estimator_name, dataset, seed)
+        self._plot_shap(shap_explainer, estimator_name, dataset, seed)

@@ -56,10 +56,10 @@ class BaseSurvival(BaseEstimator, ABC):
     """
 
     @abstractmethod
-    def calculate_shap(self, X, **kwargs):
+    def calculate_xai(self, X, **kwargs):
 
         """
-        Calculate SHAP values
+        Calculate XAI values
         """
 
         raise NotImplementedError
@@ -406,16 +406,74 @@ class BaseSurvival(BaseEstimator, ABC):
     
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
     
-    def _plot_xai(self, explainer, estimator_name, dataset, seed, progression=None):
+    def _plot_coefficients(self, coefficients, estimator_name, dataset, seed, progression=None):
 
         """
-        Plot XAI for the data.
+        Plot XAI coefficients for the data.
         """
 
         # Extract data
-        values = explainer.values
-        data = explainer.data
-        names = np.array(explainer.feature_names)
+        values = np.array(list(coefficients.values()), np.float32)
+        names = np.array(list(coefficients.keys()), str)
+        
+        # Sort features by importance
+        importance = np.abs(values)
+        sort_idx = np.argsort(importance)
+
+        names = names[sort_idx]
+        values = values[sort_idx]
+
+        # Configure style
+        fig, ax = plt.subplots(figsize=(10, 6))
+        cmap = plt.get_cmap('coolwarm')
+
+        # Normalise the color
+        max_abs = np.nanmax(np.abs(values)) + 1e-6
+        normalise = plt.Normalize(vmin=-max_abs, vmax=max_abs)
+
+        # Obtain color map
+        color = cmap(normalise(values))
+
+        ax.barh(names, values, color=color, edgecolor="#000000", alpha=0.8, zorder=3) # z-ordering for layers
+
+        # Draw vertical line (xaxis = 0)
+        ax.axvline(x=0, color="#000000", linewidth=0.75, zorder=2) # z-ordering for layers
+
+        # Title and axis labels
+        plt.title(f'XAI\n{estimator_name} - {dataset} - seed {seed}', fontsize=12)
+        plt.xlabel('Coefficients values', fontsize=10)
+        plt.ylabel('Features', fontsize=10)
+        
+        # Axis ticks
+        ax = plt.gca()
+        majorX, minorX = _tool_setXaiTicksAxisX(ax)
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(majorX))
+        ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
+
+        plt.xticks(rotation=45, ha='right')
+
+        # Grid
+        plt.grid(True, which='major', linestyle='-', alpha=0.7, zorder=0) # z-ordering for layers
+        plt.grid(True, which='minor', linestyle='--', alpha=0.7, linewidth=0.5, zorder=0) # z-ordering for layers
+
+        # Save figure
+        plt.tight_layout()
+        if progression is None:
+            plt.savefig(f'Plot_XAI_coefficients-{estimator_name}_{dataset}_s{seed}.png', bbox_inches='tight', dpi=300)
+        else:
+            plt.savefig(f'Plot_XAI_coefficients-{estimator_name}_{dataset}_s{seed}_p{progression}.png', bbox_inches='tight', dpi=300)
+        plt.close()
+    
+    def _plot_shap(self, shap_explainer, estimator_name, dataset, seed, progression=None):
+
+        """
+        Plot SHAP values for the data.
+        """
+
+        # Extract data
+        values = shap_explainer.values
+        data = shap_explainer.data
+        names = np.array(shap_explainer.feature_names, str)
 
         # Sort features by importance
         importance = np.abs(values).mean(axis=0)
@@ -431,13 +489,13 @@ class BaseSurvival(BaseEstimator, ABC):
             x_original = data[:, idx] 
             
             # Normalise the color
-            min_val, max_val = np.nanmin(x_original), np.nanmax(x_original)
-            color_normalised = (x_original - min_val) / (max_val - min_val + 1e-6)
+            min_val = np.nanmin(x_original)
+            max_val = np.nanmax(x_original) + 1e-6
             
             # Jitter
             y = y_pos + np.random.normal(0, 0.075, size=len(x))
             
-            ax.scatter(x, y, s=10, c=color_normalised, cmap=cmap, vmin=0, vmax=1, zorder=3) # z-ordering for layers
+            ax.scatter(x, y, s=10, c=x_original, cmap=cmap, vmin=min_val, vmax=max_val, alpha=0.8, edgecolors='none', zorder=3) # z-ordering for layers
 
         # Add the color bar (legend)
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=1))
@@ -451,7 +509,7 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Title and axis labels
         plt.title(f'XAI\n{estimator_name} - {dataset} - seed {seed}', fontsize=12)
-        plt.xlabel('XAI values', fontsize=10)
+        plt.xlabel('Shap values', fontsize=10)
         plt.ylabel('Features', fontsize=10)
 
         # Axis ticks
@@ -470,9 +528,9 @@ class BaseSurvival(BaseEstimator, ABC):
         # Save figure
         plt.tight_layout()
         if progression is None:
-            plt.savefig(f'Plot_XAI-{estimator_name}_{dataset}_s{seed}.png', bbox_inches='tight', dpi=300)
+            plt.savefig(f'Plot_XAI_values-{estimator_name}_{dataset}_s{seed}.png', bbox_inches='tight', dpi=300)
         else:
-            plt.savefig(f'Plot_XAI-{estimator_name}_{dataset}_s{seed}_p{progression}.png', bbox_inches='tight', dpi=300)
+            plt.savefig(f'Plot_XAI_values-{estimator_name}_{dataset}_s{seed}_p{progression}.png', bbox_inches='tight', dpi=300)
         plt.close()
 
     def _plot_survival_hazard_functions(self, X, estimator_name, dataset, seed, function_type, progression=None):

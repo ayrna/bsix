@@ -130,4 +130,9 @@ class CoxRegressionWithSignificance(BaseSurvival):
 
         shap_explainer = explainer_risk(X_background)
 
-        self._plot_xai(shap_explainer, estimator_name, dataset, seed)
+        self._plot_shap(shap_explainer, estimator_name, dataset, seed)
+
+        coefficients = {feature_names[i]: round(coef, 8) for i, coef in enumerate(self.coef_)}
+        coefficients = {k: v for k, v in sorted(coefficients.items(), key=lambda item: abs(item[1]), reverse=True)}
+
+        self._plot_coefficients(coefficients, estimator_name, dataset, seed)
