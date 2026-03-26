@@ -92,11 +92,11 @@ class CoxRegression(BaseSurvival):
         if background:
             X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
 
-        shap_explainer = explainer_risk(X_background)
+        self.shap_explainer = explainer_risk(X_background)
 
-        self._plot_shap(shap_explainer, estimator_name, dataset, seed)
+        BaseSurvival.plot_shap(self.shap_explainer, estimator_name, dataset, seed)
 
         coefficients = {feature_names[i]: round(coef, 8) for i, coef in enumerate(self.coef_)}
-        coefficients = {k: v for k, v in sorted(coefficients.items(), key=lambda item: abs(item[1]), reverse=True)}
+        self.coefficients = {k: v for k, v in sorted(coefficients.items(), key=lambda item: abs(item[1]), reverse=True)}
 
-        self._plot_coefficients(coefficients, estimator_name, dataset, seed)
+        BaseSurvival.plot_coefficients(self.coefficients, estimator_name, dataset, seed)

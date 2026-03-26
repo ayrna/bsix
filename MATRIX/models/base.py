@@ -10,7 +10,7 @@ from scipy.stats import entropy
 from sklearn.base import BaseEstimator
 
 def _tool_setTimeTicksAxisX(ax):
-    max_days = ax.get_xlim()[1] # (min, max)
+    max_days = max(abs(ax.get_xlim()[0]), abs(ax.get_xlim()[1])) # (min, max)
 
     if max_days > 3650: # More than 10 years
         major, minor = 1825, 365 # 5 years - 1 year
@@ -21,18 +21,20 @@ def _tool_setTimeTicksAxisX(ax):
 
     return major, minor
 
-def _tool_setXaiTicksAxisX(ax):
-    max_shap = ax.get_xlim()[1] # (min, max)
+def _tool_setShapTicksAxisX(ax):
+    max_shap = max(abs(ax.get_xlim()[0]), abs(ax.get_xlim()[1])) # (min, max)
 
-    if max_shap > 1: # More than 1 (shap)
+    if max_shap > 10: # More than 10 (shap)
+        major, minor = 1, 0.25 # 1 - 0.25 (shap)
+    elif max_shap > 1: # More than 1 (shap)
         major, minor = 0.5, 0.1 # 0.5 - 0.1 (shap)
-    else: # Less than 5 (shap)
+    else: # Less than 1 (shap)
         major, minor = 0.1, 0.05 # 0.1 - 0.05 (shap)
 
     return major, minor
 
 def _tool_setRiskTicksAxisY(ax):
-    max_risk = ax.get_ylim()[1] # (min, max)
+    max_risk = max(abs(ax.get_ylim()[0]), abs(ax.get_ylim()[1])) # (min, max)
 
     if max_risk > 5: # More than 5 (risk)
         major, minor = 1, 0.25 # 1 - 0.5 (risk)
@@ -406,7 +408,8 @@ class BaseSurvival(BaseEstimator, ABC):
     
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
     
-    def _plot_coefficients(self, coefficients, estimator_name, dataset, seed, progression=None):
+    @staticmethod
+    def plot_coefficients(coefficients, estimator_name, dataset, seed=None, progression=None):
 
         """
         Plot XAI coefficients for the data.
@@ -440,7 +443,13 @@ class BaseSurvival(BaseEstimator, ABC):
         ax.axvline(x=0, color="#000000", linewidth=0.75, zorder=2) # z-ordering for layers
 
         # Title and axis labels
-        plt.title(f'XAI\n{estimator_name} - {dataset} - seed {seed}', fontsize=12)
+        title_parts = [f'{estimator_name} - {dataset}']
+        if seed is not None:
+            title_parts.append(f'seed {seed}')
+        if progression is not None:
+            title_parts.append(f'progression {progression}')
+        
+        plt.title(f'XAI\n{" - ".join(title_parts)}', fontsize=12)
         plt.xlabel('Coefficients values', fontsize=10)
         plt.ylabel('Features', fontsize=10)
         
@@ -456,15 +465,21 @@ class BaseSurvival(BaseEstimator, ABC):
         plt.grid(True, which='major', linestyle='-', alpha=0.7, zorder=0) # z-ordering for layers
         plt.grid(True, which='minor', linestyle='--', alpha=0.7, linewidth=0.5, zorder=0) # z-ordering for layers
 
+        # Build filename dynamically
+        filename_parts = [f'Plot_XAI_coefficients-{estimator_name}_{dataset}']
+        if seed is not None:
+            filename_parts.append(f's{seed}')
+        if progression is not None:
+            filename_parts.append(f'p{progression}')
+        filename = f'{"_".join(filename_parts)}.png'
+        
         # Save figure
         plt.tight_layout()
-        if progression is None:
-            plt.savefig(f'Plot_XAI_coefficients-{estimator_name}_{dataset}_s{seed}.png', bbox_inches='tight', dpi=300)
-        else:
-            plt.savefig(f'Plot_XAI_coefficients-{estimator_name}_{dataset}_s{seed}_p{progression}.png', bbox_inches='tight', dpi=300)
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
     
-    def _plot_shap(self, shap_explainer, estimator_name, dataset, seed, progression=None):
+    @staticmethod
+    def plot_shap(shap_explainer, estimator_name, dataset, seed=None, progression=None):
 
         """
         Plot SHAP values for the data.
@@ -508,7 +523,13 @@ class BaseSurvival(BaseEstimator, ABC):
         ax.axvline(x=0, color="#000000", linewidth=0.75, zorder=2) # z-ordering for layers
 
         # Title and axis labels
-        plt.title(f'XAI\n{estimator_name} - {dataset} - seed {seed}', fontsize=12)
+        title_parts = [f'{estimator_name} - {dataset}']
+        if seed is not None:
+            title_parts.append(f'seed {seed}')
+        if progression is not None:
+            title_parts.append(f'progression {progression}')
+        
+        plt.title(f'XAI\n{" - ".join(title_parts)}', fontsize=12)
         plt.xlabel('Shap values', fontsize=10)
         plt.ylabel('Features', fontsize=10)
 
@@ -525,15 +546,21 @@ class BaseSurvival(BaseEstimator, ABC):
         plt.grid(True, which='major', linestyle='-', alpha=0.7, zorder=0) # z-ordering for layers
         plt.grid(True, which='minor', linestyle='--', alpha=0.7, linewidth=0.5, zorder=0) # z-ordering for layers
 
+        # Build filename dynamically
+        filename_parts = [f'Plot_XAI_values-{estimator_name}_{dataset}']
+        if seed is not None:
+            filename_parts.append(f's{seed}')
+        if progression is not None:
+            filename_parts.append(f'p{progression}')
+        filename = f'{"_".join(filename_parts)}.png'
+        
         # Save figure
         plt.tight_layout()
-        if progression is None:
-            plt.savefig(f'Plot_XAI_values-{estimator_name}_{dataset}_s{seed}.png', bbox_inches='tight', dpi=300)
-        else:
-            plt.savefig(f'Plot_XAI_values-{estimator_name}_{dataset}_s{seed}_p{progression}.png', bbox_inches='tight', dpi=300)
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
 
-    def _plot_survival_hazard_functions(self, X, estimator_name, dataset, seed, function_type, progression=None):
+    @staticmethod
+    def _plot_survival_hazard_functions(X, estimator_name, dataset, seed, function_type, progression=None):
 
         """
         Plot survival and cumulative hazard functions for the data.
@@ -548,12 +575,15 @@ class BaseSurvival(BaseEstimator, ABC):
             probabilities = step_function(times)
             
             plt.step(times, probabilities, where='post', alpha=0.6)
-            
+        
         # Title and axis labels
-        if progression == None:
-            plt.title(f'{function_type}\n{estimator_name} - {dataset} - seed {seed}', fontsize=12)
-        else:
-            plt.title(f'{function_type}\n{estimator_name} - {dataset} - seed {seed} - progression {progression}', fontsize=15)
+        title_parts = [f'{estimator_name} - {dataset}']
+        if seed is not None:
+            title_parts.append(f'seed {seed}')
+        if progression is not None:
+            title_parts.append(f'progression {progression}')
+        
+        plt.title(f'{function_type}\n{" - ".join(title_parts)}', fontsize=12)
         plt.xlabel('Time (days)', fontsize=10)
         plt.ylabel(f'{function_type} probability', fontsize=10)
         
@@ -593,12 +623,17 @@ class BaseSurvival(BaseEstimator, ABC):
         plt.grid(True, which='major', linestyle='-', alpha=0.7)
         plt.grid(True, which='minor', linestyle='--', alpha=0.7, linewidth=0.5)
         
+        # Build filename dynamically
+        filename_parts = [f'Plot_{function_type}-{estimator_name}_{dataset}']
+        if seed is not None:
+            filename_parts.append(f's{seed}')
+        if progression is not None:
+            filename_parts.append(f'p{progression}')
+        filename = f'{"_".join(filename_parts)}.png'
+        
         # Save figure
         plt.tight_layout()
-        if progression == None:
-            plt.savefig(f'Plot_{function_type}-{estimator_name}_{dataset}_s{seed}.png', dpi=300, bbox_inches='tight')
-        else:
-            plt.savefig(f'Plot_{function_type}-{estimator_name}_{dataset}_s{seed}_p{progression}.png', dpi=300, bbox_inches='tight')
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
 
     def _sort(self, X, y):

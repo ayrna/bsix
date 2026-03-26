@@ -79,6 +79,6 @@ class RandomSurvForest(BaseSurvival):
         if background:
             X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
 
-        shap_explainer = explainer_risk(X_background)
+        self.shap_explainer = explainer_risk(X_background)
 
-        self._plot_shap(shap_explainer, estimator_name, dataset, seed)
+        BaseSurvival.plot_shap(self.shap_explainer, estimator_name, dataset, seed)
