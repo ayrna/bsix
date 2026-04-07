@@ -12,11 +12,11 @@ class DeepSurvFFNN(nn.Module):
         self.layers = nn.ModuleList()
         
         # Activation function
-        if activation == 'relu':
+        if activation == "relu":
             activation_fn = nn.ReLU
-        elif activation == 'selu':
+        elif activation == "selu":
             activation_fn = nn.SELU
-        elif activation == 'tanh':
+        elif activation == "tanh":
             activation_fn = nn.Tanh
         else:
             raise ValueError(f"Unknown activation function: {activation}")
@@ -60,11 +60,11 @@ class DeepMultiTaskFFNN(nn.Module):
         self.layers = nn.ModuleList()
         
         # Activation function
-        if activation == 'relu':
+        if activation == "relu":
             activation_fn = nn.ReLU
-        elif activation == 'selu':
+        elif activation == "selu":
             activation_fn = nn.SELU
-        elif activation == 'tanh':
+        elif activation == "tanh":
             activation_fn = nn.Tanh
         else:
             raise ValueError(f"Unknown activation function: {activation}")

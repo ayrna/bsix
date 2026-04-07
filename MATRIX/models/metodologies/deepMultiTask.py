@@ -31,7 +31,7 @@ class DeepMultiTask(BaseSurvival):
         
         # Set device
         if device is None:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = device
         
@@ -281,7 +281,7 @@ class DeepMultiTask(BaseSurvival):
         self.breslow = [BreslowEstimator() for _ in range(self.number_progressions)]
 
         if self.logger is None:
-            logger = DeepMultiTaskLogger('DeepMultiTask')
+            logger = DeepMultiTaskLogger("DeepMultiTask")
         
         # Build network
         self.network = DeepMultiTaskFFNN(
@@ -315,13 +315,13 @@ class DeepMultiTask(BaseSurvival):
         t_train = np.array(t_train, np.float32).T
         
         if self.valid_data:
-            X_val = np.array(self.valid_data['x'], np.float32)
+            X_val = np.array(self.valid_data["x"], np.float32)
             e_val = []
             t_val = []
             
             for p in range(self.number_progressions):
-                e_val.append(np.array(self.valid_data['e'][:, p], np.bool_))
-                t_val.append(np.array(self.valid_data['t'][:, p], np.float32))
+                e_val.append(np.array(self.valid_data["e"][:, p], np.bool_))
+                t_val.append(np.array(self.valid_data["t"][:, p], np.float32))
             e_val = np.array(e_val, np.bool_).T
             t_val = np.array(t_val, np.float32).T
         
@@ -363,9 +363,9 @@ class DeepMultiTask(BaseSurvival):
             # Learning rate decay
             lr = self.learn_rate / (1 + epoch * self.lr_decay)
             for param_group in self.optimizer.param_groups:
-                param_group['lr'] = lr
+                param_group["lr"] = lr
             
-            logger.logValue('lr', lr, epoch)
+            logger.logValue("lr", lr, epoch)
             
             # Training step
             self.network.train()
@@ -376,11 +376,11 @@ class DeepMultiTask(BaseSurvival):
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
             self.optimizer.step()
             
-            logger.logValue('loss', loss.item(), epoch)
+            logger.logValue("loss", loss.item(), epoch)
             
             # Calculate training C-index
             ci_train = self._get_concordance_index(X_train, t_train, e_train)
-            logger.logValue('c-index', ci_train, epoch)
+            logger.logValue("c-index", ci_train, epoch)
             
             # Validation
             patience = self.patience
@@ -388,10 +388,10 @@ class DeepMultiTask(BaseSurvival):
                 self.network.eval()
                 with torch.no_grad():
                     validation_loss = self._get_loss(x_val_tensor, e_val_tensor, t_val_tensor, self.val_kaplan_risk)
-                    logger.logValue('valid_loss', validation_loss.item(), epoch)
+                    logger.logValue("valid_loss", validation_loss.item(), epoch)
                 
                 ci_valid = self._get_concordance_index(X_val, t_val, e_val)
-                logger.logValue('valid_c-index', ci_valid, epoch)
+                logger.logValue("valid_c-index", ci_valid, epoch)
                 
                 if validation_loss.item() < best_validation_loss:
                     if validation_loss.item() < best_validation_loss * self.improvement_threshold:
@@ -399,8 +399,8 @@ class DeepMultiTask(BaseSurvival):
                     
                     # Save best parameters
                     best_params = {
-                        'model_state_dict': self.network.state_dict(),
-                        'optimizer_state_dict': self.optimizer.state_dict()
+                        "model_state_dict": self.network.state_dict(),
+                        "optimizer_state_dict": self.optimizer.state_dict()
                     }
                     best_params_idx = epoch
                     best_validation_loss = validation_loss.item()
@@ -416,7 +416,7 @@ class DeepMultiTask(BaseSurvival):
                 break
         
         if self.verbose:
-            logger.logMessage(f'Finished Training with {epoch + 1} iterations in {time.time() - start:.2f}s')
+            logger.logMessage(f"Finished Training with {epoch + 1} iterations in {time.time() - start:.2f}s")
         
         # Compute baseline hazards with training data
         for p in range(self.number_progressions):
@@ -424,9 +424,9 @@ class DeepMultiTask(BaseSurvival):
 
         logger.shutdown()
         
-        logger.history['best_val_loss'] = best_validation_loss
-        logger.history['best_params'] = best_params
-        logger.history['best_params_idx'] = best_params_idx
+        logger.history["best_val_loss"] = best_validation_loss
+        logger.history["best_params"] = best_params
+        logger.history["best_params_idx"] = best_params_idx
         
         return logger.history
     
@@ -452,7 +452,7 @@ class DeepMultiTask(BaseSurvival):
         Calculate score for crossvalidation.
         """
 
-        # Reshape y if it's 1 progression
+        # Reshape y if it"s 1 progression
         y = y[:, np.newaxis] if y.ndim == 1 else y
 
         risk, binary_proba = self.predict(x)
@@ -519,7 +519,7 @@ class DeepMultiTask(BaseSurvival):
         Calculate XAI values.
         """
 
-        logging.getLogger('xai').setLevel(logging.WARNING)
+        logging.getLogger("xai").setLevel(logging.WARNING)
 
         for p in range(self.number_progressions):
             def predict_risk_progressions(X, progressions=p):

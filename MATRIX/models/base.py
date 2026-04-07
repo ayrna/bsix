@@ -15,21 +15,21 @@ def _tool_setTimeTicksAxisX(ax):
     if max_days > 3650: # More than 10 years
         major, minor = 1825, 365 # 5 years - 1 year
     elif max_days > 365: # Between 1 year and 10 years
-        major, minor = 365, 30 # 1 year - 1 month
+        major, minor = 365, 73 # 1 year - 5 splits per year
     else: # Less than 1 year
-        major, minor = 30, 7 # 1 month - 1 week
+        major, minor = 30, 6 # 1 month - 5 splits per month
 
     return major, minor
 
 def _tool_setXaiTicksAxisX(ax):
     max_shap = max(abs(ax.get_xlim()[0]), abs(ax.get_xlim()[1])) # (min, max)
 
-    if max_shap > 10: # More than 10 (shap)
-        major, minor = 1, 0.25 # 1 - 0.25 (shap)
-    elif max_shap > 1: # More than 1 (shap)
-        major, minor = 0.5, 0.1 # 0.5 - 0.1 (shap)
-    else: # Less than 1 (shap)
-        major, minor = 0.1, 0.05 # 0.1 - 0.05 (shap)
+    if max_shap > 10: # More than 10 (xai)
+        major, minor = 1, 0.25 # 1 - 0.25 (xai)
+    elif max_shap > 1: # More than 1 (xai)
+        major, minor = 0.5, 0.1 # 0.5 - 0.1 (xai)
+    else: # Less than 1 (xai)
+        major, minor = 0.1, 0.05 # 0.1 - 0.05 (xai)
 
     return major, minor
 
@@ -120,8 +120,8 @@ class BaseSurvival(BaseEstimator, ABC):
         # Define the search range
         # n_iter = 100 is the ideal number of iterations (tested)
         n_iter = 5 # Iterations in search (random search)
-        min_time = np.quantile(y['time'], 0.05) #y['time'].min()
-        max_time = np.quantile(y['time'], 0.95) #y['time'].max()
+        min_time = np.quantile(y["time"], 0.05) #y["time"].min()
+        max_time = np.quantile(y["time"], 0.95) #y["time"].max()
         possible_splits = np.arange(min_time, max_time, int((max_time - min_time) / 15)).tolist() # 15 splits
         
         # Search (random search)
@@ -135,18 +135,18 @@ class BaseSurvival(BaseEstimator, ABC):
                 # Instantiate the Piecewise Exponential model with breakpoints
                 pf = PiecewiseExponentialFitter(breakpoints=list(split))
                 # Fit
-                pf.fit(y['time'], y['event'])
+                pf.fit(y["time"], y["event"])
                 
                 # Calculate the size of each split (only events)
                 splits = [0] + list(split) + [np.inf]
-                lengths = pd.cut(y['time'][y['event'] == 1], bins=splits).value_counts()
+                lengths = pd.cut(y["time"][y["event"] == 1], bins=splits).value_counts()
 
                 # Save the results
                 results.append({
-                    'n_splits': n_splits,
-                    'split': split,
-                    'aic': pf.AIC_,
-                    'entropy': (1.0 - (entropy(lengths) / np.log(n_splits + 1))),
+                    "n_splits": n_splits,
+                    "split": split,
+                    "aic": pf.AIC_,
+                    "entropy": (1.0 - (entropy(lengths) / np.log(n_splits + 1))),
                 })
 
         # Convert to dataframe
@@ -154,27 +154,27 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Apply Min-Max to normalize
         # AIC
-        min_aic = df_results['aic'].min()
-        max_aic = df_results['aic'].max()
-        df_results['aic_norm'] = (df_results['aic'] - min_aic) / (max_aic - min_aic)
+        min_aic = df_results["aic"].min()
+        max_aic = df_results["aic"].max()
+        df_results["aic_norm"] = (df_results["aic"] - min_aic) / (max_aic - min_aic)
 
         # Entropy
-        min_entropy = df_results['entropy'].min()
-        max_entropy = df_results['entropy'].max()
-        df_results['entropy_norm'] = (df_results['entropy'] - min_entropy) / (max_entropy - min_entropy)
+        min_entropy = df_results["entropy"].min()
+        max_entropy = df_results["entropy"].max()
+        df_results["entropy_norm"] = (df_results["entropy"] - min_entropy) / (max_entropy - min_entropy)
 
         # Calculate the score (weighted)
         alpha = 0.5
-        df_results['score'] = (alpha * df_results['aic_norm']) + ((1 - alpha) * df_results['entropy_norm'])
+        df_results["score"] = (alpha * df_results["aic_norm"]) + ((1 - alpha) * df_results["entropy_norm"])
 
         # Save the best split
-        best_splits = df_results['split'].loc[df_results['score'].idxmin()]
+        best_splits = df_results["split"].loc[df_results["score"].idxmin()]
 
         # Kaplan Meier #
         # Instantiate the Kapaln Meier estimator
         kmf = KaplanMeierFitter()
         # Fit
-        kmf.fit(durations=y['time'], event_observed=y['event'])
+        kmf.fit(durations=y["time"], event_observed=y["event"])
 
         # Plot #
         # Configure style
@@ -182,18 +182,18 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Personalise curve
         ax = kmf.plot(
-            color='#C1502E',
-            label=f'KM estimate'
+            color="#C1502E",
+            label=f"KM estimate"
         )
 
         # Splits
         for split in best_splits:
-            plt.axvline(x=split, color='#2EC192', linestyle='-.', alpha=0.5)
+            plt.axvline(x=split, color="#2EC192", linestyle="-.", alpha=0.5)
 
         # Title and axis labels
-        ax.set_title(f'Discretised Kaplan-Meier\n{dataset} - seed {seed}', fontsize=12)
-        ax.set_xlabel('Time (days)', fontsize=10)
-        ax.set_ylabel('Survival Probability', fontsize=10)
+        ax.set_title(f"Discretised Kaplan-Meier\n{dataset} - seed {seed}", fontsize=12)
+        ax.set_xlabel("Time (days)", fontsize=10)
+        ax.set_ylabel("Survival Probability", fontsize=10)
 
         # Axis ticks
         majorX, minorX = _tool_setTimeTicksAxisX(ax)
@@ -203,28 +203,28 @@ class BaseSurvival(BaseEstimator, ABC):
         ax.yaxis.set_major_locator(ticker.MultipleLocator(0.5))
         ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
 
-        plt.xticks(rotation=45, ha='right')
+        plt.xticks(rotation=45, ha="right")
 
         # Axis limits
         ax.set_xlim(left=0)
         ax.set_ylim(bottom=0, top=1.05)
 
-        ax.spines['left'].set_position(('outward', 5))
-        ax.spines['bottom'].set_position(('outward', 5))
+        ax.spines["left"].set_position(("outward", 5))
+        ax.spines["bottom"].set_position(("outward", 5))
 
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
 
         # Grid
-        plt.grid(True, which='major', linestyle='-', alpha=0.7)
-        plt.grid(True, which='minor', linestyle='--', alpha=0.7, linewidth=0.5)
+        plt.grid(True, which="major", linestyle="-", alpha=0.7)
+        plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5)
 
         # Legend
-        plt.legend(frameon=True, facecolor='white', edgecolor='0.8')
+        plt.legend(frameon=True, facecolor="white", edgecolor="0.8")
 
         # Save figure
         plt.tight_layout()
-        plt.savefig(f'Plot_DiscretisedKM-{dataset}_s{seed}.png', bbox_inches='tight', dpi=300)
+        plt.savefig(f"Plot_DiscretisedKM-{dataset}_s{seed}.png", bbox_inches="tight", dpi=300)
         plt.close()
 
         splits = [0] + best_splits + [np.inf]
@@ -280,7 +280,7 @@ class BaseSurvival(BaseEstimator, ABC):
             
         # Generate covariates (normal distribution [nature])
         X = np.random.normal(0, 1, size=(number_rows, number_columns))
-        names_columns = [f'feature_{i}' for i in range(number_columns)]
+        names_columns = [f"feature_{i}" for i in range(number_columns)]
         
         # Generate coeffs (uniform distribution [same probability])
         coeffs = np.random.uniform(-1, 1, size=number_columns)
@@ -290,11 +290,11 @@ class BaseSurvival(BaseEstimator, ABC):
         # Lineal: H(x) = beta * x
         log_risk = np.dot(X, coeffs)
 
-        if relation == 'cuadratic':
+        if relation == "cuadratic":
             # Cuadratic: H(x) = beta * x^2
             log_risk = np.dot(X**2, coeffs)
             
-        elif relation == 'sin':
+        elif relation == "sin":
             # Sin: H(x) = beta * sin(x * pi)
             log_risk = np.dot(np.sin(X * np.pi), coeffs)
         
@@ -322,8 +322,8 @@ class BaseSurvival(BaseEstimator, ABC):
         
         # Dataframe
         dataframe = pd.DataFrame(X, columns=names_columns)
-        dataframe['event'] = event
-        dataframe['time'] = np.round(time_observed, 2)
+        dataframe["event"] = event
+        dataframe["time"] = np.round(time_observed, 2)
         
         return dataframe
     
@@ -349,28 +349,28 @@ class BaseSurvival(BaseEstimator, ABC):
         # Sort dataframe by identifier
         dataframe_transformed = dataframe.sort_values(by=[identifier]).copy()
         # Rename columns
-        dataframe_transformed = dataframe_transformed.rename(columns={identifier: 'identifier', event: 'event', time: 'time'})
+        dataframe_transformed = dataframe_transformed.rename(columns={identifier: "identifier", event: "event", time: "time"})
 
         # Aply discretisation
-        dataframe_transformed['time_frame'] = pd.cut(dataframe_transformed['time'], bins=splits, labels=False)
+        dataframe_transformed["time_frame"] = pd.cut(dataframe_transformed["time"], bins=splits, labels=False)
 
         # Repeat each row N times according to the time_frame column (time discretised)
-        dataframe_transformed = dataframe_transformed.loc[dataframe_transformed.index.repeat(dataframe_transformed['time_frame'] + 1)]
+        dataframe_transformed = dataframe_transformed.loc[dataframe_transformed.index.repeat(dataframe_transformed["time_frame"] + 1)]
         # Accumulate form 0 to time_discretised value
-        dataframe_transformed['time_frame'] = dataframe_transformed.groupby('identifier').cumcount()
+        dataframe_transformed["time_frame"] = dataframe_transformed.groupby("identifier").cumcount()
 
         # Reset index (repeat step)
         dataframe_transformed = dataframe_transformed.reset_index(drop=True)
 
         # Last index of the row for each patient
-        last_row_index = dataframe_transformed.groupby('identifier').tail(1).index
+        last_row_index = dataframe_transformed.groupby("identifier").tail(1).index
         # Indicate whether (or not) the event occurred in the last row for each patient
-        dataframe_transformed.loc[~dataframe_transformed.index.isin(last_row_index), 'event'] = 0.0
+        dataframe_transformed.loc[~dataframe_transformed.index.isin(last_row_index), "event"] = 0.0
 
         # Calculate the split associated with the time_frame value
-        dataframe_transformed['days_risk'] = dataframe_transformed['time_frame'].map(dict(enumerate(splits)))
+        dataframe_transformed["days_risk"] = dataframe_transformed["time_frame"].map(dict(enumerate(splits)))
         # Indicate the real value of time  in the last row for each patient
-        dataframe_transformed.loc[last_row_index, 'days_risk'] = dataframe_transformed.loc[last_row_index, 'time']
+        dataframe_transformed.loc[last_row_index, "days_risk"] = dataframe_transformed.loc[last_row_index, "time"]
         
         return dataframe_transformed
     
@@ -384,22 +384,22 @@ class BaseSurvival(BaseEstimator, ABC):
         # Sort dataframe by identifier and date
         dataframe_transformed = dataframe.sort_values(by=[identifier, time]).copy()
         # Rename columns
-        dataframe_transformed = dataframe_transformed.rename(columns={identifier: 'identifier', event:'event', time: 'time_stop'})
+        dataframe_transformed = dataframe_transformed.rename(columns={identifier: "identifier", event:"event", time: "time_stop"})
 
         # Move the new time_start column (time) down by inserting 0.0 as the first value
-        dataframe_transformed['time_start'] = dataframe_transformed.groupby('identifier')['time_stop'].shift(1).fillna(0)
+        dataframe_transformed["time_start"] = dataframe_transformed.groupby("identifier")["time_stop"].shift(1).fillna(0)
         dataframe_transformed = dataframe_transformed.astype({"time_start": float, "time_stop": float})
 
         # Move the event column down by inserting 0.0 as the first value (do not remove the row with the event)
-        shift_event = dataframe_transformed.groupby('identifier')['event'].shift(1).fillna(0)
+        shift_event = dataframe_transformed.groupby("identifier")["event"].shift(1).fillna(0)
         # Pass the event down the chain
-        forward_fill_event = shift_event.groupby(dataframe_transformed['identifier']).cummax()
+        forward_fill_event = shift_event.groupby(dataframe_transformed["identifier"]).cummax()
         # Remove events with a value of 1.0
         dataframe_transformed = dataframe_transformed[forward_fill_event == 0]
         
         # Reorder dataframe
-        cols = [col for col in dataframe_transformed.columns if col not in ['identifier', 'time_start', 'time_stop', 'event']]
-        dataframe_transformed = dataframe_transformed[['identifier'] + cols + ['event', 'time_start', 'time_stop']]
+        cols = [col for col in dataframe_transformed.columns if col not in ["identifier", "time_start", "time_stop", "event"]]
+        dataframe_transformed = dataframe_transformed[["identifier"] + cols + ["event", "time_start", "time_stop"]]
 
         # Rest index
         dataframe_transformed = dataframe_transformed.reset_index(drop=True)
@@ -428,7 +428,7 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Configure style
         fig, ax = plt.subplots(figsize=(10, 6))
-        cmap = plt.get_cmap('coolwarm')
+        cmap = plt.get_cmap("coolwarm")
 
         # Normalise the color
         max_abs = np.nanmax(np.abs(values)) + 1e-6
@@ -443,15 +443,15 @@ class BaseSurvival(BaseEstimator, ABC):
         ax.axvline(x=0, color="#000000", linewidth=0.75, zorder=2) # z-ordering for layers
 
         # Title and axis labels
-        title_parts = [f'{estimator_name} - {dataset}']
+        title_parts = [f"{estimator_name} - {dataset}"]
         if seed is not None:
-            title_parts.append(f'seed {seed}')
+            title_parts.append(f"seed {seed}")
         if progression is not None:
-            title_parts.append(f'progression {progression}')
+            title_parts.append(f"progression {progression}")
         
-        plt.title(f'XAI\n{" - ".join(title_parts)}', fontsize=12)
-        plt.xlabel('Coefficients values', fontsize=10)
-        plt.ylabel('Features', fontsize=10)
+        plt.title(f"XAI\n{" - ".join(title_parts)}", fontsize=12)
+        plt.xlabel("Coefficients values", fontsize=10)
+        plt.ylabel("Features", fontsize=10)
         
         # Axis ticks
         ax = plt.gca()
@@ -459,23 +459,23 @@ class BaseSurvival(BaseEstimator, ABC):
         ax.xaxis.set_major_locator(ticker.MultipleLocator(majorX))
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
 
-        plt.xticks(rotation=45, ha='right')
+        plt.xticks(rotation=45, ha="right")
 
         # Grid
-        plt.grid(True, which='major', linestyle='-', alpha=0.7, zorder=0) # z-ordering for layers
-        plt.grid(True, which='minor', linestyle='--', alpha=0.7, linewidth=0.5, zorder=0) # z-ordering for layers
+        plt.grid(True, which="major", linestyle="-", alpha=0.7, zorder=0) # z-ordering for layers
+        plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5, zorder=0) # z-ordering for layers
 
         # Build filename dynamically
-        filename_parts = [f'Plot_XAI_coefficients-{estimator_name}_{dataset}']
+        filename_parts = [f"Plot_XAI_coefficients-{estimator_name}_{dataset}"]
         if seed is not None:
-            filename_parts.append(f's{seed}')
+            filename_parts.append(f"s{seed}")
         if progression is not None:
-            filename_parts.append(f'p{progression}')
-        filename = f'{"_".join(filename_parts)}.png'
+            filename_parts.append(f"p{progression}")
+        filename = f"{"_".join(filename_parts)}.png"
         
         # Save figure
         plt.tight_layout()
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.savefig(filename, dpi=300, bbox_inches="tight")
         plt.close()
     
     @staticmethod
@@ -496,7 +496,7 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Configure style
         fig, ax = plt.subplots(figsize=(10, 6))
-        cmap = plt.get_cmap('coolwarm')
+        cmap = plt.get_cmap("coolwarm")
 
         # Plot points
         for y_pos, idx in enumerate(sort_idx, start=1):
@@ -510,28 +510,28 @@ class BaseSurvival(BaseEstimator, ABC):
             # Jitter
             y = y_pos + np.random.normal(0, 0.075, size=len(x))
             
-            ax.scatter(x, y, s=10, c=x_original, cmap=cmap, vmin=min_val, vmax=max_val, alpha=0.8, edgecolors='none', zorder=3) # z-ordering for layers
+            ax.scatter(x, y, s=10, c=x_original, cmap=cmap, vmin=min_val, vmax=max_val, alpha=0.8, edgecolors="none", zorder=3) # z-ordering for layers
 
         # Add the color bar (legend)
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=1))
         color_bar = fig.colorbar(sm, ax=ax)
-        color_bar.set_label('Feature value', labelpad=-15, fontsize=10)
+        color_bar.set_label("Feature value", labelpad=-15, fontsize=10)
         color_bar.set_ticks([0, 1])
-        color_bar.set_ticklabels(['Low', 'High'])
+        color_bar.set_ticklabels(["Low", "High"])
 
         # Draw vertical line (xaxis = 0)
         ax.axvline(x=0, color="#000000", linewidth=0.75, zorder=2) # z-ordering for layers
 
         # Title and axis labels
-        title_parts = [f'{estimator_name} - {dataset}']
+        title_parts = [f"{estimator_name} - {dataset}"]
         if seed is not None:
-            title_parts.append(f'seed {seed}')
+            title_parts.append(f"seed {seed}")
         if progression is not None:
-            title_parts.append(f'progression {progression}')
+            title_parts.append(f"progression {progression}")
         
-        plt.title(f'XAI\n{" - ".join(title_parts)}', fontsize=12)
-        plt.xlabel('Shap values', fontsize=10)
-        plt.ylabel('Features', fontsize=10)
+        plt.title(f"XAI\n{" - ".join(title_parts)}", fontsize=12)
+        plt.xlabel("Shap values", fontsize=10)
+        plt.ylabel("Features", fontsize=10)
 
         # Axis ticks
         ax = plt.gca()
@@ -539,24 +539,24 @@ class BaseSurvival(BaseEstimator, ABC):
         ax.xaxis.set_major_locator(ticker.MultipleLocator(majorX))
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
 
-        plt.xticks(rotation=45, ha='right')
+        plt.xticks(rotation=45, ha="right")
         plt.yticks(ticks=np.arange(1, len(sort_idx) + 1), labels=names[sort_idx])
 
         # Grid
-        plt.grid(True, which='major', linestyle='-', alpha=0.7, zorder=0) # z-ordering for layers
-        plt.grid(True, which='minor', linestyle='--', alpha=0.7, linewidth=0.5, zorder=0) # z-ordering for layers
+        plt.grid(True, which="major", linestyle="-", alpha=0.7, zorder=0) # z-ordering for layers
+        plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5, zorder=0) # z-ordering for layers
 
         # Build filename dynamically
-        filename_parts = [f'Plot_XAI_values-{estimator_name}_{dataset}']
+        filename_parts = [f"Plot_XAI_values-{estimator_name}_{dataset}"]
         if seed is not None:
-            filename_parts.append(f's{seed}')
+            filename_parts.append(f"s{seed}")
         if progression is not None:
-            filename_parts.append(f'p{progression}')
-        filename = f'{"_".join(filename_parts)}.png'
+            filename_parts.append(f"p{progression}")
+        filename = f"{"_".join(filename_parts)}.png"
         
         # Save figure
         plt.tight_layout()
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.savefig(filename, dpi=300, bbox_inches="tight")
         plt.close()
 
     @staticmethod
@@ -574,18 +574,18 @@ class BaseSurvival(BaseEstimator, ABC):
             times = step_function.x
             probabilities = step_function(times)
             
-            plt.step(times, probabilities, where='post', alpha=0.6)
+            plt.step(times, probabilities, where="post", alpha=0.6)
         
         # Title and axis labels
-        title_parts = [f'{estimator_name} - {dataset}']
+        title_parts = [f"{estimator_name} - {dataset}"]
         if seed is not None:
-            title_parts.append(f'seed {seed}')
+            title_parts.append(f"seed {seed}")
         if progression is not None:
-            title_parts.append(f'progression {progression}')
+            title_parts.append(f"progression {progression}")
         
-        plt.title(f'{function_type}\n{" - ".join(title_parts)}', fontsize=12)
-        plt.xlabel('Time (days)', fontsize=10)
-        plt.ylabel(f'{function_type} probability', fontsize=10)
+        plt.title(f"{function_type}\n{" - ".join(title_parts)}", fontsize=12)
+        plt.xlabel("Time (days)", fontsize=10)
+        plt.ylabel(f"{function_type} probability", fontsize=10)
         
         # Axis ticks
         ax = plt.gca()
@@ -593,47 +593,47 @@ class BaseSurvival(BaseEstimator, ABC):
         ax.xaxis.set_major_locator(ticker.MultipleLocator(majorX))
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
 
-        if function_type == 'Survival':
+        if function_type == "Survival":
             ax.yaxis.set_major_locator(ticker.MultipleLocator(0.5))
             ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
 
-        if function_type == 'CumulativeRisk':
+        if function_type == "CumulativeRisk":
             majorY, minorY = _tool_setRiskTicksAxisY(ax)
             ax.yaxis.set_major_locator(ticker.MultipleLocator(majorY))
             ax.yaxis.set_minor_locator(ticker.MultipleLocator(minorY))
 
-        plt.xticks(rotation=45, ha='right')
+        plt.xticks(rotation=45, ha="right")
 
         # Axis limits
         ax.set_xlim(left=0)
 
-        if function_type == 'Survival':
+        if function_type == "Survival":
             ax.set_ylim(bottom=0, top=1.05)
 
-        if function_type == 'CumulativeRisk':
+        if function_type == "CumulativeRisk":
             ax.set_ylim(bottom=0)
 
-        ax.spines['left'].set_position(('outward', 5))
-        ax.spines['bottom'].set_position(('outward', 5))
+        ax.spines["left"].set_position(("outward", 5))
+        ax.spines["bottom"].set_position(("outward", 5))
 
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
 
         # Grid
-        plt.grid(True, which='major', linestyle='-', alpha=0.7)
-        plt.grid(True, which='minor', linestyle='--', alpha=0.7, linewidth=0.5)
+        plt.grid(True, which="major", linestyle="-", alpha=0.7)
+        plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5)
         
         # Build filename dynamically
-        filename_parts = [f'Plot_{function_type}-{estimator_name}_{dataset}']
+        filename_parts = [f"Plot_{function_type}-{estimator_name}_{dataset}"]
         if seed is not None:
-            filename_parts.append(f's{seed}')
+            filename_parts.append(f"s{seed}")
         if progression is not None:
-            filename_parts.append(f'p{progression}')
-        filename = f'{"_".join(filename_parts)}.png'
+            filename_parts.append(f"p{progression}")
+        filename = f"{"_".join(filename_parts)}.png"
         
         # Save figure
         plt.tight_layout()
-        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.savefig(filename, dpi=300, bbox_inches="tight")
         plt.close()
 
     def _sort(self, X, y):
@@ -642,7 +642,7 @@ class BaseSurvival(BaseEstimator, ABC):
         Sort data by descending time.
         """
                 
-        sort_idx = np.argsort(y['time'])[::-1]
+        sort_idx = np.argsort(y["time"])[::-1]
 
         X = X[sort_idx]
         y = y[sort_idx]

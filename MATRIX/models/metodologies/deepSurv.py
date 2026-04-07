@@ -32,7 +32,7 @@ class DeepSurv(BaseSurvival):
                 
         # Set device
         if device is None:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = device
         
@@ -202,7 +202,7 @@ class DeepSurv(BaseSurvival):
         X_train, y_train = self._sort(X_train, y_train)
 
         if self.logger is None:
-            logger = DeepSurvLogger('DeepSurv')
+            logger = DeepSurvLogger("DeepSurv")
         
         # Build network
         self.network = DeepSurvFFNN(
@@ -231,9 +231,9 @@ class DeepSurv(BaseSurvival):
         t_train = np.array([tiempo for _, tiempo in y_train], np.float64)
 
         if self.valid_data:
-            X_valid = np.array(self.valid_data['x'], np.float64)
-            e_valid = np.array(self.valid_data['e'], np.bool_)
-            t_valid = np.array(self.valid_data['t'], np.float64)
+            X_valid = np.array(self.valid_data["x"], np.float64)
+            e_valid = np.array(self.valid_data["e"], np.bool_)
+            t_valid = np.array(self.valid_data["t"], np.float64)
         
         # Convert to tensors
         x_train_tensor = torch.tensor(X_train, dtype=torch.float32, device=self.device)
@@ -269,9 +269,9 @@ class DeepSurv(BaseSurvival):
             # Learning rate decay
             lr = self.learn_rate / (1 + epoch * self.lr_decay)
             for param_group in self.optimizer.param_groups:
-                param_group['lr'] = lr
+                param_group["lr"] = lr
             
-            logger.logValue('lr', lr, epoch)
+            logger.logValue("lr", lr, epoch)
             
             # Training step
             self.network.train()
@@ -281,11 +281,11 @@ class DeepSurv(BaseSurvival):
             loss.backward()
             self.optimizer.step()
             
-            logger.logValue('loss', loss.item(), epoch)
+            logger.logValue("loss", loss.item(), epoch)
             
             # Calculate training C-index
             ci_train = self.get_concordance_index(X_train, t_train, e_train)
-            logger.logValue('c-index', ci_train, epoch)
+            logger.logValue("c-index", ci_train, epoch)
             
             # Validation
             patience = self.patience
@@ -293,10 +293,10 @@ class DeepSurv(BaseSurvival):
                 self.network.eval()
                 with torch.no_grad():
                     validation_loss = self._get_loss(x_valid_tensor, e_valid_tensor, t_valid_tensor)
-                    logger.logValue('valid_loss', validation_loss.item(), epoch)
+                    logger.logValue("valid_loss", validation_loss.item(), epoch)
                 
                 ci_valid = self.get_concordance_index(X_valid, t_valid, e_valid)
-                logger.logValue('valid_c-index', ci_valid, epoch)
+                logger.logValue("valid_c-index", ci_valid, epoch)
                 
                 if validation_loss.item() < best_validation_loss:
                     if validation_loss.item() < best_validation_loss * self.improvement_threshold:
@@ -304,8 +304,8 @@ class DeepSurv(BaseSurvival):
                     
                     # Save best parameters
                     best_params = {
-                        'model_state_dict': self.network.state_dict(),
-                        'optimizer_state_dict': self.optimizer.state_dict()
+                        "model_state_dict": self.network.state_dict(),
+                        "optimizer_state_dict": self.optimizer.state_dict()
                     }
                     best_params_idx = epoch
                     best_validation_loss = validation_loss.item()
@@ -321,16 +321,16 @@ class DeepSurv(BaseSurvival):
                 break
         
         if self.verbose:
-            logger.logMessage(f'Finished Training with {epoch + 1} iterations in {time.time() - start:.2f}s')
+            logger.logMessage(f"Finished Training with {epoch + 1} iterations in {time.time() - start:.2f}s")
         
         # Compute baseline hazards with training data
         self.breslow.fit(self.predict(X_train), e_train, t_train)
 
         logger.shutdown()
         
-        logger.history['best_valid_loss'] = best_validation_loss
-        logger.history['best_params'] = best_params
-        logger.history['best_params_idx'] = best_params_idx
+        logger.history["best_valid_loss"] = best_validation_loss
+        logger.history["best_params"] = best_params
+        logger.history["best_params_idx"] = best_params_idx
         
         return logger.history
     
@@ -387,7 +387,7 @@ class DeepSurv(BaseSurvival):
         Calculate XAI values.
         """
 
-        logging.getLogger('xai').setLevel(logging.WARNING)
+        logging.getLogger("xai").setLevel(logging.WARNING)
 
         # Applying Explainer (model type)
         explainer_risk = shap.Explainer(self.predict, X, feature_names=feature_names, seed=seed)

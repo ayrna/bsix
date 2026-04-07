@@ -126,7 +126,7 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
         Calculate XAI values.
         """
 
-        logging.getLogger('xai').setLevel(logging.WARNING)
+        logging.getLogger("xai").setLevel(logging.WARNING)
 
         # Applying Explainer (model type)
         explainer_risk = shap.Explainer(self.predict, X, feature_names=feature_names, seed=seed)

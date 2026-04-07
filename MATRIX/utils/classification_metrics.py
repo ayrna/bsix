@@ -40,7 +40,7 @@ def amae(y_true, y_pred):
         errores = costs * cm
         
         sum_rows = np.sum(cm, ).astype("float")
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             amaes = np.sum(errores, ) / sum_rows
         
         amaes = amaes[~np.isnan(amaes)]
@@ -57,7 +57,7 @@ def gm(y_true, y_pred):
         cm = confusion_matrix(y_true, y_pred)
         sum_byclass = np.sum(cm, )
         
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             sensitivities = np.diag(cm) / sum_byclass.astype("float")
             
         sensitivities[sum_byclass == 0] = 1
@@ -91,14 +91,14 @@ def mmae(y_true, y_pred):
         errores = costes * cm
         
         sum_rows = np.sum(cm, ).astype("float")
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             amaes = np.sum(errores, ) / sum_rows
             
         amaes = amaes[~np.isnan(amaes)]
         if len(amaes) == 0: return 0.0
         return amaes.max()
 
-def recall(y_true, y_pred, average='macro'):
+def recall(y_true, y_pred, average="macro"):
 
     """
     Computes the Recall (Sensitivity).
@@ -109,7 +109,7 @@ def recall(y_true, y_pred, average='macro'):
         cm = confusion_matrix(y_true, y_pred)
         sum_byclass = np.sum(cm, ).astype("float")
         
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             sensitivities = np.diag(cm) / sum_byclass
         
         sensitivities = np.nan_to_num(sensitivities)
@@ -142,7 +142,7 @@ def mze(y_true, y_pred):
 def tkendall(y_true, y_pred):
 
     """
-    Computes the Kendall's Tau (TKendall).
+    Computes the Kendall"s Tau (TKendall).
     """
 
     with warnings.catch_warnings():
@@ -176,7 +176,7 @@ def wkappa(y_true, y_pred):
 def spearman(y_true, y_pred):
 
     """
-    Computes the Spearman's Rank Correlation Coefficient (Spearman).
+    Computes the Spearman"s Rank Correlation Coefficient (Spearman).
     """
 
 
