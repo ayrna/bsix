@@ -9,29 +9,56 @@ from sksurv.ensemble import RandomSurvivalForest
 warnings.filterwarnings("ignore")
 
 class RandomSurvForest(BaseSurvival):
-    def __init__(self, n_jobs, random_state, n_estimators=100, max_depth=None, min_samples_split=6):
+
+    """
+    Random Survival Forest model.
+    """
+
+    def __init__(self, random_state, n_jobs=-1, n_estimators=100, max_depth=None, min_samples_split=6):
+
+        """
+        Initialise model with specified parameters.
+        """
+        
+        # Parameters
         self.n_jobs=n_jobs
         self.random_state=random_state
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
+
+        # Model (will be initialized in train())
         self.model = None
 
     def fit(self, X, y):
+
+        """
+        Fit the model to the data.
+        """
+                
         # Sort by time
         X, y = self._sort(X, y)
 
-        self.model = RandomSurvivalForest(n_jobs=self.n_jobs, random_state=self.random_state, n_estimators=self.n_estimators, max_depth=self.max_depth, min_samples_split=self.min_samples_split)
+        self.model = RandomSurvivalForest(n_estimators=self.n_estimators, max_depth=self.max_depth, min_samples_split=self.min_samples_split, n_jobs=self.n_jobs, random_state=self.random_state)
         self.model.fit(X, y)
         
         return self
 
     def predict(self, X):
+
+        """
+        Predict risk scores for the given data.
+        """
+                
         risk = self.model.predict(X)
 
         return risk
     
     def score(self, X, y):
+
+        """
+        Calculate the score for the model.
+        """
         
         return None
     

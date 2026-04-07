@@ -11,18 +11,33 @@ from sksurv.linear_model.coxph import BreslowEstimator
 warnings.filterwarnings("ignore")
 
 class CoxRegressionWithTimeVarying(BaseSurvival):
-    def __init__(self, inputs, labels, penalizer=0.0, l1_ratio=0.0, formula=None):
-        self.inputs = inputs
-        self.labels = labels
 
+    """
+    Cox Regression with Time-Varying Covariates model.
+    """
+
+    def __init__(self, penalizer=0.0, l1_ratio=0.0, formula=None):
+
+        """
+        Initialise model with specified parameters.
+        """
+
+        # Parameters
         self.penalizer = penalizer
         self.l1_ratio = l1_ratio
         self.formula = formula
+
+        # Model (will be initialized in train())
         self.model = None
 
         self.labels_covariables = ["event", "time_start", "time_stop"]
 
     def _toDataframe(self, data, columns=None):
+
+        """
+        Convert data to DataFrame format.
+        """
+
         if columns == None:
             dataframe = pd.DataFrame(data, columns=[str(l) for l in range(data.shape[1])])
         else:
@@ -31,6 +46,11 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
         return dataframe
     
     def fit(self, X, y):
+
+        """
+        Fit the model to the data.
+        """
+
         # Breslow estimator for baseline hazards
         self.breslow = BreslowEstimator()
 
@@ -51,11 +71,20 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
         return self
 
     def predict(self, X):
+
+        """
+        Predict risk scores for the given data.
+        """
+
         risk = self.model.predict_log_partial_hazard(self._toDataframe(X)).to_numpy()
 
         return risk
     
     def score(self, X, y):
+
+        """
+        Calculate the score for the model.
+        """
         
         return None
     

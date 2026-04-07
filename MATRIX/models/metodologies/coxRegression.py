@@ -10,15 +10,33 @@ from sksurv.linear_model.coxph import BreslowEstimator
 warnings.filterwarnings("ignore")
 
 class CoxRegression(BaseSurvival):
+
+    """
+    Cox Regression model.
+    """
+
     def __init__(self, alpha=0.0, ties="breslow", n_iter=100):
+
+        """
+        Initialise model with specified parameters.
+        """
+
+        # Parameters 
         self.alpha = alpha
         self.ties = ties
         self.n_iter = n_iter
+
+        # Model (will be initialized in train())
         self.model = None
 
         self.labels_covariables = ["event", "time"]
 
     def fit(self, X, y):
+
+        """
+        Fit the model to the data.
+        """
+                
         # Breslow estimator for baseline hazards
         self.breslow = BreslowEstimator()
 
@@ -36,12 +54,21 @@ class CoxRegression(BaseSurvival):
         return self
 
     def predict(self, X):
+
+        """
+        Predict risk scores for the given data.
+        """
+                
         risk = self.model.predict(X)
 
         return risk
     
     def score(self, X, y):
         
+        """
+        Calculate the score for the model.
+        """
+                
         return None
     
     # ----------------------

@@ -21,7 +21,7 @@ def _tool_setTimeTicksAxisX(ax):
 
     return major, minor
 
-def _tool_setShapTicksAxisX(ax):
+def _tool_setXaiTicksAxisX(ax):
     max_shap = max(abs(ax.get_xlim()[0]), abs(ax.get_xlim()[1])) # (min, max)
 
     if max_shap > 10: # More than 10 (shap)
