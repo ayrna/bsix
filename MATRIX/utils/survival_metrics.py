@@ -4,7 +4,6 @@ import numpy.lib.recfunctions as rfn
 from .survival_utils import getTau, getTimes
 from sksurv.metrics import concordance_index_censored, concordance_index_ipcw, cumulative_dynamic_auc
 
-
 def scorerConcordanceIndex(y_true, y_pred):
 
     """

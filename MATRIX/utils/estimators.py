@@ -3,13 +3,17 @@ import numpy as np
 from .survival_metrics import scorerConcordanceIndex
 from sklearn.metrics import make_scorer
 
-
 CLASSIFIERS = [
     "CoxRegression",
     "CoxRegressionWithTimeVarying",
+    "DeepMultiTaskFFNN",
     "DeepSurvFFNN",
     "DeepTimeVaryingFFNN",
     "RandomSurvForest",
+]
+
+MULTITASKCLASSIFIERS = [
+    "DeepMultiTaskFFNN",
 ]
 
 TIMEVARYINGCLASSIFIERS = [
@@ -17,7 +21,7 @@ TIMEVARYINGCLASSIFIERS = [
     "DeepTimeVaryingFFNN",
 ]
 
-def get_estimator(estimator_name, inputs, valid_data, random_state, n_jobs=-1, n_iter=30):
+def get_estimator(estimator_name, inputs, labels, valid_data, random_state, n_jobs=-1, n_iter=30):
 
     """
     Get estimator (search) based on name.
@@ -105,6 +109,34 @@ def get_estimator(estimator_name, inputs, valid_data, random_state, n_jobs=-1, n
             estimator = DeepTimeVarying(inputs.shape[1], random_state=random_state)
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+
+        elif estimator_name == "DeepMultiTaskFFNN":
+            from ..models import DeepMultiTask
+            
+            rng = np.random.default_rng(seed=random_state)
+            param_grid = [
+                {
+                    "epochs": [250, 500],
+                    "hidden_layers": [[4], [8], [16], [8, 8], [16, 16], [8, 8, 8]],
+                    "learn_rate": np.round(np.logspace(-7, -1, 7), 8),
+                    "lr_decay": np.round(np.logspace(-7, -1, 7), 8),
+                    "l1_reg": np.round(np.logspace(-3, 3, 7), 8),
+                    "l2_reg": np.round(np.logspace(-3, 3, 7), 8),
+                    "cox_reg": np.round(np.logspace(-3, 3, 7), 8),
+                    "bin_reg": np.round(np.logspace(-3, 3, 7), 8),
+                    "dropout": np.round(np.linspace(0, 1, 5), 8),
+                    "activation": ["relu", "selu", "tanh"],
+                    "coef_likelihood": np.round(rng.dirichlet(alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]), size=7), 8).tolist(),
+                    "coef_binary": np.round(rng.dirichlet(alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]), size=7), 8).tolist(),
+                    #"momentum": np.round(np.linspace(0.4, 0.9, 6), 5),
+                    #"ties": ["cox", "breslow"],
+                    #"batch_size": [128, 256, 512],
+                }
+            ]
+
+            estimator = DeepMultiTask(inputs.shape[1], random_state=random_state)
+
+    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
         
         else:
             raise NotImplementedError(
@@ -128,4 +160,3 @@ def get_estimator(estimator_name, inputs, valid_data, random_state, n_jobs=-1, n
 
     else:
         raise ValueError(f"Estimator {estimator_name} not recognised.")
-

@@ -1,4 +1,4 @@
-from .estimators import CLASSIFIERS, TIMEVARYINGCLASSIFIERS, get_estimator
+from .estimators import CLASSIFIERS, MULTITASKCLASSIFIERS, TIMEVARYINGCLASSIFIERS, get_estimator
 from .survival_metrics import scorerConcordanceIndex, concordanceIndexHarrel, concordanceIndexIPCW, cumulativeDinamicAUC
 
 __all__ = [
@@ -8,6 +8,7 @@ __all__ = [
     "cumulativeDinamicAUC",
     "get_estimator",
     "CLASSIFIERS",
+    "MULTITASKCLASSIFIERS",
     "TIMEVARYINGCLASSIFIERS",
     "compute_metrics",
 ]
