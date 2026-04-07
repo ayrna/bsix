@@ -128,7 +128,7 @@ class DeepTimeVarying(BaseSurvival):
     def _compute_l1_loss(self):
 
         """
-        Compute L1 regularization loss
+        Compute L1 regularization loss.
         """
 
         l1_loss = 0.0
@@ -140,7 +140,7 @@ class DeepTimeVarying(BaseSurvival):
     def _compute_l2_loss(self):
 
         """
-        Compute L2 regularization loss
+        Compute L2 regularization loss.
         """
 
         l2_loss = 0.0
@@ -183,7 +183,7 @@ class DeepTimeVarying(BaseSurvival):
     def _standardize_x(self, x):
 
         """
-        Standardize input features
+        Standardize input features.
         """
 
         return (x - self.offset) / self.scale
@@ -364,7 +364,7 @@ class DeepTimeVarying(BaseSurvival):
     def predict_survival_function(self, X, estimator_name, dataset, seed):
 
         """ 
-        S(x, t) = exp(-H(x, t)) 
+        S(x, t) = exp(-H(x, t)).
         """
 
         risk = self.predict(X)
@@ -377,7 +377,7 @@ class DeepTimeVarying(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, estimator_name, dataset, seed):
         
         """
-        H(x,t) = H₀(t) × exp(βᵀx)
+        H(x,t) = H₀(t) × exp(βᵀx).
         """
 
         risk = self.predict(X)
@@ -393,7 +393,7 @@ class DeepTimeVarying(BaseSurvival):
     def calculate_xai(self, X, estimator_name, dataset, seed, feature_names, background=False):
 
         """
-        Calculate XAI values
+        Calculate XAI values.
         """
 
         logging.getLogger('xai').setLevel(logging.WARNING)

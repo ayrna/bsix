@@ -77,7 +77,7 @@ class CoxRegression(BaseSurvival):
     def predict_survival_function(self, X, estimator_name, dataset, seed):
 
         """ 
-        S(x, t) = exp(-H(x, t)) 
+        S(x, t) = exp(-H(x, t)).
         """
 
         risk = self.predict(X)
@@ -90,7 +90,7 @@ class CoxRegression(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, estimator_name, dataset, seed):
         
         """
-        H(x,t) = H₀(t) × exp(βᵀx)
+        H(x,t) = H₀(t) × exp(βᵀx).
         """
 
         risk = self.predict(X)
@@ -106,7 +106,7 @@ class CoxRegression(BaseSurvival):
     def calculate_xai(self, X, estimator_name, dataset, seed, feature_names, background=False):
 
         """
-        Calculate XAI values
+        Calculate XAI values.
         """
 
         logging.getLogger('xai').setLevel(logging.WARNING)

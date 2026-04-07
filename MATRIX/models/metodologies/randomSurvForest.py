@@ -68,7 +68,7 @@ class RandomSurvForest(BaseSurvival):
     def predict_survival_function(self, X, estimator_name, dataset, seed):
 
         """ 
-        S(x, t) = exp(-H(x, t)) 
+        S(x, t) = exp(-H(x, t)).
         """
 
         survival_function = self.model.predict_survival_function(X)
@@ -79,7 +79,7 @@ class RandomSurvForest(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, estimator_name, dataset, seed):
         
         """
-        H(x,t) = H₀(t) × exp(βᵀx)
+        H(x,t) = H₀(t) × exp(βᵀx).
         """
 
         get_cumulative_hazard_function = self.model.predict_cumulative_hazard_function(X)
@@ -93,7 +93,7 @@ class RandomSurvForest(BaseSurvival):
     def calculate_xai(self, X, estimator_name, dataset, seed, feature_names, background=False):
 
         """
-        Calculate XAI values
+        Calculate XAI values.
         """
 
         logging.getLogger('xai').setLevel(logging.WARNING)

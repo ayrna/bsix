@@ -4,6 +4,19 @@ import warnings
 
 from sklearn.metrics import confusion_matrix
 
+def scorerAmae(y, y_pred):
+
+    """
+    Scorer for Average Mean Absolute Error (AMAE).
+    """
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        e = np.array([evento for evento, _ in y], np.float32)
+        ePred = np.where(y_pred >= 0.5, 1.0, 0.0)
+
+        return amae(e, ePred)
+    
 def ccr(y_true, y_pred):
 
     """

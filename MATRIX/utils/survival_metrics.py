@@ -13,17 +13,34 @@ def scorerConcordanceIndex(y_true, y_pred):
 
     c_index_censored = 0
     
-    risk = y_pred.copy()
-    _y_true = y_true.copy()
-    
-    if all(name in _y_true.dtype.names for name in ["time_start", "time_stop"]):
-        _y_true = rfn.drop_fields(_y_true, ["time_start", "time"])
-        _y_true = rfn.rename_fields(_y_true, {"time_stop": "time"})
+    if y_true.ndim == 1:
+        risk = y_pred.copy()
+        _y_true = y_true.copy()
         
-    e = np.array([evento for evento, _ in _y_true], np.bool_)
-    t = np.array([tiempo for _, tiempo in _y_true], np.float64)
+        if all(name in _y_true.dtype.names for name in ["time_start", "time_stop"]):
+            _y_true = rfn.drop_fields(_y_true, ["time_start", "time"])
+            _y_true = rfn.rename_fields(_y_true, {"time_stop": "time"})
+            
+        e = np.array([evento for evento, _ in _y_true], np.bool_)
+        t = np.array([tiempo for _, tiempo in _y_true], np.float64)
 
-    c_index_censored = concordance_index_censored(e, t, risk)[0]
+        c_index_censored = concordance_index_censored(e, t, risk)[0]
+    else:
+        risk = y_pred[0].copy()
+        e = []
+        t = []
+        for i in range(y_true.shape[1]):
+            e.append(np.array([evento for evento, _ in y_true[:, i]], np.bool_))
+            t.append(np.array([tiempo for _, tiempo in y_true[:, i]], np.float32))
+        e = np.array(e, np.bool_).T
+        t = np.array(t, np.float32).T
+        
+        c_index = []
+        for p in range(y_true.shape[1]):
+            c_index.append(concordance_index_censored(e[:, p], t[:, p], risk[:, p])[0])
+        c_index = np.array(c_index, np.float32)
+
+        c_index_censored = np.mean(c_index)
     
     return c_index_censored
 

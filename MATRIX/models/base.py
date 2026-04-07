@@ -61,7 +61,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def calculate_xai(self, X, **kwargs):
 
         """
-        Calculate XAI values
+        Calculate XAI values.
         """
 
         raise NotImplementedError
@@ -70,7 +70,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def fit(self, X, y, **kwargs):
 
         """
-        Fit the model
+        Fit the model.
         """
 
         raise NotImplementedError
@@ -79,7 +79,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def predict(self, X, **kwargs):
 
         """
-        Predict on X
+        Predict on X.
         """
 
         raise NotImplementedError
@@ -88,7 +88,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def predict_cumulative_hazard_function(self, X, **kwargs):
 
         """
-        H(x,t) = H0(t) * exp(g(x))
+        H(x,t) = H0(t) * exp(g(x)).
         """
 
         raise NotImplementedError
@@ -97,7 +97,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def predict_survival_function(self, X, **kwargs):
 
         """
-        S(x, t) = exp(-H(x, t))
+        S(x, t) = exp(-H(x, t)).
         """
 
         raise NotImplementedError
@@ -108,7 +108,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def dinamic_discretise(y, dataset, seed, **kwargs):
 
         """
-        Discretise data by piecewise exponential and show in kaplan meier
+        Discretise data by piecewise exponential and show in kaplan meier.
         """
 
         rng = np.random.default_rng(seed=seed)
@@ -235,7 +235,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def feature_selection(X, y, **kwargs):
 
         """
-        Calculate the best features based on p-value
+        Calculate the best features based on p-value.
         """
         
         # Cox model (lifelines)
@@ -272,7 +272,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def generate_simulated_survival_data(number_rows=1000, number_columns=10, censored=0.75, relation=None, seed=0):
 
         """
-        Generate simulated survival data based
+        Generate simulated survival data based.
         """
 
         # Fix the seed
@@ -331,7 +331,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def logrank_test(y, groups, weights=None, **kwargs):
 
         """
-        Calculate the log-rank test for n groups
+        Calculate the log-rank test for n groups.
         """
 
         result = statistics.multivariate_logrank_test(y["time"], groups, y["event"], weights)
@@ -639,7 +639,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def _sort(self, X, y):
         
         """
-        Sort data by descending time
+        Sort data by descending time.
         """
                 
         sort_idx = np.argsort(y['time'])[::-1]
@@ -652,7 +652,7 @@ class BaseSurvival(BaseEstimator, ABC):
     def _sort_multitask(self, risk, t, e):
 
         """
-        Sort data by descending time (multitask)
+        Sort data by descending time (multitask).
         """
         
         _, idx = torch.sort(t, descending=True)
