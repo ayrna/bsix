@@ -5,7 +5,7 @@ from .survival_utils import getTau, getTimes
 from sksurv.metrics import concordance_index_censored, concordance_index_ipcw, cumulative_dynamic_auc
 
 
-def concordanceIndex(y_true, y_pred):
+def scorerConcordanceIndex(y_true, y_pred):
 
     """
     Scorer for Concordance Index (C-index).
