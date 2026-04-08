@@ -215,7 +215,6 @@ class DeepTimeVarying(BaseSurvival):
             hidden_layers=self.hidden_layers,
             activation=self.activation,
             dropout=self.dropout,
-            batch_norm=self.batch_norm
         ).to(self.device)
 
         # Set standardization parameters

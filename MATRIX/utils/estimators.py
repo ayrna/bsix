@@ -24,7 +24,7 @@ TIMEVARYINGCLASSIFIERS = [
 def get_estimator(estimator_name, inputs, labels, valid_data, random_state, n_jobs=-1, n_iter=30):
 
     """
-    Get estimator (search) based on name.
+    Get estimator (search cv) based on name.
     """
 
     if estimator_name in CLASSIFIERS:

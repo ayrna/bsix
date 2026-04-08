@@ -1,4 +1,4 @@
-# # # # #  cgd  # # # # # 
+# # # # #  cgd.csv  # # # # # 
 
 
 # - - Description - - #
@@ -11,36 +11,36 @@ Chronic Granulotamous Disease
 <class 'pandas.core.frame.DataFrame'>
 RangeIndex: 128 entries, 0 to 127
 Data columns (total 12 columns):
- #   Column        Non-Null Count  Dtype   
----  ------        --------------  -----   
- 0   event         128 non-null    int64   
- 1   time          128 non-null    int64   
- 2   fac_center    128 non-null    category
- 3   fac_treat     128 non-null    category
- 4   fac_sex       128 non-null    category
- 5   fac_inherit   128 non-null    category
- 6   fac_steroids  128 non-null    category
- 7   fac_propylac  128 non-null    category
- 8   fac_hos_cat   128 non-null    category
- 9   num_age       128 non-null    int64   
- 10  num_height    128 non-null    float64 
- 11  num_weight    128 non-null    float64 
-dtypes: category(7), float64(2), int64(3)
-memory usage: 6.2 KB
+ #   Column        Non-Null Count  Dtype  
+---  ------        --------------  -----  
+ 0   event         128 non-null    int64  
+ 1   time          128 non-null    int64  
+ 2   fac_center    128 non-null    object 
+ 3   fac_treat     128 non-null    object 
+ 4   fac_sex       128 non-null    object 
+ 5   fac_inherit   128 non-null    object 
+ 6   fac_steroids  128 non-null    int64  
+ 7   fac_propylac  128 non-null    int64  
+ 8   fac_hos_cat   128 non-null    object 
+ 9   num_age       128 non-null    int64  
+ 10  num_height    128 non-null    float64
+ 11  num_weight    128 non-null    float64
+dtypes: float64(2), int64(5), object(5)
+memory usage: 12.1+ KB
 
 
 
 # - - Stats - - #
 
-            event        time     num_age  num_height  num_weight
-count  128.000000  128.000000  128.000000  128.000000  128.000000
-mean     0.343750  241.062500   14.640625  140.066406   40.557812
-std      0.476825   98.080936    9.844247   30.794286   22.246885
-min      0.000000    4.000000    1.000000   76.300000   10.400000
-25%      0.000000  197.000000    7.000000  116.500000   20.675000
-50%      0.000000  269.000000   12.000000  140.750000   34.850000
-75%      1.000000  304.500000   22.000000  169.725000   59.175000
-max      1.000000  388.000000   44.000000  189.000000  101.500000
+            event        time  fac_steroids  fac_propylac     num_age  num_height  num_weight
+count  128.000000  128.000000    128.000000    128.000000  128.000000  128.000000  128.000000
+mean     0.343750  241.062500      0.023438      0.867188   14.640625  140.066406   40.557812
+std      0.476825   98.080936      0.151883      0.340705    9.844247   30.794286   22.246885
+min      0.000000    4.000000      0.000000      0.000000    1.000000   76.300000   10.400000
+25%      0.000000  197.000000      0.000000      1.000000    7.000000  116.500000   20.675000
+50%      0.000000  269.000000      0.000000      1.000000   12.000000  140.750000   34.850000
+75%      1.000000  304.500000      0.000000      1.000000   22.000000  169.725000   59.175000
+max      1.000000  388.000000      1.000000      1.000000   44.000000  189.000000  101.500000
 
 
 # - - Reference - - #

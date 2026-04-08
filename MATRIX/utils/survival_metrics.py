@@ -46,7 +46,7 @@ def scorerConcordanceIndex(y_true, y_pred):
 def concordanceIndexHarrel(y_true, y_pred):
 
     """
-    Computes the Harrell's Concordance Index (C-index).
+    Compute the Harrell's Concordance Index (C-index).
     """
 
     risk = y_pred.copy()
@@ -64,7 +64,7 @@ def concordanceIndexHarrel(y_true, y_pred):
 def concordanceIndexIPCW(y_true, y_pred):
 
     """
-    Computes the Inverse Probability of Censoring Weighted (IPCW).
+    Compute the Inverse Probability of Censoring Weighted (IPCW).
     """
     
     survival_train = y_true[0].copy()
@@ -87,7 +87,7 @@ def concordanceIndexIPCW(y_true, y_pred):
 def cumulativeDinamicAUC(y_true, y_pred):
     
     """
-    Computes the Cumulative Dynamic AUC (AUC).
+    Compute the Cumulative Dynamic AUC (AUC).
     """
     
     survival_train = y_true[0].copy()

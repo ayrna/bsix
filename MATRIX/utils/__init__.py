@@ -1,5 +1,6 @@
 from .estimators import CLASSIFIERS, MULTITASKCLASSIFIERS, TIMEVARYINGCLASSIFIERS, get_estimator
-from .load_data import load_data_csv
+from .load_data import get_data
+from .compute_metrics import get_metrics, get_metric_confidence_interval
 from .survival_metrics import scorerConcordanceIndex, concordanceIndexHarrel, concordanceIndexIPCW, cumulativeDinamicAUC
 
 __all__ = [
@@ -11,5 +12,7 @@ __all__ = [
     "MULTITASKCLASSIFIERS",
     "TIMEVARYINGCLASSIFIERS",
     "get_estimator",
-    "load_data_csv",
+    "get_data",
+    "get_metrics",
+    "get_metric_confidence_interval",
 ]

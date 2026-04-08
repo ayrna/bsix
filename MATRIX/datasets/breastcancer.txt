@@ -1,0 +1,46 @@
+# # # # #  breastcancer.arff  # # # # # 
+
+
+# - - Description - - #
+
+Yugoslavia Breast Cancer Study
+
+
+# - - Info - - #
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 286 entries, 0 to 285
+Data columns (total 10 columns):
+ #   Column       Non-Null Count  Dtype  
+---  ------       --------------  -----  
+ 0   time         286 non-null    float64
+ 1   menopause    286 non-null    object 
+ 2   tumor-size   286 non-null    object 
+ 3   inv-nodes    286 non-null    object 
+ 4   node-caps    286 non-null    object 
+ 5   deg-malig    286 non-null    object 
+ 6   breast       286 non-null    object 
+ 7   breast-quad  286 non-null    object 
+ 8   irradiat     286 non-null    object 
+ 9   event        286 non-null    float64
+dtypes: float64(2), object(8)
+memory usage: 22.5+ KB
+
+
+
+# - - Stats - - #
+
+             time       event
+count  286.000000  286.000000
+mean    46.643357    0.297203
+std     10.118183    0.457828
+min     20.000000    0.000000
+25%     40.000000    0.000000
+50%     50.000000    0.000000
+75%     50.000000    1.000000
+max     70.000000    1.000000
+
+
+# - - Reference - - #
+
+https://archive.ics.uci.edu/dataset/14/breast+cancer

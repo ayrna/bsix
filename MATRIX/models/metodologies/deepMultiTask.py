@@ -20,10 +20,15 @@ from sksurv.metrics import concordance_index_censored
 warnings.filterwarnings("ignore")
 
 class DeepMultiTask(BaseSurvival):
+
+    """
+    Deep Multi-Task model.
+    """
+        
     def __init__(self, num_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, cox_reg=0.0, bin_reg=0.0,
                  momentum=0.9, activation="relu", dropout=0.0, standardize=True, ties="cox", device=None, validation_frequency=10, 
                  patience=500, improvement_threshold=0.99999, patience_increase=25, logger=None, verbose=True, random_state=None,
-                 coef_likelihood=None, coef_binary=None):
+                 coef_likelihood=[1.0], coef_binary=[1.0]):
         
         """
         Initialise model with specified parameters.
@@ -289,7 +294,6 @@ class DeepMultiTask(BaseSurvival):
             hidden_layers=self.hidden_layers,
             activation=self.activation,
             dropout=self.dropout,
-            batch_norm=self.batch_norm
         ).to(self.device)
 
         # Set standardization parameters

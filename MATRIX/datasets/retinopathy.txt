@@ -1,4 +1,4 @@
-# # # # #  retinopathy  # # # # # 
+# # # # #  retinopathy.csv  # # # # # 
 
 
 # - - Description - - #
@@ -11,33 +11,33 @@ Diabetic/Eye Retinopathy
 <class 'pandas.core.frame.DataFrame'>
 RangeIndex: 391 entries, 0 to 390
 Data columns (total 9 columns):
- #   Column     Non-Null Count  Dtype   
----  ------     --------------  -----   
- 0   event      391 non-null    int64   
- 1   time       391 non-null    float64 
- 2   fac_laser  391 non-null    category
- 3   fac_eye    391 non-null    category
- 4   fac_type   391 non-null    category
- 5   fac_trt    391 non-null    category
- 6   fac_risk   391 non-null    category
- 7   num_age    391 non-null    int64   
- 8   num_risk   391 non-null    int64   
-dtypes: category(5), float64(1), int64(3)
-memory usage: 14.3 KB
+ #   Column     Non-Null Count  Dtype  
+---  ------     --------------  -----  
+ 0   event      391 non-null    int64  
+ 1   time       391 non-null    float64
+ 2   fac_laser  391 non-null    object 
+ 3   fac_eye    391 non-null    object 
+ 4   fac_type   391 non-null    object 
+ 5   fac_trt    391 non-null    int64  
+ 6   fac_risk   391 non-null    int64  
+ 7   num_age    391 non-null    int64  
+ 8   num_risk   391 non-null    int64  
+dtypes: float64(1), int64(5), object(3)
+memory usage: 27.6+ KB
 
 
 
 # - - Stats - - #
 
-            event        time     num_age    num_risk
-count  391.000000  391.000000  391.000000  391.000000
-mean     0.388747   35.847852   20.759591    9.690537
-std      0.488090   21.215216   14.807777    1.475922
-min      0.000000    1.330000    1.000000    6.000000
-25%      0.000000   14.185000   10.000000    9.000000
-50%      0.000000   38.830000   16.000000    9.000000
-75%      1.000000   54.320000   30.000000   11.000000
-max      1.000000   74.970000   58.000000   12.000000
+            event        time     fac_trt    fac_risk     num_age    num_risk
+count  391.000000  391.000000  391.000000  391.000000  391.000000  391.000000
+mean     0.388747   35.847852    0.503836    9.690537   20.759591    9.690537
+std      0.488090   21.215216    0.500626    1.475922   14.807777    1.475922
+min      0.000000    1.330000    0.000000    6.000000    1.000000    6.000000
+25%      0.000000   14.185000    0.000000    9.000000   10.000000    9.000000
+50%      0.000000   38.830000    1.000000    9.000000   16.000000    9.000000
+75%      1.000000   54.320000    1.000000   11.000000   30.000000   11.000000
+max      1.000000   74.970000    1.000000   12.000000   58.000000   12.000000
 
 
 # - - Reference - - #

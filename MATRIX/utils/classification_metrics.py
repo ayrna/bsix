@@ -20,7 +20,7 @@ def scorerAmae(y, y_pred):
 def ccr(y_true, y_pred):
 
     """
-    Computes the Correct Classification Rate (CCR).
+    Compute the Correct Classification Rate (CCR).
     """
 
     return np.count_nonzero(y_true == y_pred) / float(len(y_true))
@@ -28,7 +28,7 @@ def ccr(y_true, y_pred):
 def amae(y_true, y_pred):
 
     """
-    Computes the Average Mean Absolute Error (AMAE).
+    Compute the Average Mean Absolute Error (AMAE).
     """
     
     with warnings.catch_warnings():
@@ -49,7 +49,7 @@ def amae(y_true, y_pred):
 def gm(y_true, y_pred):
 
     """
-    Computes the Geometric Mean (GM).
+    Compute the Geometric Mean (GM).
     """
 
     with warnings.catch_warnings():
@@ -67,7 +67,7 @@ def gm(y_true, y_pred):
 def mae(y_true, y_pred):
 
     """
-    Computes the Mean Absolute Error (MAE).
+    Compute the Mean Absolute Error (MAE).
     """
 
     with warnings.catch_warnings():
@@ -79,7 +79,7 @@ def mae(y_true, y_pred):
 def mmae(y_true, y_pred):
 
     """
-    Computes the Maximum Mean Absolute Error (MMAE).
+    Compute the Maximum Mean Absolute Error (MMAE).
     """
 
     with warnings.catch_warnings():
@@ -101,7 +101,7 @@ def mmae(y_true, y_pred):
 def recall(y_true, y_pred, average="macro"):
 
     """
-    Computes the Recall (Sensitivity).
+    Compute the Recall (Sensitivity).
     """
 
     with warnings.catch_warnings():
@@ -122,7 +122,7 @@ def recall(y_true, y_pred, average="macro"):
 def ms(y_true, y_pred):
 
     """
-    Computes the Minimum Sensitivity (MS).
+    Compute the Minimum Sensitivity (MS).
     """
 
     sensitivities = recall(y_true, y_pred, average=None)
@@ -131,7 +131,7 @@ def ms(y_true, y_pred):
 def mze(y_true, y_pred):
 
     """
-    Computes the Mean Zero Error (MZE).
+    Compute the Mean Zero Error (MZE).
     """
 
     with warnings.catch_warnings():
@@ -142,7 +142,7 @@ def mze(y_true, y_pred):
 def tkendall(y_true, y_pred):
 
     """
-    Computes the Kendall"s Tau (TKendall).
+    Compute the Kendall"s Tau (TKendall).
     """
 
     with warnings.catch_warnings():
@@ -153,7 +153,7 @@ def tkendall(y_true, y_pred):
 def wkappa(y_true, y_pred):
 
     """
-    Computes the Weighted Kappa (WKappa).
+    Compute the Weighted Kappa (WKappa).
     """
 
     with warnings.catch_warnings():
@@ -176,7 +176,7 @@ def wkappa(y_true, y_pred):
 def spearman(y_true, y_pred):
 
     """
-    Computes the Spearman"s Rank Correlation Coefficient (Spearman).
+    Compute the Spearman"s Rank Correlation Coefficient (Spearman).
     """
 
 

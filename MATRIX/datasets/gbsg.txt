@@ -1,0 +1,45 @@
+# # # # #  gbsg.h5  # # # # # 
+
+
+# - - Description - - #
+
+Rotterdam & German Breast Cancer Study Group
+
+
+# - - Info - - #
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 2232 entries, 0 to 2231
+Data columns (total 9 columns):
+ #   Column  Non-Null Count  Dtype  
+---  ------  --------------  -----  
+ 0   0       2232 non-null   float32
+ 1   1       2232 non-null   float32
+ 2   2       2232 non-null   float32
+ 3   3       2232 non-null   float32
+ 4   4       2232 non-null   float32
+ 5   5       2232 non-null   float32
+ 6   6       2232 non-null   float32
+ 7   event   2232 non-null   int32  
+ 8   time    2232 non-null   float32
+dtypes: float32(8), int32(1)
+memory usage: 78.6 KB
+
+
+
+# - - Stats - - #
+
+                 0            1            2            3            4            5            6        event         time
+count  2232.000000  2232.000000  2232.000000  2232.000000  2232.000000  2232.000000  2232.000000  2232.000000  2232.000000
+mean      0.262097     0.836021     0.588710    55.077061     5.163530   142.014786   143.925186     0.567652    44.491585
+std       0.439874     0.647716     0.492178    12.258656     5.075552   274.075256   240.159775     0.495513    27.629768
+min       0.000000     0.000000     0.000000    21.000000     1.000000     0.000000     0.000000     0.000000     0.262834
+25%       0.000000     0.000000     0.000000    46.000000     2.000000     6.000000    10.000000     0.000000    19.121149
+50%       0.000000     1.000000     1.000000    55.000000     3.000000    37.000000    54.000000     1.000000    40.229979
+75%       1.000000     1.000000     1.000000    64.000000     7.000000   161.250000   173.000000     1.000000    71.104721
+max       1.000000     2.000000     1.000000    90.000000    51.000000  5004.000000  3008.000000     1.000000    87.359344
+
+
+# - - Reference - - #
+
+https://github.com/jaredleekatzman/DeepSurv/blob/master/experiments/data/gbsg/gbsg_cancer_train_test.h5

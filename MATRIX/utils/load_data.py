@@ -1,13 +1,14 @@
 import numpy as np
 import pandas as pd
 
-def _load_data_csv(data_dir, dataset_name, test_size, validation_size, random_state=0):
-    from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split
 
-    print(f"\n- - - - {dataset_name} (csv) - - - -\n")
+def _prepare_data(df, test_size, validation_size, random_state):
 
-    # Load dataset
-    df = pd.read_csv(f"./{data_dir}/{dataset_name}")
+    """
+    Prepare the dataset for training, validation and testing.
+    """
+    
     df = df[df["time"] > 0]
     df = df.dropna()
 
@@ -37,8 +38,78 @@ def _load_data_csv(data_dir, dataset_name, test_size, validation_size, random_st
 
     return X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names
 
+def _toDataframe(data):
+
+    """
+    Convert the HDF5 format to a DataFrame.
+    """
+    
+    df = pd.DataFrame(data[0])
+    df["event"] = data[1]
+    df["time"] = data[2]
+
+    return df
+
+def _load_data_hdf(data_dir, dataset_name, test_size, validation_size, random_state):
+
+    """
+    Load dataset from a HDF5 file.
+    """
+    
+    import h5py
+    
+    print(f"\n- - - - {dataset_name} (hdf5) - - - -\n")
+
+    # Load dataset
+    f = h5py.File(f"{data_dir}/{dataset_name}", "r")
+    data = [f["x"][()], f["e"][()], f["t"][()]]
+    f.close()
+
+    df = _toDataframe(data)
+    
+    return _prepare_data(df, test_size, validation_size, random_state)
+
+def _load_data_arff(data_dir, dataset_name, test_size, validation_size, random_state):
+
+    """
+    Load dataset from a ARFF file.
+    """
+
+    from scipy.io import arff
+
+    print(f"\n- - - - {dataset_name} (arff) - - - -\n")
+
+    # Load dataset
+    file_path = f"./{data_dir}/{dataset_name}"
+    data, meta = arff.loadarff(file_path)
+    
+    df = pd.DataFrame(data)
+
+    # Decode byte strings to UTF-8 strings for object columns
+    for col in df.select_dtypes([object]).columns:
+        df[col] = df[col].apply(lambda x: x.decode('utf-8') if isinstance(x, bytes) else x)
+    
+    return _prepare_data(df, test_size, validation_size, random_state)
+
+def _load_data_csv(data_dir, dataset_name, test_size, validation_size, random_state):
+
+    """
+    Load dataset from a CSV file.
+    """
+
+    print(f"\n- - - - {dataset_name} (csv) - - - -\n")
+
+    # Load dataset
+    df = pd.read_csv(f"./{data_dir}/{dataset_name}")
+    
+    return _prepare_data(df, test_size, validation_size, random_state)
+
 def _sort_data(x, t, e):
-    # Sort data by time in descending order
+
+    """
+    Sort data by time in descending order.
+    """
+    
     sort_idx = np.argsort(t)[::-1]
 
     x = x[sort_idx]
@@ -47,7 +118,12 @@ def _sort_data(x, t, e):
 
     return x, t, e
 
-def _transformTrainValidationTest(X, y, dataset_name):
+def _transformTrainValidationTest(X, y):
+
+    """
+    Transform the data format for train, validation and test sets.
+    """
+
     from sksurv.util import Surv
 
     _X = X
@@ -57,33 +133,12 @@ def _transformTrainValidationTest(X, y, dataset_name):
     # y = [[event1, time1, event2, time2, ...], [event1, time1, event2, time2, ...], ...]
     _y = y
         
-    if ".time_varying" in dataset_name:
-        _yE = np.array([event[0] for event in _y], np.float32)
-        _yTstart = np.array([time[1] for time in _y], np.float32)
-        _yTstop = np.array([time[2] for time in _y], np.float32)
-        _yT = np.array([_yTstart, _yTstop])
-        
-        # Sort data by time in descending order (during training)
-        dtype = [("event", "?"), ("time_start", "f8"), ("time_stop", "f8"), ("time", "f8")]
-        _y = np.array([(bool(item[0]), float(item[1]), float(item[2]), float(item[3])) for item in _y], dtype=dtype)
+    _yE = np.array([event[0] for event in _y], np.float32)
+    _yT = np.array([time[1] for time in _y], np.float32)
 
-    elif ".multitask" in dataset_name:
-        _yE = np.array(_y[:, 0::2], np.float32)
-        _yT = np.array(_y[:, 1::2], np.float32)
-
-        _ySurv = []
-        for i in range(int(_y.shape[1] / 2)):
-            # Sort data by time in descending order (during training)
-            _ySurv.append(Surv.from_arrays(event=_yE[:, i], time=_yT[:, i]))
-        _y = np.array(_ySurv).T
-
-    else:
-        _yE = np.array([event[0] for event in _y], np.float32)
-        _yT = np.array([time[1] for time in _y], np.float32)
-
-        # Sort data by time in descending order
-        _X, _yT,_yE = _sort_data(_X, _yT,_yE)
-        _y = Surv.from_arrays(event=_yE, time=_yT)
+    # Sort data by time in descending order
+    _X, _yT,_yE = _sort_data(_X, _yT,_yE)
+    _y = Surv.from_arrays(event=_yE, time=_yT)
     
     survival = {
         "x" : _X,
@@ -94,8 +149,16 @@ def _transformTrainValidationTest(X, y, dataset_name):
     return _X, _y, survival
 
 def get_data(data_dir="MATRIX/datasets", dataset_name="diabetes.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, random_state=0):
-    # ".csv" is the last in the _if_ due to "analysis.csv", "multitask.csv", etc.
-    if ".csv" in dataset_name:
+
+    """
+    Load and preprocess the dataset.
+    """
+
+    if ".h5" in dataset_name:
+        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _load_data_hdf(data_dir, dataset_name, test_size, validation_size, random_state)
+    elif ".arff" in dataset_name:
+        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _load_data_arff(data_dir, dataset_name, test_size, validation_size, random_state)
+    elif ".csv" in dataset_name:
         X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _load_data_csv(data_dir, dataset_name, test_size, validation_size, random_state)
     else:
         print("ERROR : Wrong format of dataset.")
@@ -138,15 +201,14 @@ def get_data(data_dir="MATRIX/datasets", dataset_name="diabetes.csv", test_size=
         X_test = scaler.transform(X_test)
 
     # Transform data for train, validation and test sets
-    X_train, y_train, _ = _transformTrainValidationTest(X_train, y_train, dataset_name)
-    X_validation, y_validation, _ = _transformTrainValidationTest(X_validation, y_validation, dataset_name)
-    X_test, y_test, _ = _transformTrainValidationTest(X_test, y_test, dataset_name)
+    X_train, y_train, _ = _transformTrainValidationTest(X_train, y_train)
+    X_validation, y_validation, _ = _transformTrainValidationTest(X_validation, y_validation)
+    X_test, y_test, _ = _transformTrainValidationTest(X_test, y_test)
 
     # Adapt "y" for multitasking when there is only one progression
     if to_multitask:
         y_train = y_train[:, np.newaxis]
         y_validation = y_validation[:, np.newaxis]
         y_test = y_test[:, np.newaxis]
-        y_test_external = y_test_external[:, np.newaxis]
 
     return X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names, scaler

@@ -1,4 +1,4 @@
-# # # # #  veteran  # # # # # 
+# # # # #  veteran.csv  # # # # # 
 
 
 # - - Description - - #
@@ -11,32 +11,32 @@ Veterans' Administration Lung Cancer study
 <class 'pandas.core.frame.DataFrame'>
 RangeIndex: 137 entries, 0 to 136
 Data columns (total 8 columns):
- #   Column        Non-Null Count  Dtype   
----  ------        --------------  -----   
- 0   event         137 non-null    int64   
- 1   time          137 non-null    int64   
- 2   num_karno     137 non-null    int64   
- 3   num_diagtime  137 non-null    int64   
- 4   num_age       137 non-null    int64   
- 5   fac_trt       137 non-null    category
- 6   fac_celltype  137 non-null    category
- 7   fac_prior     137 non-null    category
-dtypes: category(3), int64(5)
-memory usage: 6.0 KB
+ #   Column        Non-Null Count  Dtype 
+---  ------        --------------  ----- 
+ 0   event         137 non-null    int64 
+ 1   time          137 non-null    int64 
+ 2   num_karno     137 non-null    int64 
+ 3   num_diagtime  137 non-null    int64 
+ 4   num_age       137 non-null    int64 
+ 5   fac_trt       137 non-null    int64 
+ 6   fac_celltype  137 non-null    object
+ 7   fac_prior     137 non-null    int64 
+dtypes: int64(7), object(1)
+memory usage: 8.7+ KB
 
 
 
 # - - Stats - - #
 
-            event        time   num_karno  num_diagtime     num_age
-count  137.000000  137.000000  137.000000    137.000000  137.000000
-mean     0.934307  121.627737   58.569343      8.773723   58.306569
-std      0.248655  157.816722   20.039592     10.612141   10.541628
-min      0.000000    1.000000   10.000000      1.000000   34.000000
-25%      1.000000   25.000000   40.000000      3.000000   51.000000
-50%      1.000000   80.000000   60.000000      5.000000   62.000000
-75%      1.000000  144.000000   75.000000     11.000000   66.000000
-max      1.000000  999.000000   99.000000     87.000000   81.000000
+            event        time   num_karno  num_diagtime     num_age     fac_trt   fac_prior
+count  137.000000  137.000000  137.000000    137.000000  137.000000  137.000000  137.000000
+mean     0.934307  121.627737   58.569343      8.773723   58.306569    1.496350    2.919708
+std      0.248655  157.816722   20.039592     10.612141   10.541628    0.501821    4.563375
+min      0.000000    1.000000   10.000000      1.000000   34.000000    1.000000    0.000000
+25%      1.000000   25.000000   40.000000      3.000000   51.000000    1.000000    0.000000
+50%      1.000000   80.000000   60.000000      5.000000   62.000000    1.000000    0.000000
+75%      1.000000  144.000000   75.000000     11.000000   66.000000    2.000000   10.000000
+max      1.000000  999.000000   99.000000     87.000000   81.000000    2.000000   10.000000
 
 
 # - - Reference - - #

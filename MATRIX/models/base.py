@@ -10,6 +10,11 @@ from scipy.stats import entropy
 from sklearn.base import BaseEstimator
 
 def _tool_setTimeTicksAxisX(ax):
+
+    """
+    Tool for setting time ticks on X-axis.
+    """
+
     max_days = max(abs(ax.get_xlim()[0]), abs(ax.get_xlim()[1])) # (min, max)
 
     if max_days > 3650: # More than 10 years
@@ -22,6 +27,11 @@ def _tool_setTimeTicksAxisX(ax):
     return major, minor
 
 def _tool_setXaiTicksAxisX(ax):
+
+    """
+    Tool for setting XAI ticks on X-axis.
+    """
+
     max_shap = max(abs(ax.get_xlim()[0]), abs(ax.get_xlim()[1])) # (min, max)
 
     if max_shap > 10: # More than 10 (xai)
@@ -34,6 +44,11 @@ def _tool_setXaiTicksAxisX(ax):
     return major, minor
 
 def _tool_setRiskTicksAxisY(ax):
+
+    """
+    Tool for setting risk ticks on Y-axis.
+    """
+
     max_risk = max(abs(ax.get_ylim()[0]), abs(ax.get_ylim()[1])) # (min, max)
 
     if max_risk > 5: # More than 5 (risk)
@@ -44,6 +59,11 @@ def _tool_setRiskTicksAxisY(ax):
     return major, minor
 
 def _tool_toDataframe(data, columns=None):
+
+    """
+    Tool for converting X, y to a DataFrame.
+    """
+
     if columns == None: # Without columns names
         dataframe = pd.DataFrame(data, columns=[str(l) for l in range(data.shape[1])])
     else: # With columns names
@@ -105,7 +125,7 @@ class BaseSurvival(BaseEstimator, ABC):
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
     
     @staticmethod
-    def dinamic_discretise(y, dataset, seed, **kwargs):
+    def dinamic_discretise(y, dataset, seed):
 
         """
         Discretise data by piecewise exponential and show in kaplan meier.
@@ -232,7 +252,7 @@ class BaseSurvival(BaseEstimator, ABC):
         return splits
 
     @staticmethod
-    def feature_selection(X, y, **kwargs):
+    def feature_selection(X, y):
 
         """
         Calculate the best features based on p-value.
@@ -328,7 +348,7 @@ class BaseSurvival(BaseEstimator, ABC):
         return dataframe
     
     @staticmethod
-    def logrank_test(y, groups, weights=None, **kwargs):
+    def logrank_test(y, groups, weights=None):
 
         """
         Calculate the log-rank test for n groups.
@@ -340,7 +360,7 @@ class BaseSurvival(BaseEstimator, ABC):
         return result
     
     @staticmethod
-    def to_time_dependent(dataframe, identifier, time, event, splits):
+    def to_time_dependent(dataframe, identifier, splits, time="time", event="event"):
     
         """
         Transform a DataFrame with a per-subject measurement into a time-dependent format.
@@ -375,7 +395,7 @@ class BaseSurvival(BaseEstimator, ABC):
         return dataframe_transformed
     
     @staticmethod
-    def to_time_varying(dataframe, identifier, time, event):
+    def to_time_varying(dataframe, identifier, time="time", event="event"):
     
         """
         Transform a DataFrame with a multiple-subject measurements into a start-stop format.
@@ -384,7 +404,7 @@ class BaseSurvival(BaseEstimator, ABC):
         # Sort dataframe by identifier and date
         dataframe_transformed = dataframe.sort_values(by=[identifier, time]).copy()
         # Rename columns
-        dataframe_transformed = dataframe_transformed.rename(columns={identifier: "identifier", event:"event", time: "time_stop"})
+        dataframe_transformed = dataframe_transformed.rename(columns={identifier: "identifier", event: "event", time: "time_stop"})
 
         # Move the new time_start column (time) down by inserting 0.0 as the first value
         dataframe_transformed["time_start"] = dataframe_transformed.groupby("identifier")["time_stop"].shift(1).fillna(0)
