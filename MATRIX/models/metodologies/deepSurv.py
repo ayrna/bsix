@@ -331,7 +331,9 @@ class DeepSurv(BaseSurvival):
         logger.history["best_params"] = best_params
         logger.history["best_params_idx"] = best_params_idx
         
-        return logger.history
+        self.history = logger.history
+        
+        return self
     
     def predict(self, x):
 

@@ -201,7 +201,7 @@ class DeepTimeVarying(BaseSurvival):
         self.breslow = BreslowEstimator()
 
         # Sort by time
-        X_train, y_train = self._sort(X_train, y_train)
+        X_train, y_train = self._sort(X_train, y_train, "time_stop")
 
         # Apply y_train supervision
         y_train["time_stop"] = np.where(y_train["time_start"] == y_train["time_stop"], y_train["time_stop"] + 1e-6, y_train["time_stop"])
@@ -340,7 +340,9 @@ class DeepTimeVarying(BaseSurvival):
         logger.history["best_params"] = best_params
         logger.history["best_params_idx"] = best_params_idx
         
-        return logger.history
+        self.history = logger.history
+        
+        return self
     
     def predict(self, x):
 

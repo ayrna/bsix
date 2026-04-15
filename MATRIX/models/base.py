@@ -411,7 +411,7 @@ class BaseSurvival(BaseEstimator, ABC):
         dataframe_transformed = dataframe_transformed.astype({"time_start": float, "time_stop": float})
 
         # Move the event column down by inserting 0.0 as the first value (do not remove the row with the event)
-        shift_event = dataframe_transformed.groupby("identifier")["event"].shift(1).fillna(0)
+        shift_event = dataframe_transformed.groupby("identifier")["event"].shift(1).fillna(0).astype(int)
         # Pass the event down the chain
         forward_fill_event = shift_event.groupby(dataframe_transformed["identifier"]).cummax()
         # Remove events with a value of 1.0
@@ -469,7 +469,7 @@ class BaseSurvival(BaseEstimator, ABC):
         if progression is not None:
             title_parts.append(f"progression {progression}")
         
-        plt.title(f"XAI\n{" - ".join(title_parts)}", fontsize=12)
+        plt.title(f"XAI\n{' - '.join(title_parts)}", fontsize=12)
         plt.xlabel("Coefficients values", fontsize=10)
         plt.ylabel("Features", fontsize=10)
         
@@ -491,7 +491,7 @@ class BaseSurvival(BaseEstimator, ABC):
             filename_parts.append(f"s{seed}")
         if progression is not None:
             filename_parts.append(f"p{progression}")
-        filename = f"{"_".join(filename_parts)}.png"
+        filename = f"{'_'.join(filename_parts)}.png"
         
         # Save figure
         plt.tight_layout()
@@ -549,7 +549,7 @@ class BaseSurvival(BaseEstimator, ABC):
         if progression is not None:
             title_parts.append(f"progression {progression}")
         
-        plt.title(f"XAI\n{" - ".join(title_parts)}", fontsize=12)
+        plt.title(f"XAI\n{' - '.join(title_parts)}", fontsize=12)
         plt.xlabel("Shap values", fontsize=10)
         plt.ylabel("Features", fontsize=10)
 
@@ -572,7 +572,7 @@ class BaseSurvival(BaseEstimator, ABC):
             filename_parts.append(f"s{seed}")
         if progression is not None:
             filename_parts.append(f"p{progression}")
-        filename = f"{"_".join(filename_parts)}.png"
+        filename = f"{'_'.join(filename_parts)}.png"
         
         # Save figure
         plt.tight_layout()
@@ -603,7 +603,7 @@ class BaseSurvival(BaseEstimator, ABC):
         if progression is not None:
             title_parts.append(f"progression {progression}")
         
-        plt.title(f"{function_type}\n{" - ".join(title_parts)}", fontsize=12)
+        plt.title(f"{function_type}\n{' - '.join(title_parts)}", fontsize=12)
         plt.xlabel("Time (days)", fontsize=10)
         plt.ylabel(f"{function_type} probability", fontsize=10)
         
@@ -649,20 +649,20 @@ class BaseSurvival(BaseEstimator, ABC):
             filename_parts.append(f"s{seed}")
         if progression is not None:
             filename_parts.append(f"p{progression}")
-        filename = f"{"_".join(filename_parts)}.png"
+        filename = f"{'_'.join(filename_parts)}.png"
         
         # Save figure
         plt.tight_layout()
         plt.savefig(filename, dpi=300, bbox_inches="tight")
         plt.close()
 
-    def _sort(self, X, y):
+    def _sort(self, X, y, time="time"):
         
         """
         Sort data by descending time.
         """
                 
-        sort_idx = np.argsort(y["time"])[::-1]
+        sort_idx = np.argsort(y[time])[::-1]
 
         X = X[sort_idx]
         y = y[sort_idx]

@@ -8,33 +8,74 @@ def _prepare_data(df, test_size, validation_size, random_state):
     """
     Prepare the dataset for training, validation and testing.
     """
-    
-    df = df[df["time"] > 0]
-    df = df.dropna()
 
+    import numpy.lib.recfunctions as rfn
+    from sklearn.model_selection import StratifiedGroupKFold
+    
+    if all(name in df.columns for name in ["time_start", "time_stop"]):
+        time_labels = ["time_start", "time_stop"]
+        # For time-varying data, only filter on time_stop (the event/censoring time)
+        df = df[df["time_stop"] > 0]
+    else:
+        time_labels = ["time"]
+        df = df[df["time"] > 0]
+        
+    labels = ["event"] + time_labels
+    df = df.dropna()
+    
     # Print dataset information
     df.info()
     print()
     print(df.describe(include="all"))
     print()
 
-    # One-hot encoding for categorical variables
-    df = pd.get_dummies(df, drop_first=True)
+    # One-hot encoding for categorical variables (excluding labels)
+    categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
+    # Remove label columns from categorical encoding
+    categorical_cols = [col for col in categorical_cols if col not in labels]
+    df = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 
-    remove = ["event", "time"]
-    feature_names = [x for x in df.columns.to_list() if x not in remove]
+    feature_names = [x for x in df.columns.to_list() if x not in labels]
     
     # Split dataset into train and test sets
-    X_train, X_test, y_train, y_test = train_test_split(df[feature_names], df[["event", "time"]], test_size=test_size, random_state=random_state, stratify=df["event"])
-    X_test = np.array(X_test, np.float32)
-    y_test = np.array(y_test, np.float32)
+    if len(time_labels) == 1:
+        X_train, X_test, y_train, y_test = train_test_split(df[feature_names], df[labels], test_size=test_size, random_state=random_state, stratify=df["event"])
 
-    # Split dataset into train and validation sets
-    X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=validation_size, random_state=random_state, stratify=y_train["event"])
-    X_train = np.array(X_train, np.float32)   
-    y_train = np.array(y_train, np.float32)
-    X_validation = np.array(X_validation, np.float32)
-    y_validation = np.array(y_validation, np.float32)
+        X_test = np.array(X_test, np.float32)
+        y_test = np.array(y_test, np.float32)
+
+        # Split dataset into train and validation sets
+        X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=validation_size, random_state=random_state, stratify=y_train["event"])
+
+        X_train = np.array(X_train, np.float32)   
+        y_train = np.array(y_train, np.float32)
+        X_validation = np.array(X_validation, np.float32)
+        y_validation = np.array(y_validation, np.float32)
+    else:
+        n_groups = df["identifier"].nunique()
+        n_splits_outer = min(int(1 / test_size), max(2, n_groups // 2))
+        n_splits_inner = min(int(1 / validation_size), max(2, n_groups // 4))
+        
+        group_split_outer = StratifiedGroupKFold(n_splits=n_splits_outer, shuffle=True, random_state=random_state)
+        train_val_idx, test_idx = next(group_split_outer.split(df[feature_names], df["event"], groups=df["identifier"]))
+
+        X_train_val = df.iloc[train_val_idx]
+        y_train_val = df.iloc[train_val_idx][labels]
+        X_test = df.iloc[test_idx][feature_names]
+        y_test = df.iloc[test_idx][labels]
+
+        group_split_inner = StratifiedGroupKFold(n_splits=n_splits_inner, shuffle=True, random_state=random_state)
+        train_idx, val_idx = next(group_split_inner.split(X_train_val, y_train_val["event"], groups=X_train_val["identifier"]))
+
+        if "identifier" in feature_names:
+            feature_names.remove("identifier")
+            
+        X_train = np.array(X_train_val.iloc[train_idx][feature_names].values, np.float32)
+        y_train = np.array(y_train_val.iloc[train_idx][labels].values, np.float32)
+        X_validation = np.array(X_train_val.iloc[val_idx][feature_names].values, np.float32)
+        y_validation = np.array(y_train_val.iloc[val_idx][labels].values, np.float32)
+        X_test = np.array(X_test[feature_names].values, np.float32)
+        y_test = np.array(y_test[labels].values, np.float32)
 
     return X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names
 
@@ -132,13 +173,22 @@ def _transformTrainValidationTest(X, y):
     # y = [[event, time_start, event_stop], [event, time_start, event_stop], ...] / 
     # y = [[event1, time1, event2, time2, ...], [event1, time1, event2, time2, ...], ...]
     _y = y
-        
-    _yE = np.array([event[0] for event in _y], np.float32)
-    _yT = np.array([time[1] for time in _y], np.float32)
+    
+    if y.shape[1] == 2:
+        _yE = np.array([event[0] for event in _y], np.float32)
+        _yT = np.array([time[1] for time in _y], np.float32)
 
-    # Sort data by time in descending order
-    _X, _yT,_yE = _sort_data(_X, _yT,_yE)
-    _y = Surv.from_arrays(event=_yE, time=_yT)
+        # Sort data by time in descending order
+        _X, _yT,_yE = _sort_data(_X, _yT,_yE)
+        _y = Surv.from_arrays(event=_yE, time=_yT)
+    else:
+        _yE = np.array([event[0] for event in _y], np.float32)#.reshape(-1)
+        _yTstart = np.array([time[1] for time in _y], np.float32)#.reshape(-1)
+        _yTstop = np.array([time[2] for time in _y], np.float32)#.reshape(-1)
+        _yT = np.array([_yTstart, _yTstop])
+        # Ordenar posteriormente por tiempo descendente (ahora no)
+        dtype = [('event', '?'), ('time_start', 'f8'), ('time_stop', 'f8')]
+        _y = np.array([(bool(item[0]), float(item[1]), float(item[2])) for item in _y], dtype=dtype)
     
     survival = {
         "x" : _X,
@@ -148,13 +198,15 @@ def _transformTrainValidationTest(X, y):
     
     return _X, _y, survival
 
-def get_data(data_dir="MATRIX/datasets", dataset_name="diabetes.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, random_state=0):
+def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, random_state=0):
 
     """
     Load and preprocess the dataset.
     """
 
-    if ".h5" in dataset_name:
+    if df is not None:
+        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(df, test_size, validation_size, random_state)
+    elif ".h5" in dataset_name:
         X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _load_data_hdf(data_dir, dataset_name, test_size, validation_size, random_state)
     elif ".arff" in dataset_name:
         X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _load_data_arff(data_dir, dataset_name, test_size, validation_size, random_state)

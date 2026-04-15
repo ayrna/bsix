@@ -46,16 +46,19 @@ def scorerConcordanceIndex(y_true, y_pred):
 def concordanceIndexHarrel(y_true, y_pred):
 
     """
-    Compute the Harrell's Concordance Index (C-index).
+    Computes the Harrell's Concordance Index (C-index).
     """
-
+    
     risk = y_pred.copy()
     _y_true = y_true[1].copy()
+
+    risk = risk.squeeze() if risk.ndim > 1 else risk
+    _y_true = _y_true.squeeze() if _y_true.ndim > 1 else _y_true
 
     if all(name in _y_true.dtype.names for name in ["time_start", "time_stop"]):
         _y_true = rfn.drop_fields(_y_true, ["time_start", "time"])
         _y_true = rfn.rename_fields(_y_true, {"time_stop": "time"})
-
+        
     e = np.array([evento for evento, _ in _y_true], np.bool_)
     t = np.array([tiempo for _, tiempo in _y_true], np.float64)
 
@@ -64,12 +67,17 @@ def concordanceIndexHarrel(y_true, y_pred):
 def concordanceIndexIPCW(y_true, y_pred):
 
     """
-    Compute the Inverse Probability of Censoring Weighted (IPCW).
+    Computes the Inverse Probability of Censoring Weighted (IPCW).
     """
-    
+
+    risk = y_pred.copy()
     survival_train = y_true[0].copy()
     survival_test = y_true[1].copy()
     
+    risk = risk.squeeze() if risk.ndim > 1 else risk
+    survival_train = survival_train.squeeze() if survival_train.ndim > 1 else survival_train
+    survival_test = survival_test.squeeze() if survival_test.ndim > 1 else survival_test
+
     if all(name in survival_train.dtype.names for name in ["time_start", "time_stop"]):
             survival_train = rfn.drop_fields(survival_train, ["time_start", "time"])
             survival_train = rfn.rename_fields(survival_train, {"time_stop": "time"})
@@ -77,8 +85,6 @@ def concordanceIndexIPCW(y_true, y_pred):
     if all(name in survival_test.dtype.names for name in ["time_start", "time_stop"]):
             survival_test = rfn.drop_fields(survival_test, ["time_start", "time"])
             survival_test = rfn.rename_fields(survival_test, {"time_stop": "time"})
-            
-    risk = y_pred
 
     tau, survival_train, survival_test, risk = getTau(survival_train, survival_test, risk)
     
@@ -87,11 +93,16 @@ def concordanceIndexIPCW(y_true, y_pred):
 def cumulativeDinamicAUC(y_true, y_pred):
     
     """
-    Compute the Cumulative Dynamic AUC (AUC).
+    Computes the Cumulative Dynamic AUC (AUC).
     """
-    
+
+    risk = y_pred.copy()
     survival_train = y_true[0].copy()
     survival_test = y_true[1].copy()
+
+    risk = risk.squeeze() if risk.ndim > 1 else risk
+    survival_train = survival_train.squeeze() if survival_train.ndim > 1 else survival_train
+    survival_test = survival_test.squeeze() if survival_test.ndim > 1 else survival_test
 
     if all(name in survival_train.dtype.names for name in ["time_start", "time_stop"]):
             survival_train = rfn.drop_fields(survival_train, ["time_start", "time"])
@@ -100,7 +111,6 @@ def cumulativeDinamicAUC(y_true, y_pred):
     if all(name in survival_test.dtype.names for name in ["time_start", "time_stop"]):
             survival_test = rfn.drop_fields(survival_test, ["time_start", "time"])
             survival_test = rfn.rename_fields(survival_test, {"time_stop": "time"})
-    risk = y_pred
 
     tau, survival_train, survival_test, risk = getTau(survival_train, survival_test, risk)
     times = getTimes(survival_test)

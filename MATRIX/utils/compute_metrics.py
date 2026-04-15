@@ -16,9 +16,9 @@ def get_metrics(targets, predictions):
     
     if len(predictions) == 1:
         metrics.update({
-            "C-Index Harrel": concordanceIndexHarrel(targets, predictions),
-            "C-Index IPCW": concordanceIndexIPCW(targets, predictions),
-            "Cumulative Dinamic AUC": cumulativeDinamicAUC(targets, predictions),
+            "C-Index Harrel": concordanceIndexHarrel(targets, predictions[0]),
+            "C-Index IPCW": concordanceIndexIPCW(targets, predictions[0]),
+            "Cumulative Dinamic AUC": cumulativeDinamicAUC(targets, predictions[0]),
         })
     elif len(predictions) == 2:
         metrics.update({
@@ -27,14 +27,15 @@ def get_metrics(targets, predictions):
             "Cumulative Dinamic AUC": cumulativeDinamicAUC(targets, predictions[0]),
         })
 
+        binary_predictions = np.where(predictions[1] >= 0.5, 1.0, 0.0)
         metrics.update({
-            "MAE": mae(targets[1], predictions[1]),
-            "AMAE": amae(targets[1], predictions[1]),
-            "MS": ms(targets[1], predictions[1]),
-            "CCR": ccr(targets[1], predictions[1]),
+            "MAE": mae(targets[1]["event"], binary_predictions),
+            "AMAE": amae(targets[1]["event"], binary_predictions),
+            "MS": ms(targets[1]["event"], binary_predictions),
+            "CCR": ccr(targets[1]["event"], binary_predictions),
         })
 
-        sensitivities = np.array(recall(targets[1]["event"], predictions[1], average=None))
+        sensitivities = np.array(recall(targets[1]["event"], binary_predictions, average=None))
 
         for i, sens in enumerate(sensitivities):
             metrics.update({

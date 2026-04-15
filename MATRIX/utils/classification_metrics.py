@@ -9,7 +9,7 @@ def scorerAmae(y, y_pred):
     """
     Scorer for Average Mean Absolute Error (AMAE).
     """
-
+    
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         e = np.array([evento for evento, _ in y], np.float32)
@@ -20,19 +20,25 @@ def scorerAmae(y, y_pred):
 def ccr(y_true, y_pred):
 
     """
-    Compute the Correct Classification Rate (CCR).
+    Computes the Correct Classification Rate (CCR).
     """
 
+    y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+    y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
+    
     return np.count_nonzero(y_true == y_pred) / float(len(y_true))
 
 def amae(y_true, y_pred):
 
     """
-    Compute the Average Mean Absolute Error (AMAE).
+    Computes the Average Mean Absolute Error (AMAE).
     """
     
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+        y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
+
         cm = confusion_matrix(y_true, y_pred)
         n_class = cm.shape[0]
         costs = np.reshape(np.tile(range(n_class), n_class), (n_class, n_class))
@@ -40,7 +46,7 @@ def amae(y_true, y_pred):
         errores = costs * cm
         
         sum_rows = np.sum(cm, ).astype("float")
-        with np.errstate(divide="ignore", invalid="ignore"):
+        with np.errstate(divide='ignore', invalid='ignore'):
             amaes = np.sum(errores, ) / sum_rows
         
         amaes = amaes[~np.isnan(amaes)]
@@ -49,15 +55,18 @@ def amae(y_true, y_pred):
 def gm(y_true, y_pred):
 
     """
-    Compute the Geometric Mean (GM).
+    Computes the Geometric Mean (GM).
     """
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+        y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
+
         cm = confusion_matrix(y_true, y_pred)
         sum_byclass = np.sum(cm, )
         
-        with np.errstate(divide="ignore", invalid="ignore"):
+        with np.errstate(divide='ignore', invalid='ignore'):
             sensitivities = np.diag(cm) / sum_byclass.astype("float")
             
         sensitivities[sum_byclass == 0] = 1
@@ -67,11 +76,14 @@ def gm(y_true, y_pred):
 def mae(y_true, y_pred):
 
     """
-    Compute the Mean Absolute Error (MAE).
+    Computes the Mean Absolute Error (MAE).
     """
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+        y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
+
         y_true = np.asarray(y_true)
         y_pred = np.asarray(y_pred)
         return abs(y_true - y_pred).sum() / len(y_true)
@@ -79,11 +91,14 @@ def mae(y_true, y_pred):
 def mmae(y_true, y_pred):
 
     """
-    Compute the Maximum Mean Absolute Error (MMAE).
+    Computes the Maximum Mean Absolute Error (MMAE).
     """
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+        y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
+
         cm = confusion_matrix(y_true, y_pred)
         n_class = cm.shape[0]
         costes = np.reshape(np.tile(range(n_class), n_class), (n_class, n_class))
@@ -91,25 +106,28 @@ def mmae(y_true, y_pred):
         errores = costes * cm
         
         sum_rows = np.sum(cm, ).astype("float")
-        with np.errstate(divide="ignore", invalid="ignore"):
+        with np.errstate(divide='ignore', invalid='ignore'):
             amaes = np.sum(errores, ) / sum_rows
             
         amaes = amaes[~np.isnan(amaes)]
         if len(amaes) == 0: return 0.0
         return amaes.max()
 
-def recall(y_true, y_pred, average="macro"):
+def recall(y_true, y_pred, average='macro'):
 
     """
-    Compute the Recall (Sensitivity).
+    Computes the Recall (Sensitivity).
     """
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+        y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
+
         cm = confusion_matrix(y_true, y_pred)
         sum_byclass = np.sum(cm, ).astype("float")
         
-        with np.errstate(divide="ignore", invalid="ignore"):
+        with np.errstate(divide='ignore', invalid='ignore'):
             sensitivities = np.diag(cm) / sum_byclass
         
         sensitivities = np.nan_to_num(sensitivities)
@@ -122,8 +140,11 @@ def recall(y_true, y_pred, average="macro"):
 def ms(y_true, y_pred):
 
     """
-    Compute the Minimum Sensitivity (MS).
+    Computes the Minimum Sensitivity (MS).
     """
+
+    y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+    y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
 
     sensitivities = recall(y_true, y_pred, average=None)
     return np.min(sensitivities)
@@ -131,33 +152,42 @@ def ms(y_true, y_pred):
 def mze(y_true, y_pred):
 
     """
-    Compute the Mean Zero Error (MZE).
+    Computes the Mean Zero Error (MZE).
     """
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+        y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
+
         confusion = confusion_matrix(y_true, y_pred)
         return 1 - np.diagonal(confusion).sum() / confusion.sum()
 
 def tkendall(y_true, y_pred):
 
     """
-    Compute the Kendall"s Tau (TKendall).
+    Computes the Kendall's Tau (TKendall).
     """
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+        y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
+
         corr, pvalue = scipy.stats.kendalltau(y_true, y_pred)
         return corr
 
 def wkappa(y_true, y_pred):
 
     """
-    Compute the Weighted Kappa (WKappa).
+    Computes the Weighted Kappa (WKappa).
     """
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+        y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
+
         cm = confusion_matrix(y_true, y_pred)
         n_class = cm.shape[0]
         costes = np.reshape(np.tile(range(n_class), n_class), (n_class, n_class))
@@ -176,12 +206,15 @@ def wkappa(y_true, y_pred):
 def spearman(y_true, y_pred):
 
     """
-    Compute the Spearman"s Rank Correlation Coefficient (Spearman).
+    Computes the Spearman's Rank Correlation Coefficient (Spearman).
     """
 
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
+        y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
+        
         corr, pvalue = scipy.stats.spearmanr(y_true, y_pred)
         if np.isnan(corr):
             return 0.0

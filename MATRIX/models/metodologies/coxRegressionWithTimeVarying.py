@@ -55,7 +55,7 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
         self.breslow = BreslowEstimator()
 
         # Sort by time
-        X, y = self._sort(X, y)
+        X, y = self._sort(X, y, "time_stop")
 
         dataframe = pd.concat([self._toDataframe(X), self._toDataframe(y[["event", "time_start", "time_stop"]], self.labels_covariables)], axis=1)
         dataframe["time_stop"] = np.where(dataframe["time_start"] == dataframe["time_stop"], dataframe["time_stop"] + 1e-6, dataframe["time_stop"])
