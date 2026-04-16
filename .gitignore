@@ -1,0 +1,10 @@
+# Ignorar un archivo específico
+export_results.py
+run_condor.py
+run_experiment.py
+
+# Ignorar una carpeta entera
+condor_output/
+results/
+tasksConfi/
+

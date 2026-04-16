@@ -482,7 +482,7 @@ class DeepMultiTask(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, estimator_name, dataset, seed):
+    def predict_survival_function(self, X, estimator_name, dataset, seed, plot=False):
 
         """ 
         S(x, t) = exp(-H(x, t)).
@@ -490,16 +490,17 @@ class DeepMultiTask(BaseSurvival):
 
         risk, _ = self.predict(X)
 
-        survival_functions = []
+        self.survival_functions = []
         for p in range(self.number_progressions):
             survival_function = self.breslow[p].get_survival_function(risk[:, p])
-            survival_functions.append(survival_function)
+            self.survival_functions.append(survival_function)
 
-            self._plot_survival_hazard_functions(survival_function, estimator_name, dataset, seed, "Survival", p)
+            if plot:
+                self._plot_survival_hazard_functions(survival_function, estimator_name, dataset, seed, "Survival", p)
         
-        return survival_functions
+        return self.survival_functions
 
-    def predict_cumulative_hazard_function(self, X, estimator_name, dataset, seed):
+    def predict_cumulative_hazard_function(self, X, estimator_name, dataset, seed, plot=False):
         
         """
         H(x,t) = H₀(t) × exp(βᵀx).
@@ -507,19 +508,20 @@ class DeepMultiTask(BaseSurvival):
 
         risk, _ = self.predict(X)
         
-        cumulative_hazard_functions = []
+        self.cumulative_hazard_functions = []
         for p in range(self.number_progressions):
             cumulative_hazard_function = self.breslow[p].get_cumulative_hazard_function(risk[:, p])
-            cumulative_hazard_functions.append(cumulative_hazard_function)
+            self.cumulative_hazard_functions.append(cumulative_hazard_function)
 
-            self._plot_survival_hazard_functions(cumulative_hazard_function, estimator_name, dataset, seed, "CumulativeRisk", p)
+            if plot:
+                self._plot_survival_hazard_functions(cumulative_hazard_function, estimator_name, dataset, seed, "CumulativeRisk", p)
 
-        return cumulative_hazard_functions
+        return self.cumulative_hazard_functions
 
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, estimator_name, dataset, seed, feature_names, background=False):
+    def calculate_xai(self, X, estimator_name, dataset, seed, feature_names, background=False, plot=False):
 
         """
         Calculate XAI values.
@@ -548,4 +550,5 @@ class DeepMultiTask(BaseSurvival):
 
             self.shap_explainer = explainer_risk(X_background)
 
-            BaseSurvival.plot_shap(self.shap_explainer, estimator_name, dataset, seed, p)
+            if plot:
+                BaseSurvival.plot_shap(self.shap_explainer, estimator_name, dataset, seed, p)

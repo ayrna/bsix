@@ -1,6 +1,7 @@
 import numpy as np
 
 from .survival_metrics import scorerConcordanceIndex
+
 from sklearn.metrics import make_scorer
 
 CLASSIFIERS = [
@@ -10,15 +11,6 @@ CLASSIFIERS = [
     "DeepSurvFFNN",
     "DeepTimeVaryingFFNN",
     "RandomSurvForest",
-]
-
-MULTITASKCLASSIFIERS = [
-    "DeepMultiTaskFFNN",
-]
-
-TIMEVARYINGCLASSIFIERS = [
-    "CoxRegressionWithTimeVarying",
-    "DeepTimeVaryingFFNN",
 ]
 
 def get_estimator(estimator_name, inputs, labels, valid_data, random_state, n_jobs=-1, n_iter=30):
@@ -116,21 +108,18 @@ def get_estimator(estimator_name, inputs, labels, valid_data, random_state, n_jo
             rng = np.random.default_rng(seed=random_state)
             param_grid = [
                 {
-                    "epochs": [250, 500],
-                    "hidden_layers": [[4], [8], [16], [8, 8], [16, 16], [8, 8, 8]],
-                    "learn_rate": np.round(np.logspace(-7, -1, 7), 8),
-                    "lr_decay": np.round(np.logspace(-7, -1, 7), 8),
-                    "l1_reg": np.round(np.logspace(-3, 3, 7), 8),
-                    "l2_reg": np.round(np.logspace(-3, 3, 7), 8),
+                    "epochs":[250, 500],
+                    "hidden_layers": [[4], [8], [16], [32]],
+                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
+                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
+                    "l1_reg": np.round(np.logspace(-5, -3, 3), 8),
+                    "l2_reg": np.round(np.logspace(-4, -2, 3), 8),
                     "cox_reg": np.round(np.logspace(-3, 3, 7), 8),
                     "bin_reg": np.round(np.logspace(-3, 3, 7), 8),
-                    "dropout": np.round(np.linspace(0, 1, 5), 8),
+                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
                     "activation": ["relu", "selu", "tanh"],
                     "coef_likelihood": np.round(rng.dirichlet(alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]), size=7), 8).tolist(),
                     "coef_binary": np.round(rng.dirichlet(alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]), size=7), 8).tolist(),
-                    #"momentum": np.round(np.linspace(0.4, 0.9, 6), 5),
-                    #"ties": ["cox", "breslow"],
-                    #"batch_size": [128, 256, 512],
                 }
             ]
 

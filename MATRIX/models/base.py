@@ -125,7 +125,7 @@ class BaseSurvival(BaseEstimator, ABC):
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
     
     @staticmethod
-    def dinamic_discretise(y, dataset, random_state=0):
+    def dinamic_discretise(y, dataset, random_state=0, plot=False):
 
         """
         Discretise data by piecewise exponential and show in kaplan meier.
@@ -197,55 +197,56 @@ class BaseSurvival(BaseEstimator, ABC):
         kmf.fit(durations=y["time"], event_observed=y["event"])
 
         # Plot #
-        # Configure style
-        plt.figure(figsize=(10, 6))
+        if plot:
+            # Configure style
+            plt.figure(figsize=(10, 6))
 
-        # Personalise curve
-        ax = kmf.plot(
-            color="#C1502E",
-            label=f"KM estimate"
-        )
+            # Personalise curve
+            ax = kmf.plot(
+                color="#C1502E",
+                label=f"KM estimate"
+            )
 
-        # Splits
-        for split in best_splits:
-            plt.axvline(x=split, color="#2EC192", linestyle="-.", alpha=0.5)
+            # Splits
+            for split in best_splits:
+                plt.axvline(x=split, color="#2EC192", linestyle="-.", alpha=0.5)
 
-        # Title and axis labels
-        ax.set_title(f"Discretised Kaplan-Meier\n{dataset} - seed {random_state}", fontsize=12)
-        ax.set_xlabel("Time (days)", fontsize=10)
-        ax.set_ylabel("Survival Probability", fontsize=10)
+            # Title and axis labels
+            ax.set_title(f"Discretised Kaplan-Meier\n{dataset} - seed {random_state}", fontsize=12)
+            ax.set_xlabel("Time (days)", fontsize=10)
+            ax.set_ylabel("Survival Probability", fontsize=10)
 
-        # Axis ticks
-        majorX, minorX = _tool_setTimeTicksAxisX(ax)
-        ax.xaxis.set_major_locator(ticker.MultipleLocator(majorX))
-        ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
+            # Axis ticks
+            majorX, minorX = _tool_setTimeTicksAxisX(ax)
+            ax.xaxis.set_major_locator(ticker.MultipleLocator(majorX))
+            ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
 
-        ax.yaxis.set_major_locator(ticker.MultipleLocator(0.5))
-        ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
+            ax.yaxis.set_major_locator(ticker.MultipleLocator(0.5))
+            ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
 
-        plt.xticks(rotation=45, ha="right")
+            plt.xticks(rotation=45, ha="right")
 
-        # Axis limits
-        ax.set_xlim(left=0)
-        ax.set_ylim(bottom=0, top=1.05)
+            # Axis limits
+            ax.set_xlim(left=0)
+            ax.set_ylim(bottom=0, top=1.05)
 
-        ax.spines["left"].set_position(("outward", 5))
-        ax.spines["bottom"].set_position(("outward", 5))
+            ax.spines["left"].set_position(("outward", 5))
+            ax.spines["bottom"].set_position(("outward", 5))
 
-        ax.spines["right"].set_visible(False)
-        ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.spines["top"].set_visible(False)
 
-        # Grid
-        plt.grid(True, which="major", linestyle="-", alpha=0.7)
-        plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5)
+            # Grid
+            plt.grid(True, which="major", linestyle="-", alpha=0.7)
+            plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5)
 
-        # Legend
-        plt.legend(frameon=True, facecolor="white", edgecolor="0.8")
+            # Legend
+            plt.legend(frameon=True, facecolor="white", edgecolor="0.8")
 
-        # Save figure
-        plt.tight_layout()
-        plt.savefig(f"Plot_DiscretisedKM-{dataset}_s{random_state}.png", bbox_inches="tight", dpi=300)
-        plt.close()
+            # Save figure
+            plt.tight_layout()
+            plt.savefig(f"Plot_DiscretisedKM-{dataset}_s{random_state}.png", bbox_inches="tight", dpi=300)
+            plt.close()
 
         splits = [0] + best_splits + [np.inf]
 

@@ -91,20 +91,22 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, estimator_name, dataset, seed):
+    def predict_survival_function(self, X, estimator_name, dataset, seed, plot=False):
 
         """ 
         S(x, t) = exp(-H(x, t)).
         """
 
         risk = self.predict(X)
-        
-        survival_function = self.breslow.get_survival_function(risk)
-        self._plot_survival_hazard_functions(survival_function, estimator_name, dataset, seed, "Survival")
 
-        return survival_function
+        self.survival_function = self.breslow.get_survival_function(risk)
 
-    def predict_cumulative_hazard_function(self, X, estimator_name, dataset, seed):
+        if plot:
+            self._plot_survival_hazard_functions(self.survival_function, estimator_name, dataset, seed, "Survival")
+
+        return self.survival_function
+
+    def predict_cumulative_hazard_function(self, X, estimator_name, dataset, seed, plot=False):
         
         """
         H(x,t) = H₀(t) × exp(βᵀx).
@@ -112,15 +114,17 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
 
         risk = self.predict(X)
         
-        get_cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
-        self._plot_survival_hazard_functions(get_cumulative_hazard_function, estimator_name, dataset, seed, "CumulativeRisk")
+        self.get_cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
+
+        if plot:
+            self._plot_survival_hazard_functions(self.get_cumulative_hazard_function, estimator_name, dataset, seed, "CumulativeRisk")
         
-        return get_cumulative_hazard_function
+        return self.get_cumulative_hazard_function
     
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, estimator_name, dataset, seed, feature_names, background=False):
+    def calculate_xai(self, X, estimator_name, dataset, seed, feature_names, background=False, plot=False):
 
         """
         Calculate XAI values.
@@ -138,9 +142,11 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
 
         self.shap_explainer = explainer_risk(X_background)
 
-        BaseSurvival.plot_shap(self.shap_explainer, estimator_name, dataset, seed)
+        if plot:
+            BaseSurvival.plot_shap(self.shap_explainer, estimator_name, dataset, seed)
 
         coefficients = {feature_names[i]: round(coef, 8) for i, coef in enumerate(self.coef_)}
         self.coefficients = {k: v for k, v in sorted(coefficients.items(), key=lambda item: abs(item[1]), reverse=True)}
 
-        BaseSurvival.plot_coefficients(self.coefficients, estimator_name, dataset, seed)
+        if plot:
+            BaseSurvival.plot_coefficients(self.coefficients, estimator_name, dataset, seed)
