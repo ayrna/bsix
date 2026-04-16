@@ -6,5 +6,6 @@ run_experiment.py
 # Ignorar una carpeta entera
 condor_output/
 results/
-tasksConfi/
+tasksConfig/
 
+__pycache__/
