@@ -102,7 +102,7 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
         self.survival_function = self.breslow.get_survival_function(risk)
 
         if plot:
-            self._plot_survival_hazard_functions(self.survival_function, estimator_name, dataset, seed, "Survival")
+            self._plot_survival_hazard_functions(self.survival_function, estimator_name, dataset, "Survival", seed)
 
         return self.survival_function
 
@@ -114,12 +114,12 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
 
         risk = self.predict(X)
         
-        self.get_cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
+        self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
 
         if plot:
-            self._plot_survival_hazard_functions(self.get_cumulative_hazard_function, estimator_name, dataset, seed, "CumulativeRisk")
+            self._plot_survival_hazard_functions(self.cumulative_hazard_function, estimator_name, dataset, "CumulativeRisk", seed)
         
-        return self.get_cumulative_hazard_function
+        return self.cumulative_hazard_function
     
     # ----------------------
     # XAI

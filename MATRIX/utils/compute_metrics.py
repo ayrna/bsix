@@ -44,7 +44,7 @@ def get_metrics(targets, predictions):
 
     return metrics
 
-def get_metric_confidence_interval(y, prediction, metric_name, n_iterations=1000, confidence_level=0.95, random_state=0):
+def get_metric_confidence_interval(y, prediction, metric_name, n_iterations=1000, confidence_level=0.95, seed=0):
 
     """
     Compute confidence interval using bootstrapping.
@@ -53,7 +53,7 @@ def get_metric_confidence_interval(y, prediction, metric_name, n_iterations=1000
     import numpy.lib.recfunctions as rfn
     from sksurv.metrics import concordance_index_censored
     
-    rng = np.random.default_rng(seed=random_state)
+    rng = np.random.default_rng(seed=seed)
 
     if all(name in y.dtype.names for name in ["time_start", "time_stop"]):
         y = rfn.drop_fields(y, ["time_start", "time"])

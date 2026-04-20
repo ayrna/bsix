@@ -125,13 +125,13 @@ class BaseSurvival(BaseEstimator, ABC):
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
     
     @staticmethod
-    def dinamic_discretise(y, dataset, random_state=0, plot=False):
+    def dinamic_discretise(y, dataset, seed=0, plot=False):
 
         """
         Discretise data by piecewise exponential and show in kaplan meier.
         """
 
-        rng = np.random.default_rng(seed=random_state)
+        rng = np.random.default_rng(seed=seed)
 
         # Piecewise Exponential (constant risk at intervals) #
         # Risk groups = num splits + 1
@@ -142,7 +142,7 @@ class BaseSurvival(BaseEstimator, ABC):
         n_iter = 5 # Iterations in search (random search)
         min_time = np.quantile(y["time"], 0.05) #y["time"].min()
         max_time = np.quantile(y["time"], 0.95) #y["time"].max()
-        possible_splits = np.arange(min_time, max_time, int((max_time - min_time) / 15)).tolist() # 15 splits
+        possible_splits = np.linspace(min_time, max_time, num=15).tolist() # 15 splits
         
         # Search (random search)
         best_splits = None
@@ -212,7 +212,7 @@ class BaseSurvival(BaseEstimator, ABC):
                 plt.axvline(x=split, color="#2EC192", linestyle="-.", alpha=0.5)
 
             # Title and axis labels
-            ax.set_title(f"Discretised Kaplan-Meier\n{dataset} - seed {random_state}", fontsize=12)
+            ax.set_title(f"Discretised Kaplan-Meier\n{dataset} - seed {seed}", fontsize=12)
             ax.set_xlabel("Time (days)", fontsize=10)
             ax.set_ylabel("Survival Probability", fontsize=10)
 
@@ -245,7 +245,7 @@ class BaseSurvival(BaseEstimator, ABC):
 
             # Save figure
             plt.tight_layout()
-            plt.savefig(f"Plot_DiscretisedKM-{dataset}_s{random_state}.png", bbox_inches="tight", dpi=300)
+            plt.savefig(f"Plot_DiscretisedKM-{dataset}_s{seed}.png", bbox_inches="tight", dpi=300)
             plt.close()
 
         splits = [0] + best_splits + [np.inf]
@@ -290,14 +290,14 @@ class BaseSurvival(BaseEstimator, ABC):
         return significance_covariables
     
     @staticmethod
-    def generate_simulated_survival_data(number_rows=1000, number_columns=10, censored=0.75, relation=None, random_state=0):
+    def generate_simulated_survival_data(number_rows=1000, number_columns=10, censored=0.75, relation=None, seed=0):
 
         """
         Generate simulated survival data based.
         """
 
         # Fix the seed
-        np.random.seed(random_state)
+        np.random.seed(seed)
             
         # Generate covariates (normal distribution [nature])
         X = np.random.normal(0, 1, size=(number_rows, number_columns))
@@ -430,7 +430,7 @@ class BaseSurvival(BaseEstimator, ABC):
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
     
     @staticmethod
-    def plot_coefficients(coefficients, estimator_name, dataset, random_state=None, progression=None):
+    def plot_coefficients(coefficients, estimator_name, dataset, seed=None, progression=None):
 
         """
         Plot XAI coefficients for the data.
@@ -465,8 +465,8 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Title and axis labels
         title_parts = [f"{estimator_name} - {dataset}"]
-        if random_state is not None:
-            title_parts.append(f"seed {random_state}")
+        if seed is not None:
+            title_parts.append(f"seed {seed}")
         if progression is not None:
             title_parts.append(f"progression {progression}")
         
@@ -488,8 +488,8 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Build filename dynamically
         filename_parts = [f"Plot_XAI_coefficients-{estimator_name}_{dataset}"]
-        if random_state is not None:
-            filename_parts.append(f"s{random_state}")
+        if seed is not None:
+            filename_parts.append(f"s{seed}")
         if progression is not None:
             filename_parts.append(f"p{progression}")
         filename = f"{'_'.join(filename_parts)}.png"
@@ -500,7 +500,7 @@ class BaseSurvival(BaseEstimator, ABC):
         plt.close()
     
     @staticmethod
-    def plot_shap(shap_explainer, estimator_name, dataset, random_state=None, progression=None):
+    def plot_shap(shap_explainer, estimator_name, dataset, seed=None, progression=None):
 
         """
         Plot SHAP values for the data.
@@ -545,8 +545,8 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Title and axis labels
         title_parts = [f"{estimator_name} - {dataset}"]
-        if random_state is not None:
-            title_parts.append(f"seed {random_state}")
+        if seed is not None:
+            title_parts.append(f"seed {seed}")
         if progression is not None:
             title_parts.append(f"progression {progression}")
         
@@ -569,8 +569,8 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Build filename dynamically
         filename_parts = [f"Plot_XAI_values-{estimator_name}_{dataset}"]
-        if random_state is not None:
-            filename_parts.append(f"s{random_state}")
+        if seed is not None:
+            filename_parts.append(f"s{seed}")
         if progression is not None:
             filename_parts.append(f"p{progression}")
         filename = f"{'_'.join(filename_parts)}.png"
@@ -581,12 +581,12 @@ class BaseSurvival(BaseEstimator, ABC):
         plt.close()
 
     @staticmethod
-    def _plot_survival_hazard_functions(X, estimator_name, dataset, function_type="Survival", random_state= 0, progression=None):
+    def _plot_survival_hazard_functions(X, estimator_name, dataset, function_type="Survival", seed=0, progression=None):
 
         """
         Plot survival and cumulative hazard functions for the data.
         """
-
+        
         # Configure style
         plt.figure(figsize=(10, 6))
         
@@ -599,8 +599,8 @@ class BaseSurvival(BaseEstimator, ABC):
         
         # Title and axis labels
         title_parts = [f"{estimator_name} - {dataset}"]
-        if random_state is not None:
-            title_parts.append(f"seed {random_state}")
+        if seed is not None:
+            title_parts.append(f"seed {seed}")
         if progression is not None:
             title_parts.append(f"progression {progression}")
         
@@ -646,8 +646,8 @@ class BaseSurvival(BaseEstimator, ABC):
         
         # Build filename dynamically
         filename_parts = [f"Plot_{function_type}-{estimator_name}_{dataset}"]
-        if random_state is not None:
-            filename_parts.append(f"s{random_state}")
+        if seed is not None:
+            filename_parts.append(f"s{seed}")
         if progression is not None:
             filename_parts.append(f"p{progression}")
         filename = f"{'_'.join(filename_parts)}.png"

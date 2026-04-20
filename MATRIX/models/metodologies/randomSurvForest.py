@@ -4,6 +4,8 @@ import shap
 import warnings
 
 from ..base import BaseSurvival
+
+from joblib import parallel_backend
 from sksurv.ensemble import RandomSurvivalForest
 
 warnings.filterwarnings("ignore")
@@ -14,7 +16,7 @@ class RandomSurvForest(BaseSurvival):
     Random Survival Forest model.
     """
 
-    def __init__(self, random_state, n_jobs=-1, n_estimators=100, max_depth=None, min_samples_split=6):
+    def __init__(self, seed, n_jobs=-1, n_estimators=100, max_depth=None, min_samples_split=6):
 
         """
         Initialise model with specified parameters.
@@ -22,7 +24,7 @@ class RandomSurvForest(BaseSurvival):
         
         # Parameters
         self.n_jobs=n_jobs
-        self.random_state=random_state
+        self.seed=seed
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
@@ -39,7 +41,7 @@ class RandomSurvForest(BaseSurvival):
         # Sort by time
         X, y = self._sort(X, y)
 
-        self.model = RandomSurvivalForest(n_estimators=self.n_estimators, max_depth=self.max_depth, min_samples_split=self.min_samples_split, n_jobs=self.n_jobs, random_state=self.random_state)
+        self.model = RandomSurvivalForest(n_estimators=self.n_estimators, max_depth=self.max_depth, min_samples_split=self.min_samples_split, n_jobs=self.n_jobs, random_state=self.seed)
         self.model.fit(X, y)
         
         return self
@@ -49,7 +51,7 @@ class RandomSurvForest(BaseSurvival):
         """
         Predict risk scores for the given data.
         """
-                
+        
         risk = self.model.predict(X)
 
         return risk
@@ -71,12 +73,12 @@ class RandomSurvForest(BaseSurvival):
         S(x, t) = exp(-H(x, t)).
         """
 
-        survival_function = self.model.predict_survival_function(X)
+        self.survival_function = self.model.predict_survival_function(X)
 
         if plot:
-            self._plot_survival_hazard_functions(survival_function, estimator_name, dataset, seed, "Survival")
+            self._plot_survival_hazard_functions(self.survival_function, estimator_name, dataset, "Survival", seed)
 
-        return survival_function
+        return self.survival_function
 
     def predict_cumulative_hazard_function(self, X, estimator_name, dataset, seed, plot=False):
         
@@ -84,12 +86,12 @@ class RandomSurvForest(BaseSurvival):
         H(x,t) = H₀(t) × exp(βᵀx).
         """
 
-        get_cumulative_hazard_function = self.model.predict_cumulative_hazard_function(X)
+        self.cumulative_hazard_function = self.model.predict_cumulative_hazard_function(X)
 
         if plot:
-            self._plot_survival_hazard_functions(get_cumulative_hazard_function, estimator_name, dataset, seed, "CumulativeRisk")
+            self._plot_survival_hazard_functions(self.cumulative_hazard_function, estimator_name, dataset, "CumulativeRisk", seed)
         
-        return get_cumulative_hazard_function
+        return self.cumulative_hazard_function
     
     # ----------------------
     # XAI

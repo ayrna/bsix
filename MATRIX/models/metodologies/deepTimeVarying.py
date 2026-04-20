@@ -24,7 +24,7 @@ class DeepTimeVarying(BaseSurvival):
 
     def __init__(self, num_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, momentum=0.9, 
                  activation="relu", dropout=0.0, standardize=True, ties="cox", device=None, validation_frequency=10, patience=2000, 
-                 improvement_threshold=0.99999, patience_increase=2, logger=None, verbose=True, random_state=None):
+                 improvement_threshold=0.99999, patience_increase=2, logger=None, verbose=True, seed=None):
           
         """
         Initialise model with specified parameters.
@@ -64,7 +64,7 @@ class DeepTimeVarying(BaseSurvival):
         
         self.verbose = verbose
 
-        self.random_state = random_state
+        self.seed = seed
 
         # Network (will be initialized in train())
         self.network = None
@@ -78,8 +78,8 @@ class DeepTimeVarying(BaseSurvival):
         Initialise random seeds for reproducibility.
         """
 
-        if self.random_state is not None:
-            seed = self.random_state
+        if self.seed is not None:
+            seed = self.seed
             
             # Python
             random.seed(seed)
@@ -101,19 +101,15 @@ class DeepTimeVarying(BaseSurvival):
         Compute the negative partial log-likelihood for Cox proportional hazards.
         """
 
-        M = risk.max().detach()
-        risk = risk - M
-
-        hazard_ratio = torch.exp(risk)
-
         # start_j < stop_i <= stop_j (j in risk set of i)
         t_stop_i = t_stop.view(-1, 1)
         t_start_j = t_start.view(1, -1)
         t_stop_j = t_stop.view(1, -1)
-        mask = (t_start_j < t_stop_i) & (t_stop_i <= t_stop_j)
-        mask = mask.float()
 
-        log_risk = torch.log(torch.sum(mask * hazard_ratio.view(1, -1), dim=1)) + M
+        mask = (t_start_j < t_stop_i) & (t_stop_i <= t_stop_j)
+        risk_mask = torch.where(mask, risk.view(1, -1), torch.tensor(-float('inf'), device=risk.device))
+
+        log_risk = torch.logsumexp(risk_mask, dim=1)
         
         uncensored_likelihood = risk.view(-1) - log_risk.view(-1)
         censored_likelihood = uncensored_likelihood * e.view(-1)
@@ -186,7 +182,7 @@ class DeepTimeVarying(BaseSurvival):
         Standardize input features.
         """
 
-        return (x - self.offset) / self.scale
+        return (x - self.offset) / (self.scale + 1e-6)
     
     def fit(self, X_train, y_train, **kwargs):
         
@@ -373,7 +369,7 @@ class DeepTimeVarying(BaseSurvival):
         self.survival_function = self.breslow.get_survival_function(risk)
 
         if plot:
-            self._plot_survival_hazard_functions(self.survival_function, estimator_name, dataset, seed, "Survival")
+            self._plot_survival_hazard_functions(self.survival_function, estimator_name, dataset, "Survival", seed)
 
         return self.survival_function
 
@@ -385,12 +381,12 @@ class DeepTimeVarying(BaseSurvival):
 
         risk = self.predict(X)
         
-        self.get_cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
+        self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
 
         if plot:
-            self._plot_survival_hazard_functions(self.get_cumulative_hazard_function, estimator_name, dataset, seed, "CumulativeRisk")
+            self._plot_survival_hazard_functions(self.cumulative_hazard_function, estimator_name, dataset, "CumulativeRisk", seed)
         
-        return self.get_cumulative_hazard_function
+        return self.cumulative_hazard_function
     
     # ----------------------
     # XAI

@@ -24,7 +24,7 @@ class DeepSurv(BaseSurvival):
 
     def __init__(self, num_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, momentum=0.9, 
                  activation="relu", dropout=0.0, standardize=True, ties="cox", device=None, validation_frequency=10, patience=2000, 
-                 improvement_threshold=0.99999, patience_increase=2, logger=None, verbose=True, random_state=None):
+                 improvement_threshold=0.99999, patience_increase=2, logger=None, verbose=True, seed=None):
           
         """
         Initialise model with specified parameters.
@@ -64,7 +64,7 @@ class DeepSurv(BaseSurvival):
         
         self.verbose = verbose
 
-        self.random_state = random_state
+        self.seed = seed
 
         # Network (will be initialized in train())
         self.network = None
@@ -78,8 +78,8 @@ class DeepSurv(BaseSurvival):
         Initialise random seeds for reproducibility.
         """
 
-        if self.random_state is not None:
-            seed = self.random_state
+        if self.seed is not None:
+            seed = self.seed
             
             # Python
             random.seed(seed)
@@ -184,7 +184,7 @@ class DeepSurv(BaseSurvival):
         Standardize input features.
         """
 
-        return (x - self.offset) / self.scale
+        return (x - self.offset) / (self.scale + 1e-6)
     
     def fit(self, X_train, y_train, **kwargs):
         
@@ -364,7 +364,7 @@ class DeepSurv(BaseSurvival):
         self.survival_function = self.breslow.get_survival_function(risk)
 
         if plot:
-            self._plot_survival_hazard_functions(self.survival_function, estimator_name, dataset, seed, "Survival")
+            self._plot_survival_hazard_functions(self.survival_function, estimator_name, dataset, "Survival", seed)
 
         return self.survival_function
 
@@ -376,12 +376,12 @@ class DeepSurv(BaseSurvival):
 
         risk = self.predict(X)
         
-        self.get_cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
+        self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
 
         if plot:
-            self._plot_survival_hazard_functions(self.get_cumulative_hazard_function, estimator_name, dataset, seed, "CumulativeRisk")
+            self._plot_survival_hazard_functions(self.cumulative_hazard_function, estimator_name, dataset, "CumulativeRisk", seed)
         
-        return self.get_cumulative_hazard_function
+        return self.cumulative_hazard_function
     
     # ----------------------
     # XAI

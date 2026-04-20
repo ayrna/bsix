@@ -13,7 +13,7 @@ CLASSIFIERS = [
     "RandomSurvForest",
 ]
 
-def get_estimator(estimator_name, inputs, labels, valid_data, random_state, n_jobs=-1, n_iter=30):
+def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n_iter=30):
 
     """
     Get estimator (search cv) based on name.
@@ -42,13 +42,13 @@ def get_estimator(estimator_name, inputs, labels, valid_data, random_state, n_jo
                
             param_grid = [
                 {
-                    "n_estimators": [100, 200, 300, 400, 500],
-                    "max_depth": [3, 7, 15, None],
+                    "n_estimators": [100, 300, 500],
+                    "max_depth": [3, 7, None],
                     "min_samples_split": [2, 6, 10],
                 }
             ]
             
-            estimator = RandomSurvForest(random_state=random_state)
+            estimator = RandomSurvForest(seed=seed)
 
         elif estimator_name == "DeepSurvFFNN":
             from ..models import DeepSurv
@@ -66,7 +66,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, random_state, n_jo
                 }
             ]
 
-            estimator = DeepSurv(inputs.shape[1], random_state=random_state)
+            estimator = DeepSurv(inputs.shape[1], seed=seed)
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
@@ -87,25 +87,25 @@ def get_estimator(estimator_name, inputs, labels, valid_data, random_state, n_jo
                
             param_grid = [
                 {
-                    "epochs":[250, 500],
-                    "hidden_layers": [[4], [8], [16], [32]],
-                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
-                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
-                    "l1_reg": np.round(np.logspace(-5, -3, 3), 8),
-                    "l2_reg": np.round(np.logspace(-4, -2, 3), 8),
-                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
-                    "activation": ["relu", "selu", "tanh"],
+                    "epochs":[500],
+                    "hidden_layers": [[4]],
+                    "learn_rate": [0.001],
+                    "lr_decay": [1e-8],
+                    "l1_reg": [0.0001],
+                    "l2_reg": [0.0001],
+                    "dropout": [0.75],
+                    "activation": ["relu"],
                 }
             ]
 
-            estimator = DeepTimeVarying(inputs.shape[1], random_state=random_state)
+            estimator = DeepTimeVarying(inputs.shape[1], seed=seed)
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
         elif estimator_name == "DeepMultiTaskFFNN":
             from ..models import DeepMultiTask
             
-            rng = np.random.default_rng(seed=random_state)
+            rng = np.random.default_rng(seed=seed)
             param_grid = [
                 {
                     "epochs":[250, 500],
@@ -123,7 +123,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, random_state, n_jo
                 }
             ]
 
-            estimator = DeepMultiTask(inputs.shape[1], random_state=random_state)
+            estimator = DeepMultiTask(inputs.shape[1], seed=seed)
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
         
@@ -141,7 +141,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, random_state, n_jo
                 cv=valid_data,
                 scoring=make_scorer(scorerConcordanceIndex, greater_is_better=True),
                 error_score="raise",
-                random_state=random_state,
+                random_state=seed,
                 verbose=10
             )
         else:

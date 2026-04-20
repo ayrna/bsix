@@ -5,7 +5,7 @@ import pandas as pd
 import time
 
 from MATRIX.models import BaseSurvival
-from MATRIX.utils import get_data, get_estimator, get_metrics
+from MATRIX.utils import get_data, get_estimator, get_metrics, _load_data_hdf, _load_data_arff, _load_data_csv
 
 from remayn.result import make_result
 from remayn.result_set import ResultFolder
@@ -19,7 +19,7 @@ ESTIMATOR_TO_BLOCK = {
     "DeepTimeVaryingFFNN": "time_varying",
 }
 
-def _set_global_seed(random_state):
+def _set_global_seed(seed):
 
     """
     Set global seeds and deterministic flags like benchmark runner.
@@ -29,15 +29,15 @@ def _set_global_seed(random_state):
     import random
     import torch
 
-    os.environ["PYTHONHASHSEED"] = str(random_state)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-    random.seed(random_state)
-    np.random.seed(random_state)
+    random.seed(seed)
+    np.random.seed(seed)
 
-    torch.manual_seed(random_state)
+    torch.manual_seed(seed)
     if torch.cuda.is_available():
-        torch.cuda.manual_seed(random_state)
-        torch.cuda.manual_seed_all(random_state)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -66,38 +66,45 @@ def _get_config(estimator, estimator_name, dataset, rs):
 
     return config
 
-def _build_time_varying_dataframe(data_dir, dataset_name, random_state):
+def _build_time_varying_dataframe(data_dir, dataset_name, seed):
 	
-	"""
-	Create the time-varying dataframe following Tutorial.ipynb steps.
-	"""
+    """
+    Create the time-varying dataframe following Tutorial.ipynb steps.
+    """
 
-	df = pd.read_csv(f"./{data_dir}/{dataset_name}")
-	splits = BaseSurvival.dinamic_discretise(
-		y=df[["time", "event"]],
-		dataset=dataset_name.replace(".csv", ""),
-		random_state=random_state,
-	)
+    try:
+        df = _load_data_csv(data_dir, dataset_name)
+    except:
+        try:
+            df = _load_data_arff(data_dir, dataset_name)
+        except:
+            df = _load_data_hdf(data_dir, dataset_name)
 
-	df["identifier"] = df.index.values
-	df = BaseSurvival.to_time_dependent(
-		dataframe=df,
-		splits=splits,
-		identifier="identifier",
-		time="time",
-		event="event",
-	)
-	
-	df = BaseSurvival.to_time_varying(
-		dataframe=df,
-		identifier="identifier",
-		time="time",
-		event="event",
-	)
-	
-	return df
+    splits = BaseSurvival.dinamic_discretise(
+        y=df[["time", "event"]],
+        dataset=dataset_name.replace(".csv", ""),
+        seed=seed,
+    )
 
-def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_size, random_state):
+    df["identifier"] = df.index.values
+    df = BaseSurvival.to_time_dependent(
+        dataframe=df,
+        splits=splits,
+        identifier="identifier",
+        time="time",
+        event="event",
+    )
+
+    df = BaseSurvival.to_time_varying(
+        dataframe=df,
+        identifier="identifier",
+        time="time",
+        event="event",
+    )
+
+    return df
+
+def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_size, seed):
 	
     """
     Load data for one model block: standard, multitask or time-varying.
@@ -109,7 +116,7 @@ def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_s
             dataset_name=dataset_name,
             test_size=test_size,
             validation_size=validation_size,
-            random_state=random_state,
+            seed=seed,
         )
 
     if block_name == "multitask":
@@ -119,16 +126,16 @@ def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_s
             test_size=test_size,
             validation_size=validation_size,
             to_multitask=True,
-            random_state=random_state,
+            seed=seed,
         )
 
     if block_name == "time_varying":
-        df_time_varying = _build_time_varying_dataframe(data_dir, dataset_name, random_state)
+        df_time_varying = _build_time_varying_dataframe(data_dir, dataset_name, seed)
         return get_data(
             df=df_time_varying,
             test_size=test_size,
             validation_size=validation_size,
-            random_state=random_state,
+            seed=seed,
         )
 
     raise ValueError(f"Unknown block '{block_name}'")
@@ -161,15 +168,15 @@ def load_and_run_experiment(
     test_size=0.2,
     validation_size=0.2,
     estimator_name="CoxRegression",
-    random_state=0,
+    seed=0,
     n_jobs=-1,
     interactive=False, n_iter=30
 ):
 
-    _set_global_seed(random_state)
+    _set_global_seed(seed)
 
     block_name = ESTIMATOR_TO_BLOCK[estimator_name]
-    print(f"\n=== Running block: {block_name} ({dataset}, seed={random_state}) ===")
+    print(f"\n=== Running block: {block_name} ({dataset}, seed={seed}) ===")
 
     X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names, scaler = _load_block_data(
         block_name=block_name,
@@ -177,7 +184,7 @@ def load_and_run_experiment(
         dataset_name=dataset,
         test_size=test_size,
         validation_size=validation_size,
-        random_state=random_state,
+        seed=seed,
     )
     
     print(f"\n-> Estimator: {estimator_name}")
@@ -194,13 +201,13 @@ def load_and_run_experiment(
         inputs=X_train_val,
         labels=y_train_val,
         valid_data=validation_split,
-        random_state=random_state,
+        seed=seed,
         n_jobs=n_jobs,
         n_iter=n_iter,
     )
 
     if not interactive:
-        config = _get_config(estimator, estimator_name, dataset, random_state)
+        config = _get_config(estimator, estimator_name, dataset, seed)
         results = ResultFolder(results_dir)
 
         if config in results:
@@ -211,9 +218,9 @@ def load_and_run_experiment(
     estimator.fit(X_train_val, y_train_val)
     total_time = time.time() - start
 
-    estimator.best_estimator_.predict_survival_function(X_train_val, estimator_name, dataset, random_state)
-    estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, estimator_name, dataset, random_state)
-    estimator.best_estimator_.calculate_xai(X_train_val, estimator_name, dataset, random_state, feature_names, background=None)
+    estimator.best_estimator_.predict_survival_function(X_train_val, estimator_name, dataset, seed)
+    estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, estimator_name, dataset, seed)
+    estimator.best_estimator_.calculate_xai(X_train_val, estimator_name, dataset, seed, feature_names, background=50)
 
     if y_train_val.ndim == 1:
         train_survival_pred = estimator.predict(X_train_val)
@@ -226,7 +233,7 @@ def load_and_run_experiment(
         train_metrics = get_metrics([y_train_val, y_train_val], [train_survival_pred, train_binary_pred])
         test_metrics = get_metrics([y_train_val, y_test], [test_survival_pred, test_binary_pred])
 
-    config = _get_config(estimator, estimator_name, dataset, random_state)
+    config = _get_config(estimator, estimator_name, dataset, seed)
     best_params = estimator.best_params_ if hasattr(estimator, "best_params_") else {}
     
     if not interactive:
@@ -280,7 +287,7 @@ def main():
         dataset=args.dataset,
         test_size=args.test_size,
         validation_size=args.validation_size,
-        random_state=args.seed,
+        seed=args.seed,
         estimator_name=args.estimator_name,
         n_jobs=args.n_jobs,
         interactive=True,

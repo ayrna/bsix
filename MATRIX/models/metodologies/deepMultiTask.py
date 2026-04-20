@@ -27,7 +27,7 @@ class DeepMultiTask(BaseSurvival):
         
     def __init__(self, num_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, cox_reg=0.0, bin_reg=0.0,
                  momentum=0.9, activation="relu", dropout=0.0, standardize=True, ties="cox", device=None, validation_frequency=10, 
-                 patience=500, improvement_threshold=0.99999, patience_increase=25, logger=None, verbose=True, random_state=None,
+                 patience=500, improvement_threshold=0.99999, patience_increase=25, logger=None, verbose=True, seed=None,
                  coef_likelihood=[1.0], coef_binary=[1.0]):
         
         """
@@ -70,7 +70,7 @@ class DeepMultiTask(BaseSurvival):
         
         self.verbose = verbose
 
-        self.random_state = random_state
+        self.seed = seed
     
         # Loss coefficients
         self.coef_likelihood = coef_likelihood
@@ -88,8 +88,8 @@ class DeepMultiTask(BaseSurvival):
         Initialise random seeds for reproducibility.
         """
 
-        if self.random_state is not None:
-            seed = self.random_state
+        if self.seed is not None:
+            seed = self.seed
             
             # Python
             random.seed(seed)
@@ -246,7 +246,7 @@ class DeepMultiTask(BaseSurvival):
         Standardize input features.
         """
 
-        return (x - self.offset) / self.scale
+        return (x - self.offset) / (self.scale + 1e-6)
 
     def _kaplan_meier(self, t, e):
 
@@ -496,7 +496,7 @@ class DeepMultiTask(BaseSurvival):
             self.survival_functions.append(survival_function)
 
             if plot:
-                self._plot_survival_hazard_functions(survival_function, estimator_name, dataset, seed, "Survival", p)
+                self._plot_survival_hazard_functions(survival_function, estimator_name, dataset, "Survival", seed, p)
         
         return self.survival_functions
 
@@ -514,7 +514,7 @@ class DeepMultiTask(BaseSurvival):
             self.cumulative_hazard_functions.append(cumulative_hazard_function)
 
             if plot:
-                self._plot_survival_hazard_functions(cumulative_hazard_function, estimator_name, dataset, seed, "CumulativeRisk", p)
+                self._plot_survival_hazard_functions(cumulative_hazard_function, estimator_name, dataset, "CumulativeRisk", seed, p)
 
         return self.cumulative_hazard_functions
 

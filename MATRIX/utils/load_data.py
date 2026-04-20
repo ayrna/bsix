@@ -3,7 +3,7 @@ import pandas as pd
 
 from sklearn.model_selection import train_test_split
 
-def _prepare_data(df, test_size, validation_size, random_state):
+def _prepare_data(df, test_size, validation_size, seed):
 
     """
     Prepare the dataset for training, validation and testing.
@@ -39,13 +39,13 @@ def _prepare_data(df, test_size, validation_size, random_state):
     
     # Split dataset into train and test sets
     if len(time_labels) == 1:
-        X_train, X_test, y_train, y_test = train_test_split(df[feature_names], df[labels], test_size=test_size, random_state=random_state, stratify=df["event"])
+        X_train, X_test, y_train, y_test = train_test_split(df[feature_names], df[labels], test_size=test_size, random_state=seed, stratify=df["event"])
 
         X_test = np.array(X_test, np.float32)
         y_test = np.array(y_test, np.float32)
 
         # Split dataset into train and validation sets
-        X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=validation_size, random_state=random_state, stratify=y_train["event"])
+        X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=validation_size, random_state=seed, stratify=y_train["event"])
 
         X_train = np.array(X_train, np.float32)   
         y_train = np.array(y_train, np.float32)
@@ -56,7 +56,7 @@ def _prepare_data(df, test_size, validation_size, random_state):
         n_splits_outer = min(int(1 / test_size), max(2, n_groups // 2))
         n_splits_inner = min(int(1 / validation_size), max(2, n_groups // 4))
         
-        group_split_outer = StratifiedGroupKFold(n_splits=n_splits_outer, shuffle=True, random_state=random_state)
+        group_split_outer = StratifiedGroupKFold(n_splits=n_splits_outer, shuffle=True, random_state=seed)
         train_val_idx, test_idx = next(group_split_outer.split(df[feature_names], df["event"], groups=df["identifier"]))
 
         X_train_val = df.iloc[train_val_idx]
@@ -64,7 +64,7 @@ def _prepare_data(df, test_size, validation_size, random_state):
         X_test = df.iloc[test_idx][feature_names]
         y_test = df.iloc[test_idx][labels]
 
-        group_split_inner = StratifiedGroupKFold(n_splits=n_splits_inner, shuffle=True, random_state=random_state)
+        group_split_inner = StratifiedGroupKFold(n_splits=n_splits_inner, shuffle=True, random_state=seed)
         train_idx, val_idx = next(group_split_inner.split(X_train_val, y_train_val["event"], groups=X_train_val["identifier"]))
 
         if "identifier" in feature_names:
@@ -91,15 +91,13 @@ def _toDataframe(data):
 
     return df
 
-def _load_data_hdf(data_dir, dataset_name, test_size, validation_size, random_state):
+def _load_data_hdf(data_dir, dataset_name):
 
     """
     Load dataset from a HDF5 file.
     """
     
     import h5py
-    
-    print(f"\n- - - - {dataset_name} (hdf5) - - - -\n")
 
     # Load dataset
     f = h5py.File(f"{data_dir}/{dataset_name}", "r")
@@ -107,18 +105,18 @@ def _load_data_hdf(data_dir, dataset_name, test_size, validation_size, random_st
     f.close()
 
     df = _toDataframe(data)
-    
-    return _prepare_data(df, test_size, validation_size, random_state)
 
-def _load_data_arff(data_dir, dataset_name, test_size, validation_size, random_state):
+    print(f"\n- - - - {dataset_name} (hdf5) - - - -\n")
+    
+    return df
+
+def _load_data_arff(data_dir, dataset_name):
 
     """
     Load dataset from a ARFF file.
     """
 
     from scipy.io import arff
-
-    print(f"\n- - - - {dataset_name} (arff) - - - -\n")
 
     # Load dataset
     file_path = f"./{data_dir}/{dataset_name}"
@@ -129,21 +127,23 @@ def _load_data_arff(data_dir, dataset_name, test_size, validation_size, random_s
     # Decode byte strings to UTF-8 strings for object columns
     for col in df.select_dtypes([object]).columns:
         df[col] = df[col].apply(lambda x: x.decode('utf-8') if isinstance(x, bytes) else x)
-    
-    return _prepare_data(df, test_size, validation_size, random_state)
 
-def _load_data_csv(data_dir, dataset_name, test_size, validation_size, random_state):
+    print(f"\n- - - - {dataset_name} (arff) - - - -\n")
+    
+    return df
+
+def _load_data_csv(data_dir, dataset_name):
 
     """
     Load dataset from a CSV file.
     """
 
-    print(f"\n- - - - {dataset_name} (csv) - - - -\n")
-
     # Load dataset
     df = pd.read_csv(f"./{data_dir}/{dataset_name}")
+
+    print(f"\n- - - - {dataset_name} (csv) - - - -\n")
     
-    return _prepare_data(df, test_size, validation_size, random_state)
+    return df
 
 def _sort_data(x, t, e):
 
@@ -198,20 +198,20 @@ def _transformTrainValidationTest(X, y):
     
     return _X, _y, survival
 
-def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, random_state=0):
+def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, seed=0):
 
     """
     Load and preprocess the dataset.
     """
 
     if df is not None:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(df, test_size, validation_size, random_state)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(df, test_size, validation_size, seed)
     elif ".h5" in dataset_name:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _load_data_hdf(data_dir, dataset_name, test_size, validation_size, random_state)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(_load_data_hdf(data_dir, dataset_name), test_size, validation_size, seed)
     elif ".arff" in dataset_name:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _load_data_arff(data_dir, dataset_name, test_size, validation_size, random_state)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(_load_data_arff(data_dir, dataset_name), test_size, validation_size, seed)
     elif ".csv" in dataset_name:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _load_data_csv(data_dir, dataset_name, test_size, validation_size, random_state)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(_load_data_csv(data_dir, dataset_name), test_size, validation_size, seed)
     else:
         print("ERROR : Wrong format of dataset.")
         return -1
@@ -221,7 +221,7 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
         if scaler_name == "log":
             from sklearn.preprocessing import FunctionTransformer
 
-            def logScaler(X, shift=1.01):
+            def logScaler(X, shift=(1 + 1e-6)):
                 X_log = np.round(np.log(X + shift), 6)
                 return X_log
             
