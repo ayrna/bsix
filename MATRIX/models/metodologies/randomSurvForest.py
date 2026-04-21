@@ -16,7 +16,7 @@ class RandomSurvForest(BaseSurvival):
     Random Survival Forest model.
     """
 
-    def __init__(self, seed, n_jobs=-1, n_estimators=100, max_depth=None, min_samples_split=6):
+    def __init__(self, seed, n_jobs=-1, n_estimators=100, max_depth=None, min_samples_leaf=3, min_samples_split=6):
 
         """
         Initialise model with specified parameters.
@@ -27,6 +27,7 @@ class RandomSurvForest(BaseSurvival):
         self.seed=seed
         self.n_estimators = n_estimators
         self.max_depth = max_depth
+        self.min_samples_leaf = min_samples_leaf
         self.min_samples_split = min_samples_split
 
         # Model (will be initialized in train())
@@ -41,7 +42,7 @@ class RandomSurvForest(BaseSurvival):
         # Sort by time
         X, y = self._sort(X, y)
 
-        self.model = RandomSurvivalForest(n_estimators=self.n_estimators, max_depth=self.max_depth, min_samples_split=self.min_samples_split, n_jobs=self.n_jobs, random_state=self.seed)
+        self.model = RandomSurvivalForest(n_estimators=self.n_estimators, max_depth=self.max_depth, min_samples_leaf=self.min_samples_leaf, min_samples_split=self.min_samples_split, n_jobs=self.n_jobs, random_state=self.seed)
         self.model.fit(X, y)
         
         return self

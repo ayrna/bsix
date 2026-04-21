@@ -61,7 +61,7 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
         dataframe["time_stop"] = np.where(dataframe["time_start"] == dataframe["time_stop"], dataframe["time_stop"] + 1e-6, dataframe["time_stop"])
 
         self.model = CoxTimeVaryingFitter(penalizer=self.penalizer, l1_ratio=self.l1_ratio)
-        self.model.fit(dataframe, id_col=dataframe.columns[0], start_col=self.labels_covariables[1], stop_col=self.labels_covariables[2], event_col=self.labels_covariables[0], show_progress=False)
+        self.model.fit(dataframe, id_col=dataframe.columns[0], start_col=self.labels_covariables[1], stop_col=self.labels_covariables[2], event_col=self.labels_covariables[0], show_progress=False, fit_options={"step_size": 0.15})
         
         # Compute baseline hazards with training data
         self.breslow.fit(self.predict(X), y["event"], y["time_stop"])

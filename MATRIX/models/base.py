@@ -422,6 +422,10 @@ class BaseSurvival(BaseEstimator, ABC):
         cols = [col for col in dataframe_transformed.columns if col not in ["identifier", "time_start", "time_stop", "event"]]
         dataframe_transformed = dataframe_transformed[["identifier"] + cols + ["event", "time_start", "time_stop"]]
 
+        # Ensure that time_stop is greater than time_start
+        invalid_mask = dataframe_transformed["time_stop"] <= dataframe_transformed["time_start"]
+        dataframe_transformed.loc[invalid_mask, "time_stop"] = dataframe_transformed.loc[invalid_mask, "time_start"] + 1e-6
+
         # Rest index
         dataframe_transformed = dataframe_transformed.reset_index(drop=True)
         

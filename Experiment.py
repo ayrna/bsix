@@ -5,7 +5,7 @@ import pandas as pd
 import time
 
 from MATRIX.models import BaseSurvival
-from MATRIX.utils import get_data, get_estimator, get_metrics, _load_data_hdf, _load_data_arff, _load_data_csv
+from MATRIX.utils import get_data, get_estimator, get_metrics, load_data_hdf, load_data_arff, load_data_csv
 
 from remayn.result import make_result
 from remayn.result_set import ResultFolder
@@ -65,7 +65,7 @@ def _get_config(estimator, estimator_name, dataset, rs):
             del config[key]
 
     return config
-
+        
 def _build_time_varying_dataframe(data_dir, dataset_name, seed):
 	
     """
@@ -73,12 +73,15 @@ def _build_time_varying_dataframe(data_dir, dataset_name, seed):
     """
 
     try:
-        df = _load_data_csv(data_dir, dataset_name)
+        df = load_data_csv(data_dir, dataset_name)
     except:
         try:
-            df = _load_data_arff(data_dir, dataset_name)
+            df = load_data_arff(data_dir, dataset_name)
         except:
-            df = _load_data_hdf(data_dir, dataset_name)
+            df = load_data_hdf(data_dir, dataset_name)
+
+    df = df[df["time"] > 0]
+    df = df.dropna()
 
     splits = BaseSurvival.dinamic_discretise(
         y=df[["time", "event"]],
@@ -101,7 +104,7 @@ def _build_time_varying_dataframe(data_dir, dataset_name, seed):
         time="time",
         event="event",
     )
-
+    
     return df
 
 def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_size, seed):

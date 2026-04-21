@@ -43,7 +43,8 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             param_grid = [
                 {
                     "n_estimators": [100, 300, 500],
-                    "max_depth": [3, 7, None],
+                    "max_depth": [3, 5, 7],
+                    "min_samples_leaf": [2, 3, 5],
                     "min_samples_split": [2, 6, 10],
                 }
             ]

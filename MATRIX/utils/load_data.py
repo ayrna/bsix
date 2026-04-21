@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+from scipy.stats import mode
 from sklearn.model_selection import train_test_split
 
 def _prepare_data(df, test_size, validation_size, seed):
@@ -11,7 +12,8 @@ def _prepare_data(df, test_size, validation_size, seed):
 
     import numpy.lib.recfunctions as rfn
     from sklearn.model_selection import StratifiedGroupKFold
-    
+
+    # Remove rows with 0.0 or less in time columns
     if all(name in df.columns for name in ["time_start", "time_stop"]):
         time_labels = ["time_start", "time_stop"]
         # For time-varying data, only filter on time_stop (the event/censoring time)
@@ -22,7 +24,7 @@ def _prepare_data(df, test_size, validation_size, seed):
         
     labels = ["event"] + time_labels
     df = df.dropna()
-    
+
     # Print dataset information
     df.info()
     print()
@@ -91,7 +93,7 @@ def _toDataframe(data):
 
     return df
 
-def _load_data_hdf(data_dir, dataset_name):
+def load_data_hdf(data_dir, dataset_name):
 
     """
     Load dataset from a HDF5 file.
@@ -110,7 +112,7 @@ def _load_data_hdf(data_dir, dataset_name):
     
     return df
 
-def _load_data_arff(data_dir, dataset_name):
+def load_data_arff(data_dir, dataset_name):
 
     """
     Load dataset from a ARFF file.
@@ -132,7 +134,7 @@ def _load_data_arff(data_dir, dataset_name):
     
     return df
 
-def _load_data_csv(data_dir, dataset_name):
+def load_data_csv(data_dir, dataset_name):
 
     """
     Load dataset from a CSV file.
@@ -198,6 +200,33 @@ def _transformTrainValidationTest(X, y):
     
     return _X, _y, survival
 
+def _filter_low_variance(X, threshold=0.90):
+
+    """
+    Filter out columns with low variance.
+    """
+
+    _, counts = mode(X, axis=0, keepdims=True)
+    mask = (counts[0] / X.shape[0]) <= threshold
+
+    return mask
+
+def _filter_high_correlation(X, threshold=0.90):
+
+    """
+    Filter out columns with high correlation.
+    """
+
+    corr_matrix = np.nan_to_num(np.abs(np.corrcoef(X.T)))
+        
+    upper = np.triu(corr_matrix, k=1)
+    drop_indices = np.unique(np.where(upper > threshold)[1])
+    
+    mask = np.ones(X.shape[1], dtype=bool)
+    mask[drop_indices] = False
+    
+    return mask
+
 def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, seed=0):
 
     """
@@ -207,14 +236,30 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
     if df is not None:
         X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(df, test_size, validation_size, seed)
     elif ".h5" in dataset_name:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(_load_data_hdf(data_dir, dataset_name), test_size, validation_size, seed)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(load_data_hdf(data_dir, dataset_name), test_size, validation_size, seed)
     elif ".arff" in dataset_name:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(_load_data_arff(data_dir, dataset_name), test_size, validation_size, seed)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(load_data_arff(data_dir, dataset_name), test_size, validation_size, seed)
     elif ".csv" in dataset_name:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(_load_data_csv(data_dir, dataset_name), test_size, validation_size, seed)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(load_data_csv(data_dir, dataset_name), test_size, validation_size, seed)
     else:
         print("ERROR : Wrong format of dataset.")
         return -1
+
+    # Remove columns with low variance
+    mask = _filter_low_variance(X_train)
+
+    X_train = X_train[:, mask]
+    X_validation = X_validation[:, mask]
+    X_test = X_test[:, mask]
+    feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
+
+    # Remove correlated columns
+    mask = _filter_high_correlation(X_train)
+
+    X_train = X_train[:, mask]
+    X_validation = X_validation[:, mask]
+    X_test = X_test[:, mask]
+    feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
 
     # Scale data
     if scaler is None:
