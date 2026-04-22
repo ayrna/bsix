@@ -3,6 +3,7 @@ import pandas as pd
 
 from scipy.stats import mode
 from sklearn.model_selection import train_test_split
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 def _prepare_data(df, test_size, validation_size, seed):
 
@@ -227,6 +228,20 @@ def _filter_high_correlation(X, threshold=0.90):
     
     return mask
 
+def _filter_high_vif(X, threshold=5.0):
+
+    """
+    Filter out columns with high Variance Inflation Factor (VIF).
+    """
+    
+    vif_values = np.zeros(X.shape[1])
+    for i in range(X.shape[1]):
+        vif_values[i] = variance_inflation_factor(X, i)
+            
+    mask = vif_values <= threshold
+    
+    return mask
+
 def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, seed=0):
 
     """
@@ -244,22 +259,6 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
     else:
         print("ERROR : Wrong format of dataset.")
         return -1
-
-    # Remove columns with low variance
-    mask = _filter_low_variance(X_train)
-
-    X_train = X_train[:, mask]
-    X_validation = X_validation[:, mask]
-    X_test = X_test[:, mask]
-    feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
-
-    # Remove correlated columns
-    mask = _filter_high_correlation(X_train)
-
-    X_train = X_train[:, mask]
-    X_validation = X_validation[:, mask]
-    X_test = X_test[:, mask]
-    feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
 
     # Scale data
     if scaler is None:
@@ -296,6 +295,30 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
         X_train = scaler.transform(X_train)
         X_validation = scaler.transform(X_validation)
         X_test = scaler.transform(X_test)
+
+    # Remove columns with low variance
+    mask = _filter_low_variance(X_train)
+
+    X_train = X_train[:, mask]
+    X_validation = X_validation[:, mask]
+    X_test = X_test[:, mask]
+    feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
+
+    # Remove correlated columns
+    mask = _filter_high_correlation(X_train)
+
+    X_train = X_train[:, mask]
+    X_validation = X_validation[:, mask]
+    X_test = X_test[:, mask]
+    feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
+
+    # Remove linear combination
+    mask = _filter_high_vif(X_train)
+
+    X_train = X_train[:, mask]
+    X_validation = X_validation[:, mask]
+    X_test = X_test[:, mask]
+    feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
 
     # Transform data for train, validation and test sets
     X_train, y_train, _ = _transformTrainValidationTest(X_train, y_train)

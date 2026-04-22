@@ -380,7 +380,7 @@ class BaseSurvival(BaseEstimator, ABC):
         # Accumulate form 0 to time_discretised value
         dataframe_transformed["time_frame"] = dataframe_transformed.groupby("identifier").cumcount()
 
-        # Reset index (repeat step)
+        # Reset index
         dataframe_transformed = dataframe_transformed.reset_index(drop=True)
 
         # Last index of the row for each patient
@@ -388,11 +388,17 @@ class BaseSurvival(BaseEstimator, ABC):
         # Indicate whether (or not) the event occurred in the last row for each patient
         dataframe_transformed.loc[~dataframe_transformed.index.isin(last_row_index), "event"] = 0.0
 
-        # Calculate the split associated with the time_frame value
-        dataframe_transformed["days_risk"] = dataframe_transformed["time_frame"].map(dict(enumerate(splits)))
+        # Calculate the split associated with the time_frame value (not 0)
+        dataframe_transformed["days_risk"] = dataframe_transformed["time_frame"].map(dict(enumerate(splits[1:])))
         # Indicate the real value of time  in the last row for each patient
         dataframe_transformed.loc[last_row_index, "days_risk"] = dataframe_transformed.loc[last_row_index, "time"]
-        
+        # Move data from days_risk to time and remove days_risk column.
+        dataframe_transformed["time"] = dataframe_transformed["days_risk"]
+        dataframe_transformed = dataframe_transformed.drop(columns=["days_risk", "time_frame"])
+
+        # Reset index
+        dataframe_transformed = dataframe_transformed.reset_index(drop=True)
+
         return dataframe_transformed
     
     @staticmethod
