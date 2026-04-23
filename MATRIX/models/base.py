@@ -15,14 +15,23 @@ def _tool_setTimeTicksAxisX(ax):
     Tool for setting time ticks on X-axis.
     """
 
-    max_days = max(abs(ax.get_xlim()[0]), abs(ax.get_xlim()[1])) # (min, max)
+    max_time = max(abs(ax.get_xlim()[0]), abs(ax.get_xlim()[1])) # (min, max)
 
-    if max_days > 3650: # More than 10 years
+    # Time (days)
+    if max_time > 3650: # More than 10 years
         major, minor = 1825, 365 # 5 years - 1 year
-    elif max_days > 365: # Between 1 year and 10 years
+    elif max_time > 365: # Between 1 year and 10 years
         major, minor = 365, 73 # 1 year - 5 splits per year
-    else: # Less than 1 year
+    elif max_time > 90: # Less than 1 year
         major, minor = 30, 6 # 1 month - 5 splits per month
+
+    # Time (years)
+    elif max_time > 10: # More than 10 years
+        major, minor = 5, 1 # 5 years - 1 year
+    elif max_time > 1: # Between 1 year and 10 years
+        major, minor = 1, 0.2 # 1 year - 5 splits per year
+    else: # Less than 1 year
+        major, minor = 0.5, 0.1 # 1 month - 5 splits per month
 
     return major, minor
 
@@ -34,12 +43,18 @@ def _tool_setXaiTicksAxisX(ax):
 
     max_shap = max(abs(ax.get_xlim()[0]), abs(ax.get_xlim()[1])) # (min, max)
 
-    if max_shap > 10: # More than 10 (xai)
-        major, minor = 1, 0.25 # 1 - 0.25 (xai)
+    if max_shap > 50: # More than 30 (xai)
+        major, minor = 10, 2 # 10 - 2 (xai)
+    elif max_shap > 30: # More than 30 (xai)
+        major, minor = 5, 1 # 5 - 1 (xai)
+    elif max_shap > 10: # More than 10 (xai)
+        major, minor = 1, 0.2 # 1 - 0.2 (xai)
     elif max_shap > 1: # More than 1 (xai)
         major, minor = 0.5, 0.1 # 0.5 - 0.1 (xai)
-    else: # Less than 1 (xai)
-        major, minor = 0.1, 0.05 # 0.1 - 0.05 (xai)
+    elif max_shap > 0.1: # More than 0.1 (xai)
+        major, minor = 0.1, 0.02 # 0.1 - 0.02 (xai)
+    else:
+        major, minor = 0.05, 0.01 # 0.05 - 0.01 (xai)
 
     return major, minor
 
@@ -414,7 +429,7 @@ class BaseSurvival(BaseEstimator, ABC):
         dataframe_transformed = dataframe_transformed.rename(columns={identifier: "identifier", event: "event", time: "time_stop"})
 
         # Move the new time_start column (time) down by inserting 0.0 as the first value
-        dataframe_transformed["time_start"] = dataframe_transformed.groupby("identifier")["time_stop"].shift(1).fillna(0)
+        dataframe_transformed["time_start"] = dataframe_transformed.groupby("identifier")["time_stop"].shift(1).fillna(1e-6)
         dataframe_transformed = dataframe_transformed.astype({"time_start": float, "time_stop": float})
 
         # Move the event column down by inserting 0.0 as the first value (do not remove the row with the event)
