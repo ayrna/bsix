@@ -41,10 +41,10 @@ def _set_global_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-def _get_config(estimator, estimator_name, dataset, rs):
+def _get_config(estimator, estimator_name, dataset, seed):
     config = estimator.get_params().copy()
     config["estimator_name"] = estimator_name
-    config["rs"] = rs
+    config["random_state"] = seed
     config["dataset"] = dataset
 
     keys_to_remove = [
@@ -223,8 +223,8 @@ def load_and_run_experiment(
 
     estimator.best_estimator_.predict_survival_function(X_train_val, estimator_name, dataset, seed)
     estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, estimator_name, dataset, seed)
-    estimator.best_estimator_.calculate_xai(X_train_val, estimator_name, dataset, seed, feature_names, background=50)
-
+    estimator.best_estimator_.calculate_xai(X_train_val, estimator_name, dataset, seed, feature_names, background=False)
+    
     if y_train_val.ndim == 1:
         train_survival_pred = estimator.predict(X_train_val)
         test_survival_pred = estimator.predict(X_test)
@@ -238,6 +238,7 @@ def load_and_run_experiment(
 
     config = _get_config(estimator, estimator_name, dataset, seed)
     best_params = estimator.best_params_ if hasattr(estimator, "best_params_") else {}
+    estimator.best_estimator_.scaler_ = scaler
     
     if not interactive:
         result = make_result(

@@ -2,6 +2,7 @@
 export_results.py
 run_condor.py
 run_experiment.py
+depurar.py
 
 # Ignorar una carpeta entera
 condor_output/

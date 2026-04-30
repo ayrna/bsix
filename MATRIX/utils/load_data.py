@@ -201,7 +201,7 @@ def _transformTrainValidationTest(X, y):
     
     return _X, _y, survival
 
-def _filter_low_variance(X, threshold=0.90):
+def _filter_low_variance(X, threshold=0.80):
 
     """
     Filter out columns with low variance.
@@ -212,7 +212,7 @@ def _filter_low_variance(X, threshold=0.90):
 
     return mask
 
-def _filter_high_correlation(X, threshold=0.90):
+def _filter_high_correlation(X, threshold=0.80):
 
     """
     Filter out columns with high correlation.
@@ -260,42 +260,6 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
         print("ERROR : Wrong format of dataset.")
         return -1
 
-    # Scale data
-    if scaler is None:
-        if scaler_name == "log":
-            from sklearn.preprocessing import FunctionTransformer
-
-            def logScaler(X, shift=(1 + 1e-6)):
-                X_log = np.round(np.log(X + shift), 6)
-                return X_log
-            
-            scaler = FunctionTransformer(func=logScaler)
-
-        elif scaler_name == "minmax":
-            from sklearn.preprocessing import MinMaxScaler
-
-            scaler = MinMaxScaler((0, 1))
-
-        elif scaler_name == "standard":
-            from sklearn.preprocessing import StandardScaler
-
-            scaler = StandardScaler()
-
-        elif scaler_name == "robust":
-            from sklearn.preprocessing import RobustScaler
-
-            scaler = RobustScaler()
-
-        scaler = scaler.fit(X_train)
-        
-        X_train = scaler.transform(X_train)
-        X_validation = scaler.transform(X_validation)
-        X_test = scaler.transform(X_test)
-    else:
-        X_train = scaler.transform(X_train)
-        X_validation = scaler.transform(X_validation)
-        X_test = scaler.transform(X_test)
-
     # Remove columns with low variance
     mask = _filter_low_variance(X_train)
 
@@ -319,7 +283,53 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
     X_validation = X_validation[:, mask]
     X_test = X_test[:, mask]
     feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
+    
+    # Convert to DataFrame for scaling
+    X_train_df = pd.DataFrame(X_train, columns=feature_names)
+    X_validation_df = pd.DataFrame(X_validation, columns=feature_names)
+    X_test_df = pd.DataFrame(X_test, columns=feature_names)
 
+    # Scale data
+    if scaler is None:
+        if scaler_name == "log":
+            from sklearn.preprocessing import FunctionTransformer
+
+            def logScaler(X, shift=(1 + 1e-6)):
+                X_log = np.round(np.log(X + shift), 6)
+                return X_log
+            
+            scaler = FunctionTransformer(func=logScaler).set_output(transform="pandas")
+
+        elif scaler_name == "minmax":
+            from sklearn.preprocessing import MinMaxScaler
+
+            scaler = MinMaxScaler((0, 1)).set_output(transform="pandas")
+
+        elif scaler_name == "standard":
+            from sklearn.preprocessing import StandardScaler
+
+            scaler = StandardScaler().set_output(transform="pandas")
+
+        elif scaler_name == "robust":
+            from sklearn.preprocessing import RobustScaler
+
+            scaler = RobustScaler().set_output(transform="pandas")
+
+        scaler = scaler.fit(X_train_df)
+        
+        X_train_df = scaler.transform(X_train_df)
+        X_validation_df = scaler.transform(X_validation_df)
+        X_test_df = scaler.transform(X_test_df)
+    else:
+        X_train_df = scaler.transform(X_train_df)
+        X_validation_df = scaler.transform(X_validation_df)
+        X_test_df = scaler.transform(X_test_df)
+
+    # Convert back to numpy arrays
+    X_train = np.array(X_train_df.values, np.float32)
+    X_validation = np.array(X_validation_df.values, np.float32)
+    X_test = np.array(X_test_df.values, np.float32)
+    
     # Transform data for train, validation and test sets
     X_train, y_train, _ = _transformTrainValidationTest(X_train, y_train)
     X_validation, y_validation, _ = _transformTrainValidationTest(X_validation, y_validation)

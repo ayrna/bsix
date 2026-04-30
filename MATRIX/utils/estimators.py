@@ -116,6 +116,27 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
                     "l1_reg": np.round(np.logspace(-5, -3, 3), 8),
                     "l2_reg": np.round(np.logspace(-4, -2, 3), 8),
                     "cox_reg": np.round(np.logspace(-3, 3, 7), 8),
+                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
+                    "activation": ["relu", "selu", "tanh"],
+                    "coef_likelihood": np.round(rng.dirichlet(alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]), size=7), 8).tolist(),
+                }
+            ]
+
+            estimator = DeepMultiTask(inputs.shape[1], seed=seed)
+
+        elif estimator_name == "DeepMultiTaskMultiLossFFNN":
+            from ..models import DeepMultiTaskMultiLoss
+            
+            rng = np.random.default_rng(seed=seed)
+            param_grid = [
+                {
+                    "epochs":[250, 500],
+                    "hidden_layers": [[4], [8], [16], [32]],
+                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
+                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
+                    "l1_reg": np.round(np.logspace(-5, -3, 3), 8),
+                    "l2_reg": np.round(np.logspace(-4, -2, 3), 8),
+                    "cox_reg": np.round(np.logspace(-3, 3, 7), 8),
                     "bin_reg": np.round(np.logspace(-3, 3, 7), 8),
                     "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
                     "activation": ["relu", "selu", "tanh"],
@@ -124,7 +145,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
                 }
             ]
 
-            estimator = DeepMultiTask(inputs.shape[1], seed=seed)
+            estimator = DeepMultiTaskMultiLoss(inputs.shape[1], seed=seed)
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
         

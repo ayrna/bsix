@@ -6,7 +6,7 @@ import torch
 
 from abc import ABC, abstractmethod
 from lifelines import CoxPHFitter, KaplanMeierFitter, PiecewiseExponentialFitter, statistics
-from scipy.stats import entropy
+from scipy import stats
 from sklearn.base import BaseEstimator
 
 def _tool_setTimeTicksAxisX(ax):
@@ -85,6 +85,34 @@ def _tool_toDataframe(data, columns=None):
         dataframe = pd.DataFrame(data, columns=columns)
 
     return dataframe
+
+def _tool_extractSHAP(shap_explainer, seed):
+
+    """
+    Tool for extracting data from a SHAP explainer and standardising dimensions.
+    """
+
+    values = shap_explainer.values
+    data = shap_explainer.data
+    names = np.array(shap_explainer.feature_names, str)
+
+    # Standardize dimensions: ensure values and data are 3D (num_seeds, num_samples, num_features)
+    if shap_explainer.values.ndim == 1: # (num_samples,)
+        _values = values[np.newaxis, :, np.newaxis]
+        _data = data[np.newaxis, :, np.newaxis]
+    elif shap_explainer.values.ndim == 2:
+        if seed == None: # (num_seeds, num_samples,)
+            _values = values[..., np.newaxis]
+            _data = data[..., np.newaxis]
+        else: # (, num_samples, num_features)
+            _values = values[np.newaxis, ...]
+            _data = data[np.newaxis, ...]
+    else: # (num_seeds, num_samples, num_features)
+        _values = values
+        _data = data
+
+    return _values, _data, names
+
     
 class BaseSurvival(BaseEstimator, ABC):
     
@@ -181,7 +209,7 @@ class BaseSurvival(BaseEstimator, ABC):
                     "n_splits": n_splits,
                     "split": split,
                     "aic": pf.AIC_,
-                    "entropy": (1.0 - (entropy(lengths) / np.log(n_splits + 1))),
+                    "entropy": (1.0 - (stats.entropy(lengths) / np.log(n_splits + 1))),
                 })
 
         # Convert to dataframe
@@ -458,35 +486,56 @@ class BaseSurvival(BaseEstimator, ABC):
     def plot_coefficients(coefficients, estimator_name, dataset, seed=None, progression=None):
 
         """
-        Plot XAI coefficients for the data.
+        Plot XAI coefficients for the data (lollipop plot).
         """
 
         # Extract data
-        values = np.array(list(coefficients.values()), np.float32)
-        names = np.array(list(coefficients.keys()), str)
+        coefficients_values = np.array(list(coefficients.values()), dtype=np.float32)
+        names = np.array(list(coefficients.keys()), dtype=str)
         
-        # Sort features by importance
-        importance = np.abs(values)
+        # Handle multiple seeds
+        if coefficients_values.ndim == 2:
+            # Shape is (num_features, num_seeds). Calculate the mean across seeds (axis=1)
+            coefficients_mean = np.mean(coefficients_values, axis=1)
+        else:
+            # Shape is (num_features,) - Single seed case
+            coefficients_mean = coefficients_values
+
+        # Sort features by importance (absolute mean coefficient value)
+        # Ascending order so the most important feature appears at the top of the y-axis
+        importance = np.abs(coefficients_mean)
         sort_idx = np.argsort(importance)
 
         names = names[sort_idx]
-        values = values[sort_idx]
+        coefficients_mean = coefficients_mean[sort_idx]
 
-        # Configure style
+        # Configure plot style
         fig, ax = plt.subplots(figsize=(10, 6))
         cmap = plt.get_cmap("coolwarm")
 
-        # Normalise the color
-        max_abs = np.nanmax(np.abs(values)) + 1e-6
+        # Normalise the color based on the maximum absolute mean coefficient
+        max_abs = np.max(np.abs(coefficients_mean)) + 1e-6
         normalise = plt.Normalize(vmin=-max_abs, vmax=max_abs)
 
         # Obtain color map
-        color = cmap(normalise(values))
+        color = cmap(normalise(coefficients_mean))
 
-        ax.barh(names, values, color=color, edgecolor="#000000", alpha=0.8, zorder=3) # z-ordering for layers
+        # Plot the lollipop chart (mean value)
+        ax.hlines(y=names, xmin=0, xmax=coefficients_mean, colors=color, linewidth=3, alpha=1.0, zorder=2)
+        ax.scatter(x=coefficients_mean, y=names, marker="o", c=color, s=200, alpha=1.0, zorder=3)
 
-        # Draw vertical line (xaxis = 0)
-        ax.axvline(x=0, color="#000000", linewidth=0.75, zorder=2) # z-ordering for layers
+        # Add text labels for the exact mean coefficient values near the zero-axis
+        for name, val in zip(names, coefficients_mean):
+            x_pos = (-(max_abs * 0.01) if val >= 0.0 else (max_abs * 0.01))
+            ha_pos = ("right" if val >= 0.0 else "left")
+            ax.text(
+                x=x_pos, y=name, s=f"$\\bf{{{val:.2f}}}$", color="#353535", 
+                fontsize=6, ha=ha_pos, va="center", 
+                bbox=dict(facecolor='white', edgecolor='none', pad=1, alpha=0.5), zorder=4
+            )
+
+        # Draw vertical reference line at 0
+        ax.axvline(x=0, color="#000000", linewidth=0.75, zorder=1)
 
         # Title and axis labels
         title_parts = [f"{estimator_name} - {dataset}"]
@@ -496,22 +545,21 @@ class BaseSurvival(BaseEstimator, ABC):
             title_parts.append(f"progression {progression}")
         
         plt.title(f"XAI\n{' - '.join(title_parts)}", fontsize=12)
-        plt.xlabel("Coefficients values", fontsize=10)
-        plt.ylabel("Features", fontsize=10)
+        plt.xlabel("$\\bf{Mean}$ $\\bf{Coefficient}$ $\\bf{values}$", fontsize=10)
+        plt.ylabel("$\\bf{Features}$", fontsize=10)
         
-        # Axis ticks
+        # Format axes
         ax = plt.gca()
         majorX, minorX = _tool_setXaiTicksAxisX(ax)
         ax.xaxis.set_major_locator(ticker.MultipleLocator(majorX))
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
-
         plt.xticks(rotation=45, ha="right")
 
         # Grid
-        plt.grid(True, which="major", linestyle="-", alpha=0.7, zorder=0) # z-ordering for layers
-        plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5, zorder=0) # z-ordering for layers
+        plt.grid(True, which="major", linestyle="-", alpha=0.7, zorder=0) 
+        plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5, zorder=0) 
 
-        # Build filename dynamically
+        # Build filename dynamically and save
         filename_parts = [f"Plot_XAI_coefficients-{estimator_name}_{dataset}"]
         if seed is not None:
             filename_parts.append(f"s{seed}")
@@ -519,44 +567,62 @@ class BaseSurvival(BaseEstimator, ABC):
             filename_parts.append(f"p{progression}")
         filename = f"{'_'.join(filename_parts)}.png"
         
-        # Save figure
         plt.tight_layout()
         plt.savefig(filename, dpi=300, bbox_inches="tight")
         plt.close()
     
     @staticmethod
-    def plot_shap(shap_explainer, estimator_name, dataset, seed=None, progression=None):
+    def plot_individual_shap(shap_explainer, instance_idx, scaler, estimator_name, dataset, seed=None, progression=None):
 
         """
-        Plot SHAP values for the data.
+        Plot SHAP values for an individual instance (horizontal bar plot).
         """
+        
+        _values, _data, names = _tool_extractSHAP(shap_explainer, seed)
 
-        # Extract data
-        values = shap_explainer.values
-        data = shap_explainer.data
-        names = np.array(shap_explainer.feature_names, str)
+        _values = _values[:, instance_idx, :]
+        _data = _data[:, instance_idx, :]
 
-        # Sort features by importance
-        importance = np.abs(values).mean(axis=0)
+        # Create a mask for scaler
+        scaler_names = [n for n in scaler.get_feature_names_out()]
+        valid_mask = np.array([list(names).index(n) for n in scaler_names])
+
+        # Calulate means
+        _values_mean = np.nanmean(_values, axis=0) 
+        _data_mean = np.nanmean(_data, axis=0)
+
+        # Reduce features (if necessary) of all arrays using the valid mask
+        valid_values = _values_mean[valid_mask]
+        valid_data = _data_mean[valid_mask]
+        valid_names = names[valid_mask]
+        
+        # Inverse transform
+        data_transformed = scaler.inverse_transform(valid_data.reshape(1, -1))[0]
+
+        # Clean floating-point inconsistencies near zero
+        data_transformed = np.where(np.isclose(data_transformed, 0.0, atol=1e-5), 0.0, data_transformed)
+
+        # Sort features by importance (absolute SHAP value)
+        importance = np.abs(valid_values)
         sort_idx = np.argsort(importance)
 
-        # Configure style
+        sorted_values = valid_values[sort_idx]
+        sorted_data = data_transformed[sort_idx]
+        sorted_names = valid_names[sort_idx]
+
+        # Configure plot style
         fig, ax = plt.subplots(figsize=(10, 6))
         cmap = plt.get_cmap("coolwarm")
 
-        # Plot points
-        for y_pos, idx in enumerate(sort_idx, start=1):
-            x = values[:, idx]       
-            x_original = data[:, idx] 
-            
-            # Normalise the color
-            min_val = np.nanmin(x_original)
-            max_val = np.nanmax(x_original) + 1e-6
-            
-            # Jitter
-            y = y_pos + np.random.normal(0, 0.075, size=len(x))
-            
-            ax.scatter(x, y, s=10, c=x_original, cmap=cmap, vmin=min_val, vmax=max_val, alpha=0.8, edgecolors="none", zorder=3) # z-ordering for layers
+        # Normalise the color based on the maximum absolute SHAP value
+        max_abs = np.nanmax(np.abs(sorted_values)) + 1e-6
+        normalise = plt.Normalize(vmin=-max_abs, vmax=max_abs)
+
+        # Map SHAP values to colors
+        colors = cmap(normalise(sorted_values))
+
+        # Plot the horizontal bars
+        ax.barh(sorted_names, sorted_values, color=colors, edgecolor="#000000", linewidth=0.75, alpha=0.8, zorder=3)
 
         # Add the color bar (legend)
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=1))
@@ -565,8 +631,97 @@ class BaseSurvival(BaseEstimator, ABC):
         color_bar.set_ticks([0, 1])
         color_bar.set_ticklabels(["Low", "High"])
 
-        # Draw vertical line (xaxis = 0)
-        ax.axvline(x=0, color="#000000", linewidth=0.75, zorder=2) # z-ordering for layers
+        # Draw vertical reference line at SHAP value = 0
+        ax.axvline(x=0, color="#000000", linewidth=0.75, zorder=2) 
+
+        # Title and axis labels
+        title_parts = [f"{estimator_name} - {dataset}"]
+        if seed is not None:
+            title_parts.append(f"seed {seed}")
+        if progression is not None:
+            title_parts.append(f"progression {progression}")
+        
+        plt.title(f"XAI\n{' - '.join(title_parts)}\nIndividual {instance_idx}", fontsize=12)
+        plt.xlabel("$\\bf{SHAP}$ $\\bf{values}$", fontsize=10)
+        plt.ylabel("$\\bf{Features}$", fontsize=10)
+        
+        # Format axes
+        majorX, minorX = _tool_setXaiTicksAxisX(ax)
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(majorX))
+        ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
+        plt.xticks(rotation=45, ha="right")
+
+        # Format y-axis labels to include both the feature name and its real-world value
+        y_labels = [f"{n} (= {d:.2f})" for n, d in zip(sorted_names, sorted_data)]
+        plt.yticks(ticks=np.arange(len(sort_idx)), labels=y_labels)
+
+        # Grid styling
+        plt.grid(True, which="major", linestyle="-", alpha=0.7, zorder=0)
+        plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5, zorder=0)
+
+        # Build filename dynamically and save
+        filename_parts = [f"Plot_XAI_individual-{estimator_name}_{dataset}"]
+        if seed is not None:
+            filename_parts.append(f"s{seed}")
+        if progression is not None:
+            filename_parts.append(f"p{progression}")
+        filename_parts.append(f"i{instance_idx}")
+
+        filename = f"{'_'.join(filename_parts)}.png"
+        
+        plt.tight_layout()
+        plt.savefig(filename, dpi=300, bbox_inches="tight")
+        plt.close()
+
+    @staticmethod
+    def plot_shap(shap_explainer, estimator_name, dataset, seed=None, progression=None):
+
+        """
+        Plot SHAP values for the data (beeswarm plot).
+        """
+
+        _values, _data, names = _tool_extractSHAP(shap_explainer, seed)
+            
+        num_seeds = _values.shape[0]
+
+        # Calculate global feature importance and consensus sorting
+        # Average absolute SHAP values across all seeds (axis=0) and samples (axis=1)
+        global_importance = np.abs(_values).mean(axis=(0, 1))
+        
+        # Sort indices descending (most important feature first)
+        global_sort_idx = np.argsort(global_importance)
+
+        # Configure plot style
+        fig, ax = plt.subplots(figsize=(10, 6))
+        cmap = plt.get_cmap("coolwarm")
+
+        # Plot points
+        # Iterate over the globally sorted features (row by row)
+        for y_pos, feature_idx in enumerate(global_sort_idx, start=1):
+            # Plot data for all seeds for this specific feature on the same horizontal line
+            for s in range(num_seeds):
+                x = _values[s, :, feature_idx]       
+                x_original = _data[s, :, feature_idx] 
+                
+                # Normalise the color for the scatter points
+                min_val = np.nanmin(x_original)
+                max_val = np.nanmax(x_original) + 1e-6
+                
+                # Add jitter to the y-axis to spread out the points (beeswarm effect)
+                y = y_pos + np.random.normal(0, 0.075, size=len(x))
+                
+                # Plot the scatter layer
+                ax.scatter(x, y, s=10, c=x_original, cmap=cmap, vmin=min_val, vmax=max_val, alpha=0.8, edgecolors="none", zorder=3)
+
+        # Add the color bar (legend)
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=1))
+        color_bar = fig.colorbar(sm, ax=ax)
+        color_bar.set_label("Feature value", labelpad=-15, fontsize=10)
+        color_bar.set_ticks([0, 1])
+        color_bar.set_ticklabels(["Low", "High"])
+
+        # Draw vertical line at SHAP value = 0
+        ax.axvline(x=0, color="#000000", linewidth=0.75, zorder=2) 
 
         # Title and axis labels
         title_parts = [f"{estimator_name} - {dataset}"]
@@ -576,23 +731,23 @@ class BaseSurvival(BaseEstimator, ABC):
             title_parts.append(f"progression {progression}")
         
         plt.title(f"XAI\n{' - '.join(title_parts)}", fontsize=12)
-        plt.xlabel("Shap values", fontsize=10)
-        plt.ylabel("Features", fontsize=10)
+        plt.xlabel("$\\bf{Shap}$ $\\bf{values}$", fontsize=10)
+        plt.ylabel("$\\bf{Features}$", fontsize=10)
 
-        # Axis ticks
-        ax = plt.gca()
+        # Format axes
         majorX, minorX = _tool_setXaiTicksAxisX(ax)
         ax.xaxis.set_major_locator(ticker.MultipleLocator(majorX))
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
-
         plt.xticks(rotation=45, ha="right")
-        plt.yticks(ticks=np.arange(1, len(sort_idx) + 1), labels=names[sort_idx])
 
-        # Grid
-        plt.grid(True, which="major", linestyle="-", alpha=0.7, zorder=0) # z-ordering for layers
-        plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5, zorder=0) # z-ordering for layers
+        # Set y-axis labels using the globally sorted feature names
+        plt.yticks(ticks=np.arange(1, len(global_sort_idx) + 1), labels=names[global_sort_idx])
 
-        # Build filename dynamically
+        # Grid styling
+        plt.grid(True, which="major", linestyle="-", alpha=0.7, zorder=0) 
+        plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5, zorder=0) 
+
+        # Build filename dynamically and save
         filename_parts = [f"Plot_XAI_values-{estimator_name}_{dataset}"]
         if seed is not None:
             filename_parts.append(f"s{seed}")
@@ -600,7 +755,6 @@ class BaseSurvival(BaseEstimator, ABC):
             filename_parts.append(f"p{progression}")
         filename = f"{'_'.join(filename_parts)}.png"
         
-        # Save figure
         plt.tight_layout()
         plt.savefig(filename, dpi=300, bbox_inches="tight")
         plt.close()

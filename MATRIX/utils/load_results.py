@@ -1,3 +1,4 @@
+import itertools
 import numpy as np
 
 from MATRIX.models import BaseSurvival
@@ -66,46 +67,104 @@ def get_results(estimator_name=None, dataset=None, seed=None):
     return results
 
 def _sort_dict(data_dict):
-
+    
     """
-    Rearrange the matrices in data_list and values_list so that their columns match the order of the first element in feature_names.
+    Rearrange the matrices/arrays in 'data_list' and 'values_list' so that their columns 
+    match a unified reference order of 'feature_names' across all items.
     """
 
-    for identifier_name, data in data_dict.items():
-        # Use the order of the first element in feature_names as a reference
-        reference_order = list(data["feature_names"][0])
-        
-        _values_list = []
-        _data_list = []
-        
-        # Iterate over values_list and its corresponding feautures
-        for values_item, current_features in zip(data["values_list"], data["feature_names"]):
-            
-            # Search for each reference column within the current features
+    def _align_to_reference(item_list, feature_lists, reference_order):
+
+        """
+        Aligns features of each seed/item to the unified reference order.
+        Missing features are padded with NaNs.
+        """
+
+        aligned_list = []
+        for item, current_features in zip(item_list, feature_lists):
             current_features_list = list(current_features)
-            _order = [current_features_list.index(fn) for fn in reference_order]
             
-            # Implement the new order
-            if values_item.ndim == 1:
-                _values_list.append(values_item[_order])
+            # Ensure item is at least 1D to safely check its dimensions
+            item_array = np.atleast_1d(item)
+            is_2d = item_array.ndim >= 2
+            
+            _list = []
+            for fn in reference_order:
+                if fn in current_features_list:
+                    idx = current_features_list.index(fn)
+                    # Extract the column for 2D arrays, or the scalar for 1D arrays
+                    _list.append(item_array[:, idx] if is_2d else item_array[idx])
+                else:
+                    # Pad with NaNs of the correct shape if the feature is missing
+                    if is_2d:
+                        _list.append(np.full(item_array.shape[0], np.nan))
+                    else:
+                        _list.append(np.nan)
+            
+            # Reconstruct the array with the aligned features
+            if is_2d:
+                aligned_list.append(np.column_stack(_list))
             else:
-                _values_list.append(values_item[:, _order])
+                aligned_list.append(np.array(_list))
+                
+        return aligned_list
+
+
+    def _pad_and_stack_numeric(aligned_list):
+
+        """
+        Pads items with missing samples (rows) with NaNs to ensure homogeneous shapes 
+        across all seeds, preventing NumPy conversion errors, and stacks them.
+        """
+
+        if not aligned_list:
+            return np.array([])
+            
+        is_2d = aligned_list[0].ndim == 2
         
-        # If data_list exists, reorder it as well
+        if is_2d:
+            # Find the maximum number of samples (rows) across all seeds
+            max_samples = max(item.shape[0] for item in aligned_list)
+            
+            padded_list = []
+            for item in aligned_list:
+                missing_rows = max_samples - item.shape[0]
+                
+                if missing_rows > 0:
+                    # Pad with NaNs at the bottom if the current seed has fewer samples
+                    padding = np.full((missing_rows, item.shape[1]), np.nan)
+                    item = np.vstack((item, padding))
+                    
+                padded_list.append(item)
+            
+            # Safely convert to a numpy array (homogeneous shape guaranteed)
+            return np.squeeze(np.array(padded_list, dtype=float))
+        else:
+            # For 1D arrays, no row padding is needed
+            return np.squeeze(np.array(aligned_list, dtype=float))
+
+
+    # Dictionary processing
+    for identifier_name, data in data_dict.items():
+        
+        # Create a unified, duplicate-free list of all features preserving order
+        reference_order = list(dict.fromkeys(itertools.chain.from_iterable(data["feature_names"])))
+        
+        # Align values_list and safely stack into a NumPy array
+        _values_aligned = _align_to_reference(data["values_list"], data["feature_names"], reference_order)
+        data["values_list"] = _pad_and_stack_numeric(_values_aligned)
+        
+        # Align data_list if it exists
         if "data_list" in data:
-            for data_item, current_features in zip(data["data_list"], data["feature_names"]):
-                current_features_list = list(current_features)
-                _order = [current_features_list.index(fn) for fn in reference_order]
-                _data_list.append(data_item[:, _order])
-            data["data_list"] = _data_list
-        
-        # Save sorted data
-        data["values_list"] = _values_list
-        data["feature_names"] = reference_order
+            _data_aligned = _align_to_reference(data["data_list"], data["feature_names"], reference_order)
+            data["data_list"] = _pad_and_stack_numeric(_data_aligned)
+            
+        # Update feature names to the reference order as a safe 1D array
+        data["feature_names"] = np.atleast_1d(reference_order)
 
     return data_dict
 
-def get_xai(estimator_name=None, dataset=None, seed=None):
+def get_xai(estimator_name=None, dataset=None, seed=None, individual=None):
 
     """
     Get the xai for the given estimator name, dataset and seed.
@@ -116,7 +175,9 @@ def get_xai(estimator_name=None, dataset=None, seed=None):
     filtered_results = rf.filter(lambda result: _filter_search(result, estimator_name, dataset, seed))
 
     dictionary_coefficients = defaultdict(lambda: {'values_list': [], 'feature_names': []})
+    dictionary_scaler = defaultdict(lambda: {'scaler': []})
     dictionary_shap = defaultdict(lambda: {'data_list': [], 'values_list': [], 'feature_names': []})
+    
     for result in filtered_results:
         result.get_data()
 
@@ -125,20 +186,27 @@ def get_xai(estimator_name=None, dataset=None, seed=None):
 
         # Accumulate data in the relevant dictionary (coefficients)
         if hasattr(result.data_.best_model, "coefficients"):
-            dictionary_coefficients[identifier_name]['values_list'].append(np.array(list(result.data_.best_model.coefficients.values())))
+            dictionary_coefficients[identifier_name]['values_list'].append(list(result.data_.best_model.coefficients.values()))
             dictionary_coefficients[identifier_name]['feature_names'].append(list(result.data_.best_model.coefficients.keys()))
-        
+
         # Store data in the relevant dictionary (shap)
         if hasattr(result.data_.best_model, "shap_explainer"):
             dictionary_shap[identifier_name]['data_list'].append(result.data_.best_model.shap_explainer.data)
             dictionary_shap[identifier_name]['values_list'].append(result.data_.best_model.shap_explainer.values)
             dictionary_shap[identifier_name]['feature_names'].append(result.data_.best_model.shap_explainer.feature_names)
 
+            dictionary_shap[identifier_name]['data_list'] = list(dictionary_shap[identifier_name]['data_list'])
+            dictionary_shap[identifier_name]['values_list'] = list(dictionary_shap[identifier_name]['values_list'])
+
+        # Store scaler in the relevant dictionary (scaler)
+        if hasattr(result.data_.best_model, "scaler_"):
+            dictionary_scaler[identifier_name]['scaler'].append(result.data_.best_model.scaler_)
+
     if dictionary_coefficients == {}:
         dictionary_coefficients = None
     else:
         dictionary_coefficients = _sort_dict(dictionary_coefficients)
-
+        
     if dictionary_shap == {}:
         dictionary_shap = None
     else:
@@ -148,24 +216,34 @@ def get_xai(estimator_name=None, dataset=None, seed=None):
     if dictionary_coefficients is not None:
         average_coefficients = {}
         for identifier_name, data in dictionary_coefficients.items():
-            mean_coefficients = np.mean(data['values_list'], axis=0)
+            if (data['values_list']).ndim > 1:
+                mean_coefficients = np.nanmean(data['values_list'], axis=1)
+            else:
+                mean_coefficients = data['values_list']
+
+            # Ensure at keast 1D in arrays
+            data['feature_names'] = np.atleast_1d(data['feature_names'])
+            mean_coefficients = np.atleast_1d(mean_coefficients)
+
             average_coefficients[identifier_name] = dict(zip(data['feature_names'], mean_coefficients))
 
         # Draw coefficients values means of all seeds by dataset_estimator
         for identifier_name, coefficients in average_coefficients.items():
-            dataset_name, estimator_name = identifier_name.split('_')
+            estimator_name, dataset_name = identifier_name.split('_')
             BaseSurvival.plot_coefficients(coefficients, estimator_name, dataset_name, seed)
 
     # Create separate shap_explainer objects for each dataset_estimator
     if dictionary_shap is not None:
         shap_explainers = {}
         for identifier_name, data in dictionary_shap.items():
-            shap_explainers[identifier_name] = SimpleNamespace(data=np.vstack(data['data_list']), values=np.vstack(data['values_list']), feature_names=data['feature_names'])
+            shap_explainers[identifier_name] = SimpleNamespace(data=data['data_list'], values=data['values_list'], feature_names=data['feature_names'])
 
         # Draw shap values of all seeds by dataset_estimator
         for identifier_name, shap_explainer in shap_explainers.items():
-            dataset_name, estimator_name = identifier_name.split('_')
+            estimator_name, dataset_name = identifier_name.split('_')
             BaseSurvival.plot_shap(shap_explainer, estimator_name, dataset_name, seed)
+            if individual is not None:
+                BaseSurvival.plot_individual_shap(shap_explainer, individual, dictionary_scaler[identifier_name]['scaler'][0], estimator_name, dataset_name, seed)
 
 def save_results(estimator_name=None, dataset=None, seed=None):
 

@@ -100,18 +100,17 @@ class DeepSurv(BaseSurvival):
         """
         Compute the negative partial log-likelihood for Cox proportional hazards.
         """
-
-        M = risk.max().detach()
-        risk = risk - M
-
-        hazard_ratio = torch.exp(risk)
+        
+        t_i = t.view(-1, 1)
+        t_j = t.view(1, -1)
 
         if self.ties == "cox":
-            log_risk = torch.log(torch.cumsum(hazard_ratio, dim=0)) + M
+            log_risk = torch.logsumexp(risk, dim=0)
         elif self.ties == "breslow":
-            mask = t.view(-1, 1) <= t.view(1, -1)
-            mask = mask.float()
-            log_risk = torch.log(torch.sum(mask * hazard_ratio.view(1, -1), dim=1)) + M
+            mask = t_i <= t_j
+            risk_mask = torch.where(mask, risk.view(1, -1), torch.tensor(-float('inf'), device=risk.device))
+
+            log_risk = torch.logsumexp(risk_mask, dim=1)
         
         uncensored_likelihood = risk.view(-1) - log_risk.view(-1)
         censored_likelihood = uncensored_likelihood * e.view(-1)
