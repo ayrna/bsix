@@ -8,39 +8,43 @@ def get_metrics(targets, predictions):
     """
     Compute metrics for given targets and predictions.
     """
-    
-    # targets = (y_train, y_test)
-    # predictions = survival_pred 'or' (survival_pred, binary_pred, ...)
 
     metrics = {}
-    
-    if len(predictions) == 1:
-        metrics.update({
-            "C-Index Harrel": concordanceIndexHarrel(targets, predictions[0]),
-            "C-Index IPCW": concordanceIndexIPCW(targets, predictions[0]),
-            "Cumulative Dinamic AUC": cumulativeDinamicAUC(targets, predictions[0]),
-        })
-    elif len(predictions) == 2:
-        metrics.update({
-            "C-Index Harrel": concordanceIndexHarrel(targets, predictions[0]),
-            "C-Index IPCW": concordanceIndexIPCW(targets, predictions[0]),
-            "Cumulative Dinamic AUC": cumulativeDinamicAUC(targets, predictions[0]),
-        })
 
+    number_progressions = predictions[0].shape[1] if predictions[0].ndim > 1 else 1
+    progressions = ["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
+    has_progressions = number_progressions > 1
+    has_binary = len(predictions) > 1
+
+    if has_binary:
         binary_predictions = np.where(predictions[1] >= 0.5, 1.0, 0.0)
+
+    for p in range(number_progressions):
+        prefix = f"{progressions[p]} " if has_progressions else ""
+        
+        targets_survival = [targets[0][:, p], targets[1][:, p]] if has_progressions else targets
+        predictions_survival = predictions[0][:, p] if has_progressions else predictions[0]
+
         metrics.update({
-            "MAE": mae(targets[1]["event"], binary_predictions),
-            "AMAE": amae(targets[1]["event"], binary_predictions),
-            "MS": ms(targets[1]["event"], binary_predictions),
-            "CCR": ccr(targets[1]["event"], binary_predictions),
+            f"{prefix}C-Index Harrel": concordanceIndexHarrel(targets_survival, predictions_survival),
+            f"{prefix}C-Index IPCW": concordanceIndexIPCW(targets_survival, predictions_survival),
+            f"{prefix}Cumulative Dinamic AUC": cumulativeDinamicAUC(targets_survival, predictions_survival),
         })
 
-        sensitivities = np.array(recall(targets[1]["event"], binary_predictions, average=None))
+        if has_binary:
+            targets_binary = targets[1][:, p]["event"] if has_progressions else targets[1]["event"]
+            predictions_binary = binary_predictions[:, p] if has_progressions else binary_predictions
 
-        for i, sens in enumerate(sensitivities):
             metrics.update({
-                f"RECALL{i}": sens,
+                f"{prefix}MAE": mae(targets_binary, predictions_binary),
+                f"{prefix}AMAE": amae(targets_binary, predictions_binary),
+                f"{prefix}MS": ms(targets_binary, predictions_binary),
+                f"{prefix}CCR": ccr(targets_binary, predictions_binary),
             })
+
+            sensitivities = np.array(recall(targets_binary, predictions_binary, average=None))
+            for i, sens in enumerate(sensitivities):
+                metrics[f"{prefix}RECALL{i}"] = sens
 
     return metrics
 
@@ -81,7 +85,7 @@ def get_metric_confidence_interval(y, prediction, metric_name, n_iterations=1000
                 value = amae(sample_event, sample_prediction)
             bootstrapped_c_indices.append(value)
         except Exception:
-            # Ignorar muestras anómalas
+            # Ignore
             pass
                 
     # Extract percentiles

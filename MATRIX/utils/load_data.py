@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import re
 
 from scipy.stats import mode
 from sklearn.model_selection import train_test_split
@@ -11,19 +12,33 @@ def _prepare_data(df, test_size, validation_size, seed):
     Prepare the dataset for training, validation and testing.
     """
 
-    import numpy.lib.recfunctions as rfn
     from sklearn.model_selection import StratifiedGroupKFold
 
     # Remove rows with 0.0 or less in time columns
     if all(name in df.columns for name in ["time_start", "time_stop"]):
+        event_labels = ["event"]
         time_labels = ["time_start", "time_stop"]
+
+        labels = event_labels + time_labels
+
         # For time-varying data, only filter on time_stop (the event/censoring time)
         df = df[df["time_stop"] > 0]
+    elif all(name in df.columns for name in ["event1", "time1"]):
+        event_labels = df.filter(regex=r'^event\d+$').columns.tolist()
+        time_labels = df.filter(regex=r'^time\d+$').columns.tolist()
+
+        labels = event_labels + time_labels
+        labels.sort(key=lambda x: int(re.search(r'(\d+)$', x).group()))
+
+        df = df[(df[time_labels] >= 0).all(axis=1)]
     else:
+        event_labels = ["event"]
         time_labels = ["time"]
+
+        labels = event_labels + time_labels
+
         df = df[df["time"] > 0]
-        
-    labels = ["event"] + time_labels
+    
     df = df.dropna()
 
     # Print dataset information
@@ -41,26 +56,30 @@ def _prepare_data(df, test_size, validation_size, seed):
     feature_names = [x for x in df.columns.to_list() if x not in labels]
     
     # Split dataset into train and test sets
-    if len(time_labels) == 1:
-        X_train, X_test, y_train, y_test = train_test_split(df[feature_names], df[labels], test_size=test_size, random_state=seed, stratify=df["event"])
-
-        X_test = np.array(X_test, np.float32)
-        y_test = np.array(y_test, np.float32)
-
-        # Split dataset into train and validation sets
-        X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=validation_size, random_state=seed, stratify=y_train["event"])
+    # Standard data
+    if len(event_labels) == 1 and len(time_labels) == 1:
+        X_train, X_test, y_train, y_test = train_test_split(df[feature_names], df[labels], test_size=test_size, random_state=seed, stratify=df[event_labels])
+        
+        X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=validation_size, random_state=seed, stratify=y_train[event_labels])
 
         X_train = np.array(X_train, np.float32)   
         y_train = np.array(y_train, np.float32)
         X_validation = np.array(X_validation, np.float32)
         y_validation = np.array(y_validation, np.float32)
-    else:
+        X_test = np.array(X_test, np.float32)
+        y_test = np.array(y_test, np.float32)
+    # Time varying and multitask data
+    elif len(event_labels) >= 1 and len(time_labels) > 1:
         n_groups = df["identifier"].nunique()
         n_splits_outer = min(int(1 / test_size), max(2, n_groups // 2))
         n_splits_inner = min(int(1 / validation_size), max(2, n_groups // 4))
         
         group_split_outer = StratifiedGroupKFold(n_splits=n_splits_outer, shuffle=True, random_state=seed)
-        train_val_idx, test_idx = next(group_split_outer.split(df[feature_names], df["event"], groups=df["identifier"]))
+        if len(event_labels) == 1: # Time varying
+            train_val_idx, test_idx = next(group_split_outer.split(df[feature_names], df[event_labels], groups=df["identifier"]))
+        elif len(event_labels) > 1: # Multitask (multi-progression)
+            stratify_train_test = df[event_labels].astype(str).agg('_'.join, axis=1)
+            train_val_idx, test_idx = next(group_split_outer.split(df[feature_names], stratify_train_test, groups=df["identifier"]))
 
         X_train_val = df.iloc[train_val_idx]
         y_train_val = df.iloc[train_val_idx][labels]
@@ -68,7 +87,11 @@ def _prepare_data(df, test_size, validation_size, seed):
         y_test = df.iloc[test_idx][labels]
 
         group_split_inner = StratifiedGroupKFold(n_splits=n_splits_inner, shuffle=True, random_state=seed)
-        train_idx, val_idx = next(group_split_inner.split(X_train_val, y_train_val["event"], groups=X_train_val["identifier"]))
+        if len(event_labels) == 1: # Time varying
+            train_idx, val_idx = next(group_split_inner.split(X_train_val, y_train_val[event_labels], groups=X_train_val["identifier"]))
+        elif len(event_labels) > 1: # Multitask (multi-progression)
+            stratify_train_val = y_train_val[event_labels].astype(str).agg('_'.join, axis=1)
+            train_idx, val_idx = next(group_split_inner.split(X_train_val, stratify_train_val, groups=X_train_val["identifier"]))
 
         if "identifier" in feature_names:
             feature_names.remove("identifier")
@@ -89,8 +112,22 @@ def _toDataframe(data):
     """
     
     df = pd.DataFrame(data[0])
-    df["event"] = data[1]
-    df["time"] = data[2]
+
+    # Time varying data
+    if all(name in df.columns for name in ["time_start", "time_stop"]): 
+        df["event"] = data[1]
+        df["time_start"] = data[2][:, 0]
+        df["time_stop"] = data[2][:, 1]
+    # Multitask (multi-progression) data
+    elif all(name in df.columns for name in ["event1", "time1"]): 
+        progression_colon = len(df.filter(regex=r'^event\d+$').columns.tolist())
+        for i in range(progression_colon):
+            df[f"event{i+1}"] = data[1][:, i]
+            df[f"time{i+1}"] = data[2][:, i]
+    # Standard data
+    else:
+        df["event"] = data[1]
+        df["time"] = data[2]
 
     return df
 
@@ -170,36 +207,43 @@ def _transformTrainValidationTest(X, y):
 
     from sksurv.util import Surv
 
-    _X = X
-
-    # y = [[event, time], [event, time], ...] / 
-    # y = [[event, time_start, event_stop], [event, time_start, event_stop], ...] / 
-    # y = [[event1, time1, event2, time2, ...], [event1, time1, event2, time2, ...], ...]
-    _y = y
+    survival_X = X.copy()
     
+    # Standard: [event, time]
     if y.shape[1] == 2:
-        _yE = np.array([event[0] for event in _y], np.float32)
-        _yT = np.array([time[1] for time in _y], np.float32)
+        _yE = y[:, 0].astype(np.float32)
+        _yT = y[:, 1].astype(np.float32)
 
-        # Sort data by time in descending order
-        _X, _yT,_yE = _sort_data(_X, _yT,_yE)
-        _y = Surv.from_arrays(event=_yE, time=_yT)
-    else:
-        _yE = np.array([event[0] for event in _y], np.float32)#.reshape(-1)
-        _yTstart = np.array([time[1] for time in _y], np.float32)#.reshape(-1)
-        _yTstop = np.array([time[2] for time in _y], np.float32)#.reshape(-1)
+        survival_X, _yT, _yE = _sort_data(X, _yT, _yE)
+        survival_y = Surv.from_arrays(event=_yE, time=_yT)
+    # Time varying: [event, time_start, time_stop]
+    elif y.shape[1] == 3: 
+        _yE = y[:, 0].astype(np.float32)
+        _yTstart = y[:, 1].astype(np.float32)
+        _yTstop = y[:, 2].astype(np.float32)
         _yT = np.array([_yTstart, _yTstop])
-        # Ordenar posteriormente por tiempo descendente (ahora no)
+        
         dtype = [('event', '?'), ('time_start', 'f8'), ('time_stop', 'f8')]
-        _y = np.array([(bool(item[0]), float(item[1]), float(item[2])) for item in _y], dtype=dtype)
+        survival_y = np.empty(len(y), dtype=dtype)
+        survival_y['event'] = y[:, 0].astype(bool)
+        survival_y['time_start'] = y[:, 1].astype(float)
+        survival_y['time_stop'] = y[:, 2].astype(float)
+    # Multitask (multi-progression): [event1, time1, event2, time2, ...]
+    else:
+        _yE = y[:, 0::2].astype(np.float32) # (0, 2, 4...)
+        _yT = y[:, 1::2].astype(np.float32) # (1, 3, 5...)
+
+        number_progressions = y.shape[1] // 2
+        surv_list = [Surv.from_arrays(event=_yE[:, i], time=_yT[:, i]) for i in range(number_progressions)]
+        survival_y = np.array(surv_list).T
     
     survival = {
-        "x" : _X,
+        "x" : survival_X,
         "t" : _yT,
         "e" : _yE,
     }
     
-    return _X, _y, survival
+    return survival_X, survival_y, survival
 
 def _filter_low_variance(X, threshold=0.80):
 
@@ -260,30 +304,26 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
         print("ERROR : Wrong format of dataset.")
         return -1
 
-    # Remove columns with low variance
     mask = _filter_low_variance(X_train)
-
     X_train = X_train[:, mask]
     X_validation = X_validation[:, mask]
     X_test = X_test[:, mask]
     feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
 
-    # Remove correlated columns
-    mask = _filter_high_correlation(X_train)
+    if X_train.shape[1] > 1:
+        mask = _filter_high_correlation(X_train)
+        X_train = X_train[:, mask]
+        X_validation = X_validation[:, mask]
+        X_test = X_test[:, mask]
+        feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
 
-    X_train = X_train[:, mask]
-    X_validation = X_validation[:, mask]
-    X_test = X_test[:, mask]
-    feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
-
-    # Remove linear combination
-    mask = _filter_high_vif(X_train)
-
-    X_train = X_train[:, mask]
-    X_validation = X_validation[:, mask]
-    X_test = X_test[:, mask]
-    feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
-    
+    if X_train.shape[1] > 1:
+        mask = _filter_high_vif(X_train)
+        X_train = X_train[:, mask]
+        X_validation = X_validation[:, mask]
+        X_test = X_test[:, mask]
+        feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
+        
     # Convert to DataFrame for scaling
     X_train_df = pd.DataFrame(X_train, columns=feature_names)
     X_validation_df = pd.DataFrame(X_validation, columns=feature_names)
@@ -336,7 +376,7 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
     X_test, y_test, _ = _transformTrainValidationTest(X_test, y_test)
 
     # Adapt "y" for multitasking when there is only one progression
-    if to_multitask:
+    if to_multitask and y_train.ndim == 1:
         y_train = y_train[:, np.newaxis]
         y_validation = y_validation[:, np.newaxis]
         y_test = y_test[:, np.newaxis]

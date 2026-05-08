@@ -399,7 +399,6 @@ class BaseSurvival(BaseEstimator, ABC):
         """
 
         result = statistics.multivariate_logrank_test(y["time"], groups, y["event"], weights)
-        result.print_summary()
 
         return result
     

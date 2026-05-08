@@ -15,6 +15,7 @@ ESTIMATOR_TO_BLOCK = {
     "RandomSurvForest": "standard",
     "DeepSurvFFNN": "standard",
     "DeepMultiTaskFFNN": "multitask",
+    "DeepMultiTaskMultiLossFFNN": "multitask",
     "CoxRegressionWithTimeVarying": "time_varying",
     "DeepTimeVaryingFFNN": "time_varying",
 }
@@ -69,7 +70,7 @@ def _get_config(estimator, estimator_name, dataset, seed):
 def _build_time_varying_dataframe(data_dir, dataset_name, seed):
 	
     """
-    Create the time-varying dataframe following Tutorial.ipynb steps.
+    Create the time-varying dataframe.
     """
 
     try:
@@ -164,6 +165,14 @@ def _get_validation(X_train, y_train, X_validation, y_validation):
 
     return X_train_val, y_train_val, validation_split
 
+def _format_preds(preds):
+
+    """
+    Format predictions to be a list of arrays, one per progression. If the model only has one progression, wrap it in a list.
+    """
+    
+    return  list(preds) if isinstance(preds, tuple) else [preds]
+    
 def load_and_run_experiment(
     data_dir,
     results_dir,
@@ -225,16 +234,14 @@ def load_and_run_experiment(
     estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, estimator_name, dataset, seed)
     estimator.best_estimator_.calculate_xai(X_train_val, estimator_name, dataset, seed, feature_names, background=False)
     
-    if y_train_val.ndim == 1:
-        train_survival_pred = estimator.predict(X_train_val)
-        test_survival_pred = estimator.predict(X_test)
-        train_metrics = get_metrics([y_train_val, y_train_val], [train_survival_pred])
-        test_metrics = get_metrics([y_train_val, y_test], [test_survival_pred])
-    else:
-        train_survival_pred, train_binary_pred = estimator.predict(X_train_val)
-        test_survival_pred, test_binary_pred = estimator.predict(X_test)
-        train_metrics = get_metrics([y_train_val, y_train_val], [train_survival_pred, train_binary_pred])
-        test_metrics = get_metrics([y_train_val, y_test], [test_survival_pred, test_binary_pred])
+    y_train_val = np.squeeze(y_train_val)
+    y_test = np.squeeze(y_test)
+
+    train_pred = estimator.predict(X_train_val)
+    test_pred = estimator.predict(X_test)
+
+    train_metrics = get_metrics([y_train_val, y_train_val], _format_preds(train_pred))
+    test_metrics = get_metrics([y_train_val, y_test], _format_preds(test_pred))
 
     config = _get_config(estimator, estimator_name, dataset, seed)
     best_params = estimator.best_params_ if hasattr(estimator, "best_params_") else {}
@@ -244,9 +251,9 @@ def load_and_run_experiment(
         result = make_result(
             base_path=results_dir,
             config=config,
-            predictions=np.array([test_survival_pred], dtype=object) if y_train_val.ndim == 1 else np.array([test_survival_pred, test_binary_pred], dtype=object),
+            predictions=np.array(_format_preds(test_pred), dtype=object),
             targets=np.array([y_train_val, y_test], dtype=object),
-            train_predictions=np.array([train_survival_pred], dtype=object) if y_train_val.ndim == 1 else np.array([train_survival_pred, train_binary_pred], dtype=object),
+            train_predictions=np.array(_format_preds(train_pred), dtype=object),
             train_targets=np.array([y_train_val, y_train_val]),
             time=total_time,
             best_params=best_params,

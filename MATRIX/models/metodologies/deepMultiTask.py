@@ -349,7 +349,7 @@ class DeepMultiTask(BaseSurvival):
         
         # Compute baseline hazards with training data
         for p in range(self.number_progressions):
-            self.breslow[p].fit(self.predict(X_train)[0][:, p], e_train[:, p], t_train[:, p])
+            self.breslow[p].fit(self.predict(X_train)[:, p], e_train[:, p], t_train[:, p])
 
         logger.shutdown()
         
@@ -426,6 +426,7 @@ class DeepMultiTask(BaseSurvival):
 
         logging.getLogger("xai").setLevel(logging.WARNING)
 
+        self.shap_explainer = [None] * self.number_progressions
         for p in range(self.number_progressions):
             def predict_risk_progressions(X, progressions=p):
                 risk = self.predict(X)
@@ -440,7 +441,7 @@ class DeepMultiTask(BaseSurvival):
             if background:
                 X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
 
-            self.shap_explainer = explainer_risk(X_background)
+            self.shap_explainer[p] = explainer_risk(X_background)
 
             if plot:
-                BaseSurvival.plot_shap(self.shap_explainer, estimator_name, dataset, seed, p)
+                BaseSurvival.plot_shap(self.shap_explainer[p], estimator_name, dataset, seed, p)

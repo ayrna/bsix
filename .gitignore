@@ -8,5 +8,6 @@ depurar.py
 condor_output/
 results/
 tasksConfig/
+beatriz/
 
 __pycache__/

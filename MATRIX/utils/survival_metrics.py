@@ -10,36 +10,29 @@ def scorerConcordanceIndex(y_true, y_pred):
     Scorer for Concordance Index (C-index).
     """
 
-    c_index_censored = 0
-    
-    if y_true.ndim == 1:
-        risk = y_pred.copy()
-        _y_true = y_true.copy()
-        
-        if all(name in _y_true.dtype.names for name in ["time_start", "time_stop"]):
-            _y_true = rfn.drop_fields(_y_true, ["time_start", "time"])
-            _y_true = rfn.rename_fields(_y_true, {"time_stop": "time"})
+    is_list_pred = isinstance(y_pred, tuple)
+    risk = y_pred[0].copy() if is_list_pred else y_pred.copy()
+    _y_true = y_true.copy()
+
+    if all(name in _y_true.dtype.names for name in ["time_start", "time_stop"]):
+        _y_true = rfn.drop_fields(_y_true, ["time_start", "time"])
+        _y_true = rfn.rename_fields(_y_true, {"time_stop": "time"})
             
-        e = np.array([evento for evento, _ in _y_true], np.bool_)
-        t = np.array([tiempo for _, tiempo in _y_true], np.float64)
+    if _y_true.ndim == 1:
+        _y_true = _y_true.reshape(-1, 1)
+        risk = risk.reshape(-1, 1)
 
-        c_index_censored = concordance_index_censored(e, t, risk)[0]
-    else:
-        risk = y_pred[0].copy()
-        e = []
-        t = []
-        for i in range(y_true.shape[1]):
-            e.append(np.array([evento for evento, _ in y_true[:, i]], np.bool_))
-            t.append(np.array([tiempo for _, tiempo in y_true[:, i]], np.float32))
-        e = np.array(e, np.bool_).T
-        t = np.array(t, np.float32).T
+    c_indices = []
+    for p in range(_y_true.shape[1]):
+        col_y = _y_true[:, p]
         
-        c_index = []
-        for p in range(y_true.shape[1]):
-            c_index.append(concordance_index_censored(e[:, p], t[:, p], risk[:, p])[0])
-        c_index = np.array(c_index, np.float32)
+        e = np.array([evento for evento, _ in col_y], dtype=np.bool_)
+        t = np.array([tiempo for _, tiempo in col_y], dtype=np.float64)
+        
+        c_index = concordance_index_censored(e, t, risk[:, p])[0]
+        c_indices.append(c_index)
 
-        c_index_censored = np.mean(c_index)
+    c_index_censored = np.mean(c_indices)
     
     return c_index_censored
 
@@ -52,8 +45,8 @@ def concordanceIndexHarrel(y_true, y_pred):
     risk = y_pred.copy()
     _y_true = y_true[1].copy()
 
-    risk = risk.squeeze() if risk.ndim > 1 else risk
-    _y_true = _y_true.squeeze() if _y_true.ndim > 1 else _y_true
+    risk = risk.squeeze()
+    _y_true = _y_true.squeeze()
 
     if all(name in _y_true.dtype.names for name in ["time_start", "time_stop"]):
         _y_true = rfn.drop_fields(_y_true, ["time_start", "time"])
@@ -74,9 +67,9 @@ def concordanceIndexIPCW(y_true, y_pred):
     survival_train = y_true[0].copy()
     survival_test = y_true[1].copy()
     
-    risk = risk.squeeze() if risk.ndim > 1 else risk
-    survival_train = survival_train.squeeze() if survival_train.ndim > 1 else survival_train
-    survival_test = survival_test.squeeze() if survival_test.ndim > 1 else survival_test
+    risk = risk.squeeze()
+    survival_train = survival_train.squeeze()
+    survival_test = survival_test.squeeze()
 
     if all(name in survival_train.dtype.names for name in ["time_start", "time_stop"]):
             survival_train = rfn.drop_fields(survival_train, ["time_start", "time"])
@@ -100,9 +93,9 @@ def cumulativeDinamicAUC(y_true, y_pred):
     survival_train = y_true[0].copy()
     survival_test = y_true[1].copy()
 
-    risk = risk.squeeze() if risk.ndim > 1 else risk
-    survival_train = survival_train.squeeze() if survival_train.ndim > 1 else survival_train
-    survival_test = survival_test.squeeze() if survival_test.ndim > 1 else survival_test
+    risk = risk.squeeze()
+    survival_train = survival_train.squeeze()
+    survival_test = survival_test.squeeze()
 
     if all(name in survival_train.dtype.names for name in ["time_start", "time_stop"]):
             survival_train = rfn.drop_fields(survival_train, ["time_start", "time"])

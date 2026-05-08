@@ -8,6 +8,7 @@ CLASSIFIERS = [
     "CoxRegression",
     "CoxRegressionWithTimeVarying",
     "DeepMultiTaskFFNN",
+    "DeepMultiTaskMultiLossFFNN",
     "DeepSurvFFNN",
     "DeepTimeVaryingFFNN",
     "RandomSurvForest",

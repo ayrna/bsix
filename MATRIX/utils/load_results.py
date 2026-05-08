@@ -69,15 +69,13 @@ def get_results(estimator_name=None, dataset=None, seed=None):
 def _sort_dict(data_dict):
     
     """
-    Rearrange the matrices/arrays in 'data_list' and 'values_list' so that their columns 
-    match a unified reference order of 'feature_names' across all items.
+    Rearrange the arrays so that their columns match a unified reference order of feature_names across all items.
     """
 
     def _align_to_reference(item_list, feature_lists, reference_order):
 
         """
-        Aligns features of each seed/item to the unified reference order.
-        Missing features are padded with NaNs.
+        Aligns features of each seed to the unified reference order.
         """
 
         aligned_list = []
@@ -86,7 +84,7 @@ def _sort_dict(data_dict):
             
             # Ensure item is at least 1D to safely check its dimensions
             item_array = np.atleast_1d(item)
-            is_2d = item_array.ndim >= 2
+            is_2d = item_array.ndim == 2
             
             _list = []
             for fn in reference_order:
@@ -113,8 +111,7 @@ def _sort_dict(data_dict):
     def _pad_and_stack_numeric(aligned_list):
 
         """
-        Pads items with missing samples (rows) with NaNs to ensure homogeneous shapes 
-        across all seeds, preventing NumPy conversion errors, and stacks them.
+        Pads items with missing samples with NaNs to ensure homogeneous shapes across all seeds.
         """
 
         if not aligned_list:
