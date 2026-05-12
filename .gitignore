@@ -6,6 +6,7 @@ depurar.py
 
 # Ignorar una carpeta entera
 condor_output/
+oldresults/
 results/
 tasksConfig/
 beatriz/

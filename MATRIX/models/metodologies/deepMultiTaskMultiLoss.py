@@ -1,4 +1,5 @@
 import logging
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import shap
@@ -481,12 +482,17 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, estimator_name, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index, estimator_name, dataset, seed, plot=False):
 
         """ 
         S(x, t) = exp(-H(x, t)).
         """
 
+        try:
+            seed = int(seed)
+        except (TypeError, ValueError):
+            raise ValueError(f"When using `predict_survival_function` with a model, the seed must be an integer. Value received: {seed}")
+        
         risk, _ = self.predict(X)
 
         self.survival_functions = []
@@ -495,16 +501,22 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
             self.survival_functions.append(survival_function)
 
             if plot:
-                self._plot_survival_hazard_functions(survival_function, estimator_name, dataset, "Survival", seed, p)
+                figure, ax = self._plot_survival_hazard_functions(survival_function, index, estimator_name, dataset, "Survival", seed, p)
+                plt.show()
         
         return self.survival_functions
 
-    def predict_cumulative_hazard_function(self, X, estimator_name, dataset, seed, plot=False):
+    def predict_cumulative_hazard_function(self, X, index, estimator_name, dataset, seed, plot=False):
         
         """
         H(x,t) = H₀(t) × exp(βᵀx).
         """
 
+        try:
+            seed = int(seed)
+        except (TypeError, ValueError):
+            raise ValueError(f"When using `predict_cumulative_hazard_function` with a model, the seed must be an integer. Value received: {seed}")
+        
         risk, _ = self.predict(X)
         
         self.cumulative_hazard_functions = []
@@ -513,19 +525,25 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
             self.cumulative_hazard_functions.append(cumulative_hazard_function)
 
             if plot:
-                self._plot_survival_hazard_functions(cumulative_hazard_function, estimator_name, dataset, "CumulativeRisk", seed, p)
-
+                figure, ax = self._plot_survival_hazard_functions(cumulative_hazard_function, index, estimator_name, dataset, "CumulativeRisk", seed, p)
+                plt.show()
+                
         return self.cumulative_hazard_functions
 
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, estimator_name, dataset, seed, feature_names, background=False, plot=False):
+    def calculate_xai(self, X, index, estimator_name, dataset, seed, feature_names, background=False, plot=False):
 
         """
         Calculate XAI values.
         """
 
+        try:
+            seed = int(seed)
+        except (TypeError, ValueError):
+            raise ValueError(f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}")
+        
         logging.getLogger("xai").setLevel(logging.WARNING)
 
         for p in range(self.number_progressions):
@@ -547,7 +565,10 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
             if background:
                 X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
 
-            self.shap_explainer = explainer_risk(X_background)
+            self.shap_explainer[p] = explainer_risk(X_background)
 
             if plot:
-                BaseSurvival.plot_shap(self.shap_explainer, estimator_name, dataset, seed, p)
+                figure, ax = BaseSurvival.plot_shap(self.shap_explainer[p], index, estimator_name, dataset, seed, p)
+                plt.show()
+
+        return self.shap_explainer

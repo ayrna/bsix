@@ -1,4 +1,5 @@
 import logging
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import shap
@@ -358,45 +359,62 @@ class DeepTimeVarying(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, estimator_name, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index, estimator_name, dataset, seed, plot=False):
 
         """ 
         S(x, t) = exp(-H(x, t)).
         """
 
+        try:
+            seed = int(seed)
+        except (TypeError, ValueError):
+            raise ValueError(f"When using `predict_survival_function` with a model, the seed must be an integer. Value received: {seed}")
+        
         risk = self.predict(X)
 
         self.survival_function = self.breslow.get_survival_function(risk)
 
         if plot:
-            self._plot_survival_hazard_functions(self.survival_function, estimator_name, dataset, "Survival", seed)
+            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, estimator_name, dataset, "Survival", seed)
+            plt.show()
 
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, estimator_name, dataset, seed, plot=False):
+    def predict_cumulative_hazard_function(self, X, index, estimator_name, dataset, seed, plot=False):
         
         """
         H(x,t) = H₀(t) × exp(βᵀx).
         """
 
+        try:
+            seed = int(seed)
+        except (TypeError, ValueError):
+            raise ValueError(f"When using `predict_cumulative_hazard_function` with a model, the seed must be an integer. Value received: {seed}")
+        
         risk = self.predict(X)
         
         self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
 
         if plot:
-            self._plot_survival_hazard_functions(self.cumulative_hazard_function, estimator_name, dataset, "CumulativeRisk", seed)
-        
+            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, estimator_name, dataset, "CumulativeRisk", seed)
+            plt.show()
+            
         return self.cumulative_hazard_function
     
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, estimator_name, dataset, seed, feature_names, background=False, plot=False):
+    def calculate_xai(self, X, index, estimator_name, dataset, seed, feature_names, background=False, plot=False):
 
         """
         Calculate XAI values.
         """
-
+        
+        try:
+            seed = int(seed)
+        except (TypeError, ValueError):
+            raise ValueError(f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}")
+        
         logging.getLogger("xai").setLevel(logging.WARNING)
 
         # Applying Explainer (model type)
@@ -410,4 +428,7 @@ class DeepTimeVarying(BaseSurvival):
         self.shap_explainer = explainer_risk(X_background)
 
         if plot:
-            BaseSurvival.plot_shap(self.shap_explainer, estimator_name, dataset, seed)
+            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, estimator_name, dataset, seed)
+            plt.show()
+
+        return self.shap_explainer

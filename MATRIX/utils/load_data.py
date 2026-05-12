@@ -40,6 +40,9 @@ def _prepare_data(df, test_size, validation_size, seed):
         df = df[df["time"] > 0]
     
     df = df.dropna()
+    df = df.reset_index(drop=True)
+
+    index = df.index
 
     # Print dataset information
     df.info()
@@ -58,9 +61,9 @@ def _prepare_data(df, test_size, validation_size, seed):
     # Split dataset into train and test sets
     # Standard data
     if len(event_labels) == 1 and len(time_labels) == 1:
-        X_train, X_test, y_train, y_test = train_test_split(df[feature_names], df[labels], test_size=test_size, random_state=seed, stratify=df[event_labels])
+        X_train, X_test, y_train, y_test, train_idx, test_idx = train_test_split(df[feature_names], df[labels], index, test_size=test_size, random_state=seed, stratify=df[event_labels])
         
-        X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=validation_size, random_state=seed, stratify=y_train[event_labels])
+        X_train, X_validation, y_train, y_validation, train_idx, val_idx = train_test_split(X_train, y_train, train_idx, test_size=validation_size, random_state=seed, stratify=y_train[event_labels])
 
         X_train = np.array(X_train, np.float32)   
         y_train = np.array(y_train, np.float32)
@@ -103,7 +106,7 @@ def _prepare_data(df, test_size, validation_size, seed):
         X_test = np.array(X_test[feature_names].values, np.float32)
         y_test = np.array(y_test[labels].values, np.float32)
 
-    return X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names
+    return X_train, y_train, X_validation, y_validation, X_test, y_test, train_idx, val_idx, test_idx, feature_names
 
 def _toDataframe(data):
 
@@ -293,13 +296,13 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
     """
 
     if df is not None:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(df, test_size, validation_size, seed)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, train_idx, val_idx, test_idx, feature_names = _prepare_data(df, test_size, validation_size, seed)
     elif ".h5" in dataset_name:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(load_data_hdf(data_dir, dataset_name), test_size, validation_size, seed)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, train_idx, val_idx, test_idx, feature_names = _prepare_data(load_data_hdf(data_dir, dataset_name), test_size, validation_size, seed)
     elif ".arff" in dataset_name:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(load_data_arff(data_dir, dataset_name), test_size, validation_size, seed)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, train_idx, val_idx, test_idx, feature_names = _prepare_data(load_data_arff(data_dir, dataset_name), test_size, validation_size, seed)
     elif ".csv" in dataset_name:
-        X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names = _prepare_data(load_data_csv(data_dir, dataset_name), test_size, validation_size, seed)
+        X_train, y_train, X_validation, y_validation, X_test, y_test, train_idx, val_idx, test_idx, feature_names = _prepare_data(load_data_csv(data_dir, dataset_name), test_size, validation_size, seed)
     else:
         print("ERROR : Wrong format of dataset.")
         return -1
@@ -381,4 +384,4 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
         y_validation = y_validation[:, np.newaxis]
         y_test = y_test[:, np.newaxis]
 
-    return X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names, scaler
+    return X_train, y_train, X_validation, y_validation, X_test, y_test, train_idx, val_idx, test_idx, feature_names, scaler

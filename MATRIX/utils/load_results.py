@@ -1,4 +1,5 @@
 import itertools
+import matplotlib.pyplot as plt
 import numpy as np
 
 from MATRIX.models import BaseSurvival
@@ -172,7 +173,7 @@ def get_xai(estimator_name=None, dataset=None, seed=None, individual=None):
     filtered_results = rf.filter(lambda result: _filter_search(result, estimator_name, dataset, seed))
 
     dictionary_coefficients = defaultdict(lambda: {'values_list': [], 'feature_names': []})
-    dictionary_scaler = defaultdict(lambda: {'scaler': []})
+    dictionary_miscellany = defaultdict(lambda: {'scaler': [], 'train_idx': [], 'val_idx': [], 'test_idx': []})
     dictionary_shap = defaultdict(lambda: {'data_list': [], 'values_list': [], 'feature_names': []})
     
     for result in filtered_results:
@@ -195,9 +196,15 @@ def get_xai(estimator_name=None, dataset=None, seed=None, individual=None):
             dictionary_shap[identifier_name]['data_list'] = list(dictionary_shap[identifier_name]['data_list'])
             dictionary_shap[identifier_name]['values_list'] = list(dictionary_shap[identifier_name]['values_list'])
 
-        # Store scaler in the relevant dictionary (scaler)
+        # Store miscellany in the relevant dictionary (miscellany)
         if hasattr(result.data_.best_model, "scaler_"):
-            dictionary_scaler[identifier_name]['scaler'].append(result.data_.best_model.scaler_)
+            dictionary_miscellany[identifier_name]['scaler'] = result.data_.best_model.scaler_
+        if hasattr(result.data_.best_model, "train_idx_"):
+            dictionary_miscellany[identifier_name]['train_idx'] = result.data_.best_model.train_idx_
+        if hasattr(result.data_.best_model, "val_idx_"):
+            dictionary_miscellany[identifier_name]['val_idx'] = result.data_.best_model.val_idx_
+        if hasattr(result.data_.best_model, "test_idx_"):
+            dictionary_miscellany[identifier_name]['test_idx'] = result.data_.best_model.test_idx_
 
     if dictionary_coefficients == {}:
         dictionary_coefficients = None
@@ -227,7 +234,7 @@ def get_xai(estimator_name=None, dataset=None, seed=None, individual=None):
         # Draw coefficients values means of all seeds by dataset_estimator
         for identifier_name, coefficients in average_coefficients.items():
             estimator_name, dataset_name = identifier_name.split('_')
-            BaseSurvival.plot_coefficients(coefficients, estimator_name, dataset_name, seed)
+            figure, ax = BaseSurvival.plot_coefficients(coefficients, estimator_name, dataset_name, seed)
 
     # Create separate shap_explainer objects for each dataset_estimator
     if dictionary_shap is not None:
@@ -238,9 +245,11 @@ def get_xai(estimator_name=None, dataset=None, seed=None, individual=None):
         # Draw shap values of all seeds by dataset_estimator
         for identifier_name, shap_explainer in shap_explainers.items():
             estimator_name, dataset_name = identifier_name.split('_')
-            BaseSurvival.plot_shap(shap_explainer, estimator_name, dataset_name, seed)
+            index = np.concatenate([dictionary_miscellany[identifier_name]['train_idx'], dictionary_miscellany[identifier_name]['val_idx']])
+            figure, ax = BaseSurvival.plot_shap(shap_explainer, index, estimator_name, dataset_name, seed)
             if individual is not None:
-                BaseSurvival.plot_individual_shap(shap_explainer, individual, dictionary_scaler[identifier_name]['scaler'][0], estimator_name, dataset_name, seed)
+                figure, ax = BaseSurvival.plot_individual_shap(shap_explainer, individual, dictionary_miscellany[identifier_name]['scaler'], estimator_name, dataset_name, seed)
+    plt.show()
 
 def save_results(estimator_name=None, dataset=None, seed=None):
 

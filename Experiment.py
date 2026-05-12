@@ -190,7 +190,7 @@ def load_and_run_experiment(
     block_name = ESTIMATOR_TO_BLOCK[estimator_name]
     print(f"\n=== Running block: {block_name} ({dataset}, seed={seed}) ===")
 
-    X_train, y_train, X_validation, y_validation, X_test, y_test, feature_names, scaler = _load_block_data(
+    X_train, y_train, X_validation, y_validation, X_test, y_test, train_idx, val_idx, test_idx, feature_names, scaler = _load_block_data(
         block_name=block_name,
         data_dir=data_dir,
         dataset_name=dataset,
@@ -230,9 +230,9 @@ def load_and_run_experiment(
     estimator.fit(X_train_val, y_train_val)
     total_time = time.time() - start
 
-    estimator.best_estimator_.predict_survival_function(X_train_val, estimator_name, dataset, seed)
-    estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, estimator_name, dataset, seed)
-    estimator.best_estimator_.calculate_xai(X_train_val, estimator_name, dataset, seed, feature_names, background=False)
+    estimator.best_estimator_.predict_survival_function(X_train_val, np.concatenate([train_idx, val_idx]), estimator_name, dataset, seed)
+    estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, np.concatenate([train_idx, val_idx]),estimator_name, dataset, seed)
+    estimator.best_estimator_.calculate_xai(X_train_val, np.concatenate([train_idx, val_idx]), estimator_name, dataset, seed, feature_names, background=False)
     
     y_train_val = np.squeeze(y_train_val)
     y_test = np.squeeze(y_test)
@@ -246,7 +246,10 @@ def load_and_run_experiment(
     config = _get_config(estimator, estimator_name, dataset, seed)
     best_params = estimator.best_params_ if hasattr(estimator, "best_params_") else {}
     estimator.best_estimator_.scaler_ = scaler
-    
+    estimator.best_estimator_.train_idx_ = train_idx
+    estimator.best_estimator_.val_idx_ = val_idx
+    estimator.best_estimator_.test_idx_ = test_idx
+
     if not interactive:
         result = make_result(
             base_path=results_dir,

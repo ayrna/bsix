@@ -1,5 +1,8 @@
+import logging
+
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import mplcursors
 import numpy as np
 import pandas as pd
 import torch
@@ -509,7 +512,7 @@ class BaseSurvival(BaseEstimator, ABC):
         coefficients_mean = coefficients_mean[sort_idx]
 
         # Configure plot style
-        fig, ax = plt.subplots(figsize=(10, 6))
+        figure, ax = plt.subplots(figsize=(10, 6))
         cmap = plt.get_cmap("coolwarm")
 
         # Normalise the color based on the maximum absolute mean coefficient
@@ -554,21 +557,14 @@ class BaseSurvival(BaseEstimator, ABC):
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
         plt.xticks(rotation=45, ha="right")
 
-        # Grid
+        # Grid styling
         plt.grid(True, which="major", linestyle="-", alpha=0.7, zorder=0) 
         plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5, zorder=0) 
 
-        # Build filename dynamically and save
-        filename_parts = [f"Plot_XAI_coefficients-{estimator_name}_{dataset}"]
-        if seed is not None:
-            filename_parts.append(f"s{seed}")
-        if progression is not None:
-            filename_parts.append(f"p{progression}")
-        filename = f"{'_'.join(filename_parts)}.png"
         
         plt.tight_layout()
-        plt.savefig(filename, dpi=300, bbox_inches="tight")
-        plt.close()
+        
+        return figure, ax
     
     @staticmethod
     def plot_individual_shap(shap_explainer, instance_idx, scaler, estimator_name, dataset, seed=None, progression=None):
@@ -610,7 +606,7 @@ class BaseSurvival(BaseEstimator, ABC):
         sorted_names = valid_names[sort_idx]
 
         # Configure plot style
-        fig, ax = plt.subplots(figsize=(10, 6))
+        figure, ax = plt.subplots(figsize=(10, 6))
         cmap = plt.get_cmap("coolwarm")
 
         # Normalise the color based on the maximum absolute SHAP value
@@ -625,7 +621,7 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Add the color bar (legend)
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=1))
-        color_bar = fig.colorbar(sm, ax=ax)
+        color_bar = figure.colorbar(sm, ax=ax)
         color_bar.set_label("Feature value", labelpad=-15, fontsize=10)
         color_bar.set_ticks([0, 1])
         color_bar.set_ticklabels(["Low", "High"])
@@ -657,23 +653,13 @@ class BaseSurvival(BaseEstimator, ABC):
         # Grid styling
         plt.grid(True, which="major", linestyle="-", alpha=0.7, zorder=0)
         plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5, zorder=0)
-
-        # Build filename dynamically and save
-        filename_parts = [f"Plot_XAI_individual-{estimator_name}_{dataset}"]
-        if seed is not None:
-            filename_parts.append(f"s{seed}")
-        if progression is not None:
-            filename_parts.append(f"p{progression}")
-        filename_parts.append(f"i{instance_idx}")
-
-        filename = f"{'_'.join(filename_parts)}.png"
         
         plt.tight_layout()
-        plt.savefig(filename, dpi=300, bbox_inches="tight")
-        plt.close()
+        
+        return figure, ax
 
     @staticmethod
-    def plot_shap(shap_explainer, estimator_name, dataset, seed=None, progression=None):
+    def plot_shap(shap_explainer, index, estimator_name, dataset, seed=None, progression=None):
 
         """
         Plot SHAP values for the data (beeswarm plot).
@@ -691,30 +677,38 @@ class BaseSurvival(BaseEstimator, ABC):
         global_sort_idx = np.argsort(global_importance)
 
         # Configure plot style
-        fig, ax = plt.subplots(figsize=(10, 6))
+        figure, ax = plt.subplots(figsize=(10, 6))
         cmap = plt.get_cmap("coolwarm")
 
         # Plot points
         # Iterate over the globally sorted features (row by row)
+        dots = []
         for y_pos, feature_idx in enumerate(global_sort_idx, start=1):
-            # Plot data for all seeds for this specific feature on the same horizontal line
-            for s in range(num_seeds):
-                x = _values[s, :, feature_idx]       
-                x_original = _data[s, :, feature_idx] 
-                
-                # Normalise the color for the scatter points
-                min_val = np.nanmin(x_original)
-                max_val = np.nanmax(x_original) + 1e-6
-                
-                # Add jitter to the y-axis to spread out the points (beeswarm effect)
-                y = y_pos + np.random.normal(0, 0.075, size=len(x))
-                
-                # Plot the scatter layer
-                ax.scatter(x, y, s=10, c=x_original, cmap=cmap, vmin=min_val, vmax=max_val, alpha=0.8, edgecolors="none", zorder=3)
+            
+            # Flatten it to draw all the seeds.
+            x = _values[:, :, feature_idx].flatten()
+            x_original = _data[:, :, feature_idx].flatten()
+            
+            # Normalise the color for the scatter points
+            min_val = np.nanmin(x_original)
+            max_val = np.nanmax(x_original) + 1e-6
+            
+            # Add jitter to the y-axis to spread out the points (beeswarm effect)
+            y = y_pos + np.random.normal(0, 0.075, size=len(x))
+            
+            # Scatter plot by feature
+            dot = ax.scatter(x, y, s=10, c=x_original, cmap=cmap, vmin=min_val, vmax=max_val, alpha=0.8, edgecolors="none", zorder=3)
+            
+            dot.feature_name = names[feature_idx]
+            
+            # Repeat index for each seed
+            dot.individual_index = np.tile(index, num_seeds)
+            
+            dots.append(dot)
 
         # Add the color bar (legend)
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=1))
-        color_bar = fig.colorbar(sm, ax=ax)
+        color_bar = figure.colorbar(sm, ax=ax)
         color_bar.set_label("Feature value", labelpad=-15, fontsize=10)
         color_bar.set_ticks([0, 1])
         color_bar.set_ticklabels(["Low", "High"])
@@ -746,34 +740,59 @@ class BaseSurvival(BaseEstimator, ABC):
         plt.grid(True, which="major", linestyle="-", alpha=0.7, zorder=0) 
         plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5, zorder=0) 
 
-        # Build filename dynamically and save
-        filename_parts = [f"Plot_XAI_values-{estimator_name}_{dataset}"]
-        if seed is not None:
-            filename_parts.append(f"s{seed}")
-        if progression is not None:
-            filename_parts.append(f"p{progression}")
-        filename = f"{'_'.join(filename_parts)}.png"
         
         plt.tight_layout()
-        plt.savefig(filename, dpi=300, bbox_inches="tight")
-        plt.close()
+
+        # Personalise cursor
+        cursor = mplcursors.cursor(dots)
+        @cursor.connect("add")
+        def _tool_setInteractivePlot(cursor):
+            #Values
+            cursor_idx = cursor.index
+            feature_name = cursor.artist.feature_name
+            shap_value = cursor.target[0]
+            idx = cursor.artist.individual_index[cursor_idx]
+            
+            # Text
+            cursor.annotation.set_text(
+                f"$\\bf{{Feature:}}$ {feature_name}\n"
+                f"$\\bf{{SHAP values:}}$ {shap_value:.2f}\n"
+                f"$\\bf{{Individual:}}$ {cursor_idx}\n"
+                f"$\\bf{{Identifier:}}$ {idx}"
+            )
+            cursor.annotation.set_ha("left")
+            cursor.annotation.set_multialignment("left")
+
+            # Bounding Box
+            idx_color_value = cursor.artist.get_array()[cursor_idx]
+            color = cursor.artist.cmap(cursor.artist.norm(idx_color_value))
+
+            bbox = cursor.annotation.get_bbox_patch()
+            bbox.set_facecolor(color)
+            bbox.set_edgecolor("black")
+            bbox.set_alpha(0.7)
+
+        return figure, ax
 
     @staticmethod
-    def _plot_survival_hazard_functions(X, estimator_name, dataset, function_type="Survival", seed=0, progression=None):
+    def _plot_survival_hazard_functions(X, index, estimator_name, dataset, function_type="Survival", seed=0, progression=None):
 
         """
         Plot survival and cumulative hazard functions for the data.
         """
         
         # Configure style
-        plt.figure(figsize=(10, 6))
+        figure, ax = plt.subplots(figsize=(10, 6))
         
         # Plot curve
-        for _, step_function in enumerate(X):
+        lines = []
+        for i, step_function in enumerate(X):
             times = step_function.x
             probabilities = step_function(times)
             
-            plt.step(times, probabilities, where="post", alpha=0.6)
+            line, = ax.step(times, probabilities, where="post", alpha=0.6)
+            line.individual_index = index[i] 
+            lines.append(line)
         
         # Title and axis labels
         title_parts = [f"{estimator_name} - {dataset}"]
@@ -785,9 +804,8 @@ class BaseSurvival(BaseEstimator, ABC):
         plt.title(f"{function_type}\n{' - '.join(title_parts)}", fontsize=12)
         plt.xlabel("Time (days)", fontsize=10)
         plt.ylabel(f"{function_type} probability", fontsize=10)
-        
+
         # Axis ticks
-        ax = plt.gca()
         majorX, minorX = _tool_setTimeTicksAxisX(ax)
         ax.xaxis.set_major_locator(ticker.MultipleLocator(majorX))
         ax.xaxis.set_minor_locator(ticker.MultipleLocator(minorX))
@@ -802,6 +820,7 @@ class BaseSurvival(BaseEstimator, ABC):
             ax.yaxis.set_minor_locator(ticker.MultipleLocator(minorY))
 
         plt.xticks(rotation=45, ha="right")
+
 
         # Axis limits
         ax.set_xlim(left=0)
@@ -818,22 +837,35 @@ class BaseSurvival(BaseEstimator, ABC):
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
 
-        # Grid
+        # Grid styling
         plt.grid(True, which="major", linestyle="-", alpha=0.7)
         plt.grid(True, which="minor", linestyle="--", alpha=0.7, linewidth=0.5)
-        
-        # Build filename dynamically
-        filename_parts = [f"Plot_{function_type}-{estimator_name}_{dataset}"]
-        if seed is not None:
-            filename_parts.append(f"s{seed}")
-        if progression is not None:
-            filename_parts.append(f"p{progression}")
-        filename = f"{'_'.join(filename_parts)}.png"
-        
-        # Save figure
-        plt.tight_layout()
-        plt.savefig(filename, dpi=300, bbox_inches="tight")
-        plt.close()
+
+        figure.tight_layout()
+
+        # Personalise cursor
+        cursor = mplcursors.cursor(lines)
+        @cursor.connect("add")
+        def _tool_setInteractivePlot(cursor):
+            # Values
+            idx = cursor.artist.individual_index
+
+            # Text
+            cursor.annotation.set_text(
+                f"$\\bf{{Time:}}$ {cursor.target[0]:.2f}\n"
+                f"$\\bf{{{function_type}:}}$ {cursor.target[1]:.2f}\n"
+                f"$\\bf{{Individual:}}$ {idx}"
+            )
+            cursor.annotation.set_ha("left")
+            cursor.annotation.set_multialignment("left")
+
+            # Bounding Box
+            bbox = cursor.annotation.get_bbox_patch()
+            bbox.set_facecolor(cursor.artist.get_color())
+            bbox.set_edgecolor("black")
+            bbox.set_alpha(0.7)
+
+        return figure, ax
 
     def _sort(self, X, y, time="time"):
         
