@@ -3,27 +3,41 @@ import numpy as np
 from .classification_metrics import mae, amae, ms, ccr, recall
 from .survival_metrics import concordanceIndexHarrel, concordanceIndexIPCW, cumulativeDinamicAUC
 
-def get_metrics(targets, predictions):
+def format_predictions(preds):
+
+    """
+    Format predictions to be a list of arrays, one per progression. If the model only has one progression, wrap it in a list.
+    """
+    
+    claves = ["survival", "binary", "..."]
+    preds_dict = dict(zip(claves, preds if isinstance(preds, tuple) else [preds]))
+
+    return preds_dict
+
+def compute_metrics(train_targets, evaluation_targets, predictions):
 
     """
     Compute metrics for given targets and predictions.
     """
 
+    if not isinstance(predictions, dict):
+        predictions  = format_predictions(predictions)
+    
     metrics = {}
 
-    number_progressions = predictions[0].shape[1] if predictions[0].ndim > 1 else 1
+    number_progressions = predictions["survival"].shape[1] if predictions["survival"].ndim > 1 else 1
     progressions = ["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
     has_progressions = number_progressions > 1
-    has_binary = len(predictions) > 1
+    has_binary = "binary" in list(predictions.keys())
 
     if has_binary:
-        binary_predictions = np.where(predictions[1] >= 0.5, 1.0, 0.0)
+        binary_predictions = np.where(predictions["binary"] >= 0.5, 1.0, 0.0)
 
     for p in range(number_progressions):
         prefix = f"{progressions[p]} " if has_progressions else ""
         
-        targets_survival = [targets[0][:, p], targets[1][:, p]] if has_progressions else targets
-        predictions_survival = predictions[0][:, p] if has_progressions else predictions[0]
+        targets_survival = [train_targets[:, p], evaluation_targets[:, p]] if has_progressions else [train_targets, evaluation_targets]
+        predictions_survival = predictions["survival"][:, p] if has_progressions else predictions["survival"]
 
         metrics.update({
             f"{prefix}C-Index Harrel": concordanceIndexHarrel(targets_survival, predictions_survival),
@@ -32,7 +46,7 @@ def get_metrics(targets, predictions):
         })
 
         if has_binary:
-            targets_binary = targets[1][:, p]["event"] if has_progressions else targets[1]["event"]
+            targets_binary = evaluation_targets[:, p]["event"] if has_progressions else evaluation_targets["event"]
             predictions_binary = binary_predictions[:, p] if has_progressions else binary_predictions
 
             metrics.update({
@@ -48,7 +62,7 @@ def get_metrics(targets, predictions):
 
     return metrics
 
-def get_metric_confidence_interval(y, prediction, metric_name, n_iterations=1000, confidence_level=0.95, seed=0):
+def compute_metric_confidence_interval(y, prediction, metric_name, n_iterations=1000, confidence_level=0.95, seed=0):
 
     """
     Compute confidence interval using bootstrapping.

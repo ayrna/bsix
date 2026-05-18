@@ -1,4 +1,4 @@
-from .compute_metrics import get_metrics, get_metric_confidence_interval
+from .compute_metrics import compute_metrics, compute_metric_confidence_interval, format_predictions
 from .estimators import CLASSIFIERS, get_estimator
 from .load_data import get_data, load_data_hdf, load_data_arff, load_data_csv
 from .load_results import get_results, get_xai, save_results
@@ -15,8 +15,9 @@ __all__ = [
     "load_data_hdf",
     "load_data_arff",
     "load_data_csv",
-    "get_metrics",
-    "get_metric_confidence_interval",
+    "compute_metrics",
+    "compute_metric_confidence_interval",
+    "format_predictions",
     "get_results",
     "get_xai",
     "save_results",

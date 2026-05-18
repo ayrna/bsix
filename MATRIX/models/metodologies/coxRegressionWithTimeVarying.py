@@ -165,7 +165,7 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
 
         if plot:
             figure, ax = BaseSurvival.plot_coefficients(self.coefficients, estimator_name, dataset, seed)
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, estimator_name, dataset, seed)
+            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, self.scaler_, estimator_name, dataset, seed)
             
             plt.show()
 

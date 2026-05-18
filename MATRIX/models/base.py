@@ -95,10 +95,10 @@ def _tool_extractSHAP(shap_explainer, seed):
     Tool for extracting data from a SHAP explainer and standardising dimensions.
     """
 
-    values = shap_explainer.values
-    data = shap_explainer.data
-    names = np.array(shap_explainer.feature_names, str)
-
+    values = shap_explainer.values.copy()
+    data = shap_explainer.data.copy()
+    names = np.array(shap_explainer.feature_names.copy(), str)
+    
     # Standardize dimensions: ensure values and data are 3D (num_seeds, num_samples, num_features)
     if shap_explainer.values.ndim == 1: # (num_samples,)
         _values = values[np.newaxis, :, np.newaxis]
@@ -574,36 +574,33 @@ class BaseSurvival(BaseEstimator, ABC):
         """
         
         _values, _data, names = _tool_extractSHAP(shap_explainer, seed)
-
         _values = _values[:, instance_idx, :]
         _data = _data[:, instance_idx, :]
 
-        # Create a mask for scaler
-        scaler_names = [n for n in scaler.get_feature_names_out()]
-        valid_mask = np.array([list(names).index(n) for n in scaler_names])
+        for s in range(_data.shape[0]):
+            # Index for valid columns (features) in the current seed
+            sort_idx = [list(names).index(c) for c in list(scaler[s].feature_names_in_)]
+            
+            # Scaler inverse transform only the valid columns for the current seed
+            transformed_valid_data = scaler[s].inverse_transform(_data[s][sort_idx].reshape(1, -1))
+            
+            # Rewrite data only with changes (nan values remain unchanged)
+            _data[s][sort_idx] = transformed_valid_data
+
+        # Clean floating-point inconsistencies
+        _data = np.round(_data, decimals=5)
 
         # Calulate means
         _values_mean = np.nanmean(_values, axis=0) 
         _data_mean = np.nanmean(_data, axis=0)
-
-        # Reduce features (if necessary) of all arrays using the valid mask
-        valid_values = _values_mean[valid_mask]
-        valid_data = _data_mean[valid_mask]
-        valid_names = names[valid_mask]
         
-        # Inverse transform
-        data_transformed = scaler.inverse_transform(valid_data.reshape(1, -1))[0]
-
-        # Clean floating-point inconsistencies near zero
-        data_transformed = np.where(np.isclose(data_transformed, 0.0, atol=1e-5), 0.0, data_transformed)
-
         # Sort features by importance (absolute SHAP value)
-        importance = np.abs(valid_values)
+        importance = np.abs(_values_mean)
         sort_idx = np.argsort(importance)
 
-        sorted_values = valid_values[sort_idx]
-        sorted_data = data_transformed[sort_idx]
-        sorted_names = valid_names[sort_idx]
+        sorted_values = _values_mean[sort_idx]
+        sorted_data = _data_mean[sort_idx]
+        sorted_names = names[sort_idx]
 
         # Configure plot style
         figure, ax = plt.subplots(figsize=(10, 6))
@@ -659,16 +656,26 @@ class BaseSurvival(BaseEstimator, ABC):
         return figure, ax
 
     @staticmethod
-    def plot_shap(shap_explainer, index, estimator_name, dataset, seed=None, progression=None):
+    def plot_shap(shap_explainer, index, scaler, estimator_name, dataset, seed=None, progression=None):
 
         """
         Plot SHAP values for the data (beeswarm plot).
         """
 
         _values, _data, names = _tool_extractSHAP(shap_explainer, seed)
-            
-        num_seeds = _values.shape[0]
+        for s in range(_data.shape[0]):
+            # Index for valid columns (features) in the current seed
+            sort_idx = [list(names).index(c) for c in list(scaler[s].feature_names_in_)]
 
+            # Scaler inverse transform only the valid columns for the current seed
+            transformed_valid_data = scaler[s].inverse_transform(_data[s][:, sort_idx])
+
+            # Rewrite data only with changes (nan values remain unchanged)
+            _data[s][:, sort_idx] = transformed_valid_data
+
+        # Clean floating-point inconsistencies
+        _data = np.round(_data, decimals=5)
+        
         # Calculate global feature importance and consensus sorting
         # Average absolute SHAP values across all seeds (axis=0) and samples (axis=1)
         global_importance = np.abs(_values).mean(axis=(0, 1))
@@ -699,11 +706,10 @@ class BaseSurvival(BaseEstimator, ABC):
             # Scatter plot by feature
             dot = ax.scatter(x, y, s=10, c=x_original, cmap=cmap, vmin=min_val, vmax=max_val, alpha=0.8, edgecolors="none", zorder=3)
             
+            dot.data = _data
             dot.feature_name = names[feature_idx]
-            
-            # Repeat index for each seed
-            dot.individual_index = np.tile(index, num_seeds)
-            
+            dot.identifier_indexes = index.flatten()
+
             dots.append(dot)
 
         # Add the color bar (legend)
@@ -743,23 +749,51 @@ class BaseSurvival(BaseEstimator, ABC):
         
         plt.tight_layout()
 
+        # Highlight layer (initially empty, will be updated interactively)
+        # Outside the loop to avoid multiple layers
+        highlight_scatter = ax.scatter([], [], s=20, c='black', zorder=5)
+
         # Personalise cursor
         cursor = mplcursors.cursor(dots)
         @cursor.connect("add")
         def _tool_setInteractivePlot(cursor):
-            #Values
             cursor_idx = cursor.index
-            feature_name = cursor.artist.feature_name
-            shap_value = cursor.target[0]
-            idx = cursor.artist.individual_index[cursor_idx]
             
+            # Indexes
+            seed_idx = cursor_idx // _values.shape[1]
+            identifier_idxs = cursor.artist.identifier_indexes
+            clicked_individual_idx = cursor_idx % _values.shape[1]
+            clicked_feature_name = cursor.artist.feature_name
+            
+            # Target indexes for all seeds (positions of the same individual across seeds)
+            target_idxs = np.where(identifier_idxs == identifier_idxs[cursor_idx])[0]
+            
+            # Obtain target coordinates (x, y) for all seeds
+            hx, hy = [], []
+            for dot in dots:
+                offsets = dot.get_offsets()
+                for t_idx in target_idxs:
+                    hx.append(offsets[t_idx, 0])
+                    hy.append(offsets[t_idx, 1])
+            
+            #  Update the highlight layer
+            highlight_scatter.set_offsets(np.c_[hx, hy])
+
             # Text
-            cursor.annotation.set_text(
-                f"$\\bf{{Feature:}}$ {feature_name}\n"
-                f"$\\bf{{SHAP values:}}$ {shap_value:.2f}\n"
-                f"$\\bf{{Individual:}}$ {cursor_idx}\n"
-                f"$\\bf{{Identifier:}}$ {idx}"
-            )
+            text_lines = [
+                f"$\\bf{{Seed:}}$ {seed_idx}",
+                f"$\\bf{{Identifier\\ Index:}}$ {identifier_idxs[cursor_idx]}",
+                f"$\\bf{{Individual\\ Index:}}$ {clicked_individual_idx}",
+                f"$\\bf{{SHAP\\ values:}}$"
+            ]
+            
+            for f_idx in global_sort_idx:
+                f_name = names[f_idx]
+                s_val = _values[seed_idx, clicked_individual_idx, f_idx]
+                prefix = "•" if f_name == clicked_feature_name else "  "
+                text_lines.append(f"{prefix}{f_name}: {s_val:.4f}")
+
+            cursor.annotation.set_text("\n".join(text_lines))
             cursor.annotation.set_ha("left")
             cursor.annotation.set_multialignment("left")
 
@@ -791,7 +825,7 @@ class BaseSurvival(BaseEstimator, ABC):
             probabilities = step_function(times)
             
             line, = ax.step(times, probabilities, where="post", alpha=0.6)
-            line.individual_index = index[i] 
+            line.identifier_index = index[i] 
             lines.append(line)
         
         # Title and axis labels
@@ -848,7 +882,7 @@ class BaseSurvival(BaseEstimator, ABC):
         @cursor.connect("add")
         def _tool_setInteractivePlot(cursor):
             # Values
-            idx = cursor.artist.individual_index
+            idx = cursor.artist.identifier_index
 
             # Text
             cursor.annotation.set_text(

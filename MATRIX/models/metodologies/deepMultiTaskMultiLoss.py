@@ -568,7 +568,7 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
             self.shap_explainer[p] = explainer_risk(X_background)
 
             if plot:
-                figure, ax = BaseSurvival.plot_shap(self.shap_explainer[p], index, estimator_name, dataset, seed, p)
+                figure, ax = BaseSurvival.plot_shap(self.shap_explainer[p], self.scaler_, index, estimator_name, dataset, seed, p)
                 plt.show()
 
         return self.shap_explainer

@@ -5,7 +5,7 @@ import pandas as pd
 import time
 
 from MATRIX.models import BaseSurvival
-from MATRIX.utils import get_data, get_estimator, get_metrics, load_data_hdf, load_data_arff, load_data_csv
+from MATRIX.utils import get_data, get_estimator, compute_metrics, load_data_hdf, load_data_arff, load_data_csv, format_predictions
 
 from remayn.result import make_result
 from remayn.result_set import ResultFolder
@@ -164,14 +164,6 @@ def _get_validation(X_train, y_train, X_validation, y_validation):
     validation_split = PredefinedSplit(validation_fold)
 
     return X_train_val, y_train_val, validation_split
-
-def _format_preds(preds):
-
-    """
-    Format predictions to be a list of arrays, one per progression. If the model only has one progression, wrap it in a list.
-    """
-    
-    return  list(preds) if isinstance(preds, tuple) else [preds]
     
 def load_and_run_experiment(
     data_dir,
@@ -230,6 +222,11 @@ def load_and_run_experiment(
     estimator.fit(X_train_val, y_train_val)
     total_time = time.time() - start
 
+    estimator.best_estimator_.scaler_ = scaler
+    estimator.best_estimator_.train_idx_ = train_idx
+    estimator.best_estimator_.val_idx_ = val_idx
+    estimator.best_estimator_.test_idx_ = test_idx
+
     estimator.best_estimator_.predict_survival_function(X_train_val, np.concatenate([train_idx, val_idx]), estimator_name, dataset, seed)
     estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, np.concatenate([train_idx, val_idx]),estimator_name, dataset, seed)
     estimator.best_estimator_.calculate_xai(X_train_val, np.concatenate([train_idx, val_idx]), estimator_name, dataset, seed, feature_names, background=False)
@@ -240,24 +237,20 @@ def load_and_run_experiment(
     train_pred = estimator.predict(X_train_val)
     test_pred = estimator.predict(X_test)
 
-    train_metrics = get_metrics([y_train_val, y_train_val], _format_preds(train_pred))
-    test_metrics = get_metrics([y_train_val, y_test], _format_preds(test_pred))
+    train_metrics = compute_metrics(y_train_val, y_train_val, format_predictions(train_pred))
+    test_metrics = compute_metrics(y_train_val, y_test, format_predictions(test_pred))
 
     config = _get_config(estimator, estimator_name, dataset, seed)
     best_params = estimator.best_params_ if hasattr(estimator, "best_params_") else {}
-    estimator.best_estimator_.scaler_ = scaler
-    estimator.best_estimator_.train_idx_ = train_idx
-    estimator.best_estimator_.val_idx_ = val_idx
-    estimator.best_estimator_.test_idx_ = test_idx
 
     if not interactive:
         result = make_result(
             base_path=results_dir,
             config=config,
-            predictions=np.array(_format_preds(test_pred), dtype=object),
-            targets=np.array([y_train_val, y_test], dtype=object),
-            train_predictions=np.array(_format_preds(train_pred), dtype=object),
-            train_targets=np.array([y_train_val, y_train_val]),
+            predictions=np.array(format_predictions(test_pred), dtype=object),
+            targets=np.array(y_test, dtype=object),
+            train_predictions=np.array(format_predictions(train_pred), dtype=object),
+            train_targets=np.array(y_train_val, dtype=object),
             time=total_time,
             best_params=best_params,
             best_model=estimator.best_estimator_

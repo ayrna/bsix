@@ -188,20 +188,6 @@ def load_data_csv(data_dir, dataset_name):
     
     return df
 
-def _sort_data(x, t, e):
-
-    """
-    Sort data by time in descending order.
-    """
-    
-    sort_idx = np.argsort(t)[::-1]
-
-    x = x[sort_idx]
-    e = e[sort_idx]
-    t = t[sort_idx]
-
-    return x, t, e
-
 def _transformTrainValidationTest(X, y):
 
     """
@@ -217,7 +203,6 @@ def _transformTrainValidationTest(X, y):
         _yE = y[:, 0].astype(np.float32)
         _yT = y[:, 1].astype(np.float32)
 
-        survival_X, _yT, _yE = _sort_data(X, _yT, _yE)
         survival_y = Surv.from_arrays(event=_yE, time=_yT)
     # Time varying: [event, time_start, time_stop]
     elif y.shape[1] == 3: 
