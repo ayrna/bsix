@@ -398,7 +398,7 @@ class DeepSurv(BaseSurvival):
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, estimator_name, dataset, seed, feature_names, background=False, plot=False):
+    def calculate_xai(self, X, index, scaler, estimator_name, dataset, seed, feature_names, background=False, plot=False):
 
         """
         Calculate XAI values.
@@ -422,7 +422,7 @@ class DeepSurv(BaseSurvival):
         self.shap_explainer = explainer_risk(X_background)
 
         if plot:
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, self.scaler_, index, estimator_name, dataset, seed)
+            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, estimator_name, dataset, seed)
             plt.show()
 
         return self.shap_explainer

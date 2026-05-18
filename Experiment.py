@@ -228,8 +228,8 @@ def load_and_run_experiment(
     estimator.best_estimator_.test_idx_ = test_idx
 
     estimator.best_estimator_.predict_survival_function(X_train_val, np.concatenate([train_idx, val_idx]), estimator_name, dataset, seed)
-    estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, np.concatenate([train_idx, val_idx]),estimator_name, dataset, seed)
-    estimator.best_estimator_.calculate_xai(X_train_val, np.concatenate([train_idx, val_idx]), estimator_name, dataset, seed, feature_names, background=False)
+    estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, np.concatenate([train_idx, val_idx]), estimator_name, dataset, seed)
+    estimator.best_estimator_.calculate_xai(X_train_val, np.concatenate([train_idx, val_idx]), scaler, estimator_name, dataset, seed, feature_names, background=False)
     
     y_train_val = np.squeeze(y_train_val)
     y_test = np.squeeze(y_test)
@@ -248,9 +248,9 @@ def load_and_run_experiment(
             base_path=results_dir,
             config=config,
             predictions=np.array(format_predictions(test_pred), dtype=object),
-            targets=np.array(y_test, dtype=object),
+            targets=y_test,
             train_predictions=np.array(format_predictions(train_pred), dtype=object),
-            train_targets=np.array(y_train_val, dtype=object),
+            train_targets=y_train_val,
             time=total_time,
             best_params=best_params,
             best_model=estimator.best_estimator_

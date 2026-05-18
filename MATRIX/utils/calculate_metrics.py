@@ -9,35 +9,28 @@ def format_predictions(preds):
     Format predictions to be a list of arrays, one per progression. If the model only has one progression, wrap it in a list.
     """
     
-    claves = ["survival", "binary", "..."]
+    claves = ["survival", "binary"]
     preds_dict = dict(zip(claves, preds if isinstance(preds, tuple) else [preds]))
 
     return preds_dict
 
-def compute_metrics(train_targets, evaluation_targets, predictions):
+def compute_survival_metrics(train_targets, evaluation_targets, predictions):
 
     """
-    Compute metrics for given targets and predictions.
+    Compute survival metrics for given targets and predictions.
     """
-
-    if not isinstance(predictions, dict):
-        predictions  = format_predictions(predictions)
     
     metrics = {}
 
-    number_progressions = predictions["survival"].shape[1] if predictions["survival"].ndim > 1 else 1
+    number_progressions = predictions.shape[1] if predictions.ndim > 1 else 1
     progressions = ["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
     has_progressions = number_progressions > 1
-    has_binary = "binary" in list(predictions.keys())
-
-    if has_binary:
-        binary_predictions = np.where(predictions["binary"] >= 0.5, 1.0, 0.0)
 
     for p in range(number_progressions):
         prefix = f"{progressions[p]} " if has_progressions else ""
         
         targets_survival = [train_targets[:, p], evaluation_targets[:, p]] if has_progressions else [train_targets, evaluation_targets]
-        predictions_survival = predictions["survival"][:, p] if has_progressions else predictions["survival"]
+        predictions_survival = predictions[:, p] if has_progressions else predictions
 
         metrics.update({
             f"{prefix}C-Index Harrel": concordanceIndexHarrel(targets_survival, predictions_survival),
@@ -45,20 +38,64 @@ def compute_metrics(train_targets, evaluation_targets, predictions):
             f"{prefix}Cumulative Dinamic AUC": cumulativeDinamicAUC(targets_survival, predictions_survival),
         })
 
-        if has_binary:
-            targets_binary = evaluation_targets[:, p]["event"] if has_progressions else evaluation_targets["event"]
-            predictions_binary = binary_predictions[:, p] if has_progressions else binary_predictions
+    return metrics
 
-            metrics.update({
-                f"{prefix}MAE": mae(targets_binary, predictions_binary),
-                f"{prefix}AMAE": amae(targets_binary, predictions_binary),
-                f"{prefix}MS": ms(targets_binary, predictions_binary),
-                f"{prefix}CCR": ccr(targets_binary, predictions_binary),
-            })
+def compute_binary_metrics(evaluation_targets, predictions):
 
-            sensitivities = np.array(recall(targets_binary, predictions_binary, average=None))
-            for i, sens in enumerate(sensitivities):
-                metrics[f"{prefix}RECALL{i}"] = sens
+    """
+    Compute binary metrics for given targets and predictions.
+    """
+
+    metrics = {}
+
+    number_progressions = predictions.shape[1] if predictions.ndim > 1 else 1
+    progressions = ["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
+    has_progressions = number_progressions > 1
+
+    for p in range(number_progressions):
+        prefix = f"{progressions[p]} " if has_progressions else ""
+        
+        targets_binary = evaluation_targets[:, p]["event"] if has_progressions else evaluation_targets["event"]
+        predictions_binary = np.where(predictions[:, p] >= 0.5, 1.0, 0.0) if has_progressions else np.where(predictions >= 0.5, 1.0, 0.0)
+
+        metrics.update({
+            f"{prefix}MAE": mae(targets_binary, predictions_binary),
+            f"{prefix}AMAE": amae(targets_binary, predictions_binary),
+            f"{prefix}MS": ms(targets_binary, predictions_binary),
+            f"{prefix}CCR": ccr(targets_binary, predictions_binary),
+        })
+
+        sensitivities = np.array(recall(targets_binary, predictions_binary, average=None))
+        for i, sens in enumerate(sensitivities):
+            metrics[f"{prefix}RECALL{i}"] = sens
+
+    return metrics
+
+def compute_metrics(train_targets, evaluation_targets, predictions):
+
+    """
+    Compute metrics for given targets and predictions (experiments).
+    """
+    
+    try:
+        # If ndarray.dtype = object, extract the dict
+        predictions = predictions.item()
+    except Exception:
+        # Ignore
+        pass
+
+    if not isinstance(predictions, dict):
+        predictions  = format_predictions(predictions)
+    
+    metrics = {}
+
+    has_binary = "binary" in list(predictions.keys())
+
+    if has_binary:
+        metrics.update(compute_survival_metrics(train_targets, evaluation_targets, predictions["survival"]))
+        metrics.update(compute_binary_metrics(evaluation_targets, predictions["binary"]))
+    else:
+        metrics.update(compute_survival_metrics(train_targets, evaluation_targets, predictions["survival"]))    
 
     return metrics
 

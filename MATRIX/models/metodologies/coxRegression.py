@@ -120,7 +120,7 @@ class CoxRegression(BaseSurvival):
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, estimator_name, dataset, seed, feature_names, background=False, plot=False):
+    def calculate_xai(self, X, index, scaler, estimator_name, dataset, seed, feature_names, background=False, plot=False):
 
         """
         Calculate XAI values.
@@ -148,7 +148,7 @@ class CoxRegression(BaseSurvival):
 
         if plot:
             figure, ax = BaseSurvival.plot_coefficients(self.coefficients, estimator_name, dataset, seed)
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, self.scaler_, estimator_name, dataset, seed)
+            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, estimator_name, dataset, seed)
             
             plt.show()
 

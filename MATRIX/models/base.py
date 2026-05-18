@@ -572,6 +572,9 @@ class BaseSurvival(BaseEstimator, ABC):
         """
         Plot SHAP values for an individual instance (horizontal bar plot).
         """
+
+        if not isinstance(scaler, list):
+            scaler = [scaler]
         
         _values, _data, names = _tool_extractSHAP(shap_explainer, seed)
         _values = _values[:, instance_idx, :]
@@ -661,6 +664,12 @@ class BaseSurvival(BaseEstimator, ABC):
         """
         Plot SHAP values for the data (beeswarm plot).
         """
+
+        if not isinstance(index, np.ndarray):
+            index = np.array(index)
+
+        if not isinstance(scaler, list):
+            scaler = [scaler]
 
         _values, _data, names = _tool_extractSHAP(shap_explainer, seed)
         for s in range(_data.shape[0]):
