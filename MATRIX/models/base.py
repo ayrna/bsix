@@ -567,28 +567,34 @@ class BaseSurvival(BaseEstimator, ABC):
         return figure, ax
     
     @staticmethod
-    def plot_individual_shap(shap_explainer, instance_idx, scaler, estimator_name, dataset, seed=None, progression=None):
+    def plot_individual_shap(shap_explainer, identifier_index, index, scaler, estimator_name, dataset, seed=None, progression=None):
 
         """
         Plot SHAP values for an individual instance (horizontal bar plot).
         """
 
+        if not isinstance(index, np.ndarray):
+            index = np.array(index)
+        
         if not isinstance(scaler, list):
             scaler = [scaler]
         
-        _values, _data, names = _tool_extractSHAP(shap_explainer, seed)
-        _values = _values[:, instance_idx, :]
-        _data = _data[:, instance_idx, :]
+        # Target indexes for all seeds (positions of the same individual across seeds)
+        target_idxs = np.where(index == identifier_index)
 
-        for s in range(_data.shape[0]):
+        _values, _data, names = _tool_extractSHAP(shap_explainer, seed)
+        _values = _values[target_idxs]
+        _data = _data[target_idxs]
+
+        for d, s in enumerate(target_idxs[0]):
             # Index for valid columns (features) in the current seed
             sort_idx = [list(names).index(c) for c in list(scaler[s].feature_names_in_)]
             
             # Scaler inverse transform only the valid columns for the current seed
-            transformed_valid_data = scaler[s].inverse_transform(_data[s][sort_idx].reshape(1, -1))
+            transformed_valid_data = scaler[s].inverse_transform(_data[d][sort_idx].reshape(1, -1))
             
             # Rewrite data only with changes (nan values remain unchanged)
-            _data[s][sort_idx] = transformed_valid_data
+            _data[d][sort_idx] = transformed_valid_data
 
         # Clean floating-point inconsistencies
         _data = np.round(_data, decimals=5)
@@ -636,7 +642,7 @@ class BaseSurvival(BaseEstimator, ABC):
         if progression is not None:
             title_parts.append(f"progression {progression}")
         
-        plt.title(f"XAI\n{' - '.join(title_parts)}\nIndividual {instance_idx}", fontsize=12)
+        plt.title(f"XAI\n{' - '.join(title_parts)}\nIndividual {identifier_index}", fontsize=12)
         plt.xlabel("$\\bf{SHAP}$ $\\bf{values}$", fontsize=10)
         plt.ylabel("$\\bf{Features}$", fontsize=10)
         

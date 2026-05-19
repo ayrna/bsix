@@ -126,7 +126,7 @@ def _sort_dict(data_dict):
 
     return data_dict
 
-def get_xai_from_filter(estimator_name=None, dataset=None, seed=None, individual=None):
+def get_xai_from_filter(estimator_name=None, dataset=None, seed=None, identifier_index=None):
 
     """
     Get the xai for the given estimator name, dataset and seed.
@@ -143,12 +143,12 @@ def get_xai_from_filter(estimator_name=None, dataset=None, seed=None, individual
         # Create an identifier name based on the estimator name and dataset
         model_list.append((result.config["estimator_name"], result.config["dataset"], result.data_.best_model))
 
-    get_xai_from_model_list(model_list, seed, individual)
+    get_xai_from_model_list(model_list, seed, identifier_index)
 
-def get_xai_from_model_list(model_list, seed, individual):
+def get_xai_from_model_list(model_list, seed=None, identifier_index=None):
 
     """
-    Get the xai for the given model_list
+    Get the xai for the given model_list (estimator_name, dataset, model)
     """
 
     dictionary_coefficients = defaultdict(lambda: {'values_list': [], 'feature_names': []})
@@ -193,9 +193,9 @@ def get_xai_from_model_list(model_list, seed, individual):
     else:
         dictionary_shap = _sort_dict(dictionary_shap)
 
-    _from_dictionaries_to_xai(dictionary_coefficients, dictionary_shap, dictionary_miscellany, seed, individual)
+    _from_dictionaries_to_xai(dictionary_coefficients, dictionary_shap, dictionary_miscellany, seed, identifier_index)
 
-def _from_dictionaries_to_xai(dictionary_coefficients, dictionary_shap, dictionary_miscellany, seed, individual):
+def _from_dictionaries_to_xai(dictionary_coefficients, dictionary_shap, dictionary_miscellany, seed, identifier_index):
     
     """
     Get the xai for the given dictionaries.
@@ -237,8 +237,8 @@ def _from_dictionaries_to_xai(dictionary_coefficients, dictionary_shap, dictiona
 
             figure, ax = BaseSurvival.plot_shap(shap_explainer, selected_index, selected_scaler, estimator_name, dataset_name, seed)
 
-            if individual is not None:
-                    figure, ax = BaseSurvival.plot_individual_shap(shap_explainer, individual, selected_scaler, estimator_name, dataset_name, seed)
+            if identifier_index is not None:
+                    figure, ax = BaseSurvival.plot_individual_shap(shap_explainer, identifier_index, selected_index, selected_scaler, estimator_name, dataset_name, seed)
 
     plt.show()
 
