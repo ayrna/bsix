@@ -248,9 +248,9 @@ def load_and_run_experiment(
             base_path=results_dir,
             config=config,
             predictions=np.array(format_predictions(test_pred), dtype=object),
-            targets=y_test,
+            targets=np.array([y_train_val, y_test], dtype=object),
             train_predictions=np.array(format_predictions(train_pred), dtype=object),
-            train_targets=y_train_val,
+            train_targets=np.array([y_train_val, y_train_val]),
             time=total_time,
             best_params=best_params,
             best_model=estimator.best_estimator_

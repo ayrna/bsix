@@ -14,6 +14,14 @@ def format_predictions(preds):
 
     return preds_dict
 
+def from_results_to_metrics(targets, predictions):
+
+    """
+    Format results to compute metrics.
+    """
+
+    return compute_metrics(targets[0], targets[1], predictions)
+
 def compute_survival_metrics(train_targets, evaluation_targets, predictions):
 
     """
@@ -78,7 +86,7 @@ def compute_metrics(train_targets, evaluation_targets, predictions):
     """
     
     try:
-        # If ndarray.dtype = object, extract the dict
+        # If ndarray.dtype = object, extract the element (dict)
         predictions = predictions.item()
     except Exception:
         # Ignore

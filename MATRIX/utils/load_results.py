@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from MATRIX.models import BaseSurvival
-from MATRIX.utils import compute_metrics
+from MATRIX.utils import from_results_to_metrics
 
 from collections import defaultdict
 from remayn.report import create_excel_summary_report
@@ -105,42 +105,8 @@ def _sort_dict(data_dict):
                 aligned_list.append(np.column_stack(_list))
             else:
                 aligned_list.append(np.array(_list))
-                
-        return aligned_list
 
-
-    def _pad_and_stack_numeric(aligned_list):
-
-        """
-        Pads items with missing samples with NaNs to ensure homogeneous shapes across all seeds.
-        """
-
-        if not aligned_list:
-            return np.array([])
-            
-        is_2d = aligned_list[0].ndim == 2
-        
-        if is_2d:
-            # Find the maximum number of samples (rows) across all seeds
-            max_samples = max(item.shape[0] for item in aligned_list)
-            
-            padded_list = []
-            for item in aligned_list:
-                missing_rows = max_samples - item.shape[0]
-                
-                if missing_rows > 0:
-                    # Pad with NaNs at the bottom if the current seed has fewer samples
-                    padding = np.full((missing_rows, item.shape[1]), np.nan)
-                    item = np.vstack((item, padding))
-                    
-                padded_list.append(item)
-            
-            # Safely convert to a numpy array (homogeneous shape guaranteed)
-            return np.squeeze(np.array(padded_list, dtype=float))
-        else:
-            # For 1D arrays, no row padding is needed
-            return np.squeeze(np.array(aligned_list, dtype=float))
-
+        return np.squeeze(np.array(aligned_list, dtype=float))
 
     # Dictionary processing
     for identifier_name, data in data_dict.items():
@@ -149,20 +115,18 @@ def _sort_dict(data_dict):
         reference_order = list(dict.fromkeys(itertools.chain.from_iterable(data["feature_names"])))
         
         # Align values_list and safely stack into a NumPy array
-        _values_aligned = _align_to_reference(data["values_list"], data["feature_names"], reference_order)
-        data["values_list"] = _pad_and_stack_numeric(_values_aligned)
+        data["values_list"] = _align_to_reference(data["values_list"], data["feature_names"], reference_order)
         
         # Align data_list if it exists
         if "data_list" in data:
-            _data_aligned = _align_to_reference(data["data_list"], data["feature_names"], reference_order)
-            data["data_list"] = _pad_and_stack_numeric(_data_aligned)
+            data["data_list"] = _align_to_reference(data["data_list"], data["feature_names"], reference_order)
             
         # Update feature names to the reference order as a safe 1D array
         data["feature_names"] = np.atleast_1d(reference_order)
 
     return data_dict
 
-def get_xai(estimator_name=None, dataset=None, seed=None, individual=None):
+def get_xai_from_filter(estimator_name=None, dataset=None, seed=None, individual=None):
 
     """
     Get the xai for the given estimator name, dataset and seed.
@@ -172,39 +136,52 @@ def get_xai(estimator_name=None, dataset=None, seed=None, individual=None):
     
     filtered_results = rf.filter(lambda result: _filter_search(result, estimator_name, dataset, seed))
 
-    dictionary_coefficients = defaultdict(lambda: {'values_list': [], 'feature_names': []})
-    dictionary_miscellany = defaultdict(lambda: {'scaler': [], 'train_idx': [], 'val_idx': [], 'test_idx': []})
-    dictionary_shap = defaultdict(lambda: {'data_list': [], 'values_list': [], 'feature_names': []})
-    
+    model_list = []
     for result in filtered_results:
         result.get_data()
 
         # Create an identifier name based on the estimator name and dataset
-        identifier_name = f"{result.config['estimator_name']}_{result.config['dataset']}"
+        model_list.append((result.config["estimator_name"], result.config["dataset"], result.data_.best_model))
+
+    get_xai_from_model_list(model_list, seed, individual)
+
+def get_xai_from_model_list(model_list, seed, individual):
+
+    """
+    Get the xai for the given model_list
+    """
+
+    dictionary_coefficients = defaultdict(lambda: {'values_list': [], 'feature_names': []})
+    dictionary_miscellany = defaultdict(lambda: {'scaler': [], 'train_idx': [], 'val_idx': [], 'test_idx': []})
+    dictionary_shap = defaultdict(lambda: {'data_list': [], 'values_list': [], 'feature_names': []})
+    
+    for estimator_name, dataset, model in model_list:
+        # Create an identifier name based on the estimator name and dataset
+        identifier_name = f"{estimator_name}_{dataset}"
 
         # Accumulate data in the relevant dictionary (coefficients)
-        if hasattr(result.data_.best_model, "coefficients"):
-            dictionary_coefficients[identifier_name]['values_list'].append(list(result.data_.best_model.coefficients.values()))
-            dictionary_coefficients[identifier_name]['feature_names'].append(list(result.data_.best_model.coefficients.keys()))
+        if hasattr(model, "coefficients"):
+            dictionary_coefficients[identifier_name]['values_list'].append(list(model.coefficients.values()))
+            dictionary_coefficients[identifier_name]['feature_names'].append(list(model.coefficients.keys()))
 
         # Store data in the relevant dictionary (shap)
-        if hasattr(result.data_.best_model, "shap_explainer"):
-            dictionary_shap[identifier_name]['data_list'].append(result.data_.best_model.shap_explainer.data)
-            dictionary_shap[identifier_name]['values_list'].append(result.data_.best_model.shap_explainer.values)
-            dictionary_shap[identifier_name]['feature_names'].append(result.data_.best_model.shap_explainer.feature_names)
+        if hasattr(model, "shap_explainer"):
+            dictionary_shap[identifier_name]['data_list'].append(model.shap_explainer.data)
+            dictionary_shap[identifier_name]['values_list'].append(model.shap_explainer.values)
+            dictionary_shap[identifier_name]['feature_names'].append(model.shap_explainer.feature_names)
 
             dictionary_shap[identifier_name]['data_list'] = list(dictionary_shap[identifier_name]['data_list'])
             dictionary_shap[identifier_name]['values_list'] = list(dictionary_shap[identifier_name]['values_list'])
 
         # Store miscellany in the relevant dictionary (miscellany)
-        if hasattr(result.data_.best_model, "scaler_"):
-            dictionary_miscellany[identifier_name]['scaler'].append(result.data_.best_model.scaler_)
-        if hasattr(result.data_.best_model, "train_idx_"):
-            dictionary_miscellany[identifier_name]['train_idx'].append(result.data_.best_model.train_idx_)
-        if hasattr(result.data_.best_model, "val_idx_"):
-            dictionary_miscellany[identifier_name]['val_idx'].append(result.data_.best_model.val_idx_)
-        if hasattr(result.data_.best_model, "test_idx_"):
-            dictionary_miscellany[identifier_name]['test_idx'].append(result.data_.best_model.test_idx_)
+        if hasattr(model, "scaler_"):
+            dictionary_miscellany[identifier_name]['scaler'].append(model.scaler_)
+        if hasattr(model, "train_idx_"):
+            dictionary_miscellany[identifier_name]['train_idx'].append(model.train_idx_)
+        if hasattr(model, "val_idx_"):
+            dictionary_miscellany[identifier_name]['val_idx'].append(model.val_idx_)
+        if hasattr(model, "test_idx_"):
+            dictionary_miscellany[identifier_name]['test_idx'].append(model.test_idx_)
 
     if dictionary_coefficients == {}:
         dictionary_coefficients = None
@@ -215,6 +192,14 @@ def get_xai(estimator_name=None, dataset=None, seed=None, individual=None):
         dictionary_shap = None
     else:
         dictionary_shap = _sort_dict(dictionary_shap)
+
+    _from_dictionaries_to_xai(dictionary_coefficients, dictionary_shap, dictionary_miscellany, seed, individual)
+
+def _from_dictionaries_to_xai(dictionary_coefficients, dictionary_shap, dictionary_miscellany, seed, individual):
+    
+    """
+    Get the xai for the given dictionaries.
+    """
 
     # Calculate average coefficients by dataset_estimator
     if dictionary_coefficients is not None:
@@ -276,7 +261,7 @@ def save_results(estimator_name=None, dataset=None, seed=None):
 
     df = filtered_results.create_dataframe(
         config_columns=config_colums,
-        metrics_fn=compute_metrics,
+        metrics_fn=from_results_to_metrics,
         include_train=True,
         include_val=False,
         config_columns_prefix=""
