@@ -31,7 +31,7 @@ def compute_survival_metrics(train_targets, evaluation_targets, predictions):
     metrics = {}
 
     number_progressions = predictions.shape[1] if predictions.ndim > 1 else 1
-    progressions = ["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
+    progressions = ["EXTENT_PROGRESS", "NEW_EIMSFUP", "DYSPL_NEO"] #["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
     has_progressions = number_progressions > 1
 
     for p in range(number_progressions):
@@ -57,7 +57,7 @@ def compute_binary_metrics(evaluation_targets, predictions):
     metrics = {}
 
     number_progressions = predictions.shape[1] if predictions.ndim > 1 else 1
-    progressions = ["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
+    progressions = ["EXTENT_PROGRESS", "NEW_EIMSFUP", "DYSPL_NEO"] # ["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
     has_progressions = number_progressions > 1
 
     for p in range(number_progressions):

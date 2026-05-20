@@ -77,8 +77,9 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
 
             param_grid = [
                 {
-                    "penalizer": np.round(np.logspace(-1, 1, 3), 8),
-                    "l1_ratio": np.round(np.linspace(0, 1, 5, endpoint=False), 8),
+                    "alpha": np.round(np.logspace(-1, 1, 3), 8),
+                    "ties": ["efron", "breslow"],
+                    "n_iter": [100, 200, 300],
                 }
             ]
 

@@ -12,7 +12,8 @@ import warnings
 from ..base import BaseSurvival
 from ..loggers.deepSurvLogger import DeepSurvLogger
 from ..nets.deepNets import DeepSurvFFNN
-from sksurv.linear_model.coxph import BreslowEstimator
+from .utils import BreslowEstimator
+
 from sksurv.metrics import concordance_index_censored
 
 warnings.filterwarnings("ignore")
@@ -184,7 +185,7 @@ class DeepSurv(BaseSurvival):
         Standardize input features.
         """
 
-        return (x - self.offset) / (self.scale + 1e-6)
+        return (x - self.offset) / (self.scale + 1e-15)
     
     def fit(self, X_train, y_train, **kwargs):
         

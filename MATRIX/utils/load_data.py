@@ -322,7 +322,7 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
         if scaler_name == "log":
             from sklearn.preprocessing import FunctionTransformer
 
-            def logScaler(X, shift=(1 + 1e-6)):
+            def logScaler(X, shift=(1 + 1e-15)):
                 X_log = np.round(np.log(X + shift), 6)
                 return X_log
             

@@ -6,7 +6,6 @@ import warnings
 
 from ..base import BaseSurvival
 
-from joblib import parallel_backend
 from sksurv.ensemble import RandomSurvivalForest
 
 warnings.filterwarnings("ignore")

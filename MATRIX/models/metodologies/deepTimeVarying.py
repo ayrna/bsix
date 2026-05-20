@@ -12,7 +12,8 @@ import warnings
 from ..base import BaseSurvival
 from ..loggers.deepSurvLogger import DeepSurvLogger
 from ..nets.deepNets import DeepSurvFFNN
-from sksurv.linear_model.coxph import BreslowEstimator
+from .utils import BreslowEstimator
+
 from sksurv.metrics import concordance_index_censored
 
 warnings.filterwarnings("ignore")
@@ -183,7 +184,7 @@ class DeepTimeVarying(BaseSurvival):
         Standardize input features.
         """
 
-        return (x - self.offset) / (self.scale + 1e-6)
+        return (x - self.offset) / (self.scale + 1e-15)
     
     def fit(self, X_train, y_train, **kwargs):
         
@@ -201,7 +202,7 @@ class DeepTimeVarying(BaseSurvival):
         X_train, y_train = self._sort(X_train, y_train, "time_stop")
 
         # Apply y_train supervision
-        y_train["time_stop"] = np.where(y_train["time_start"] == y_train["time_stop"], y_train["time_stop"] + 1e-6, y_train["time_stop"])
+        y_train["time_stop"] = np.where(y_train["time_start"] == y_train["time_stop"], y_train["time_stop"] + 1e-15, y_train["time_stop"])
 
         if self.logger is None:
             logger = DeepSurvLogger("DeepTimeVarying")

@@ -12,10 +12,11 @@ import warnings
 from ..base import BaseSurvival
 from ..loggers.deepMultiTaskLogger import DeepMultiTaskLogger
 from ..nets.deepNets import DeepMultiTaskMultiLossFFNN
+from .utils import BreslowEstimator
 from ...utils.classification_metrics import scorerAmae
 from ...utils.survival_metrics import scorerConcordanceIndex
+
 from lifelines import KaplanMeierFitter
-from sksurv.linear_model.coxph import BreslowEstimator
 from sksurv.metrics import concordance_index_censored
 
 warnings.filterwarnings("ignore")
@@ -246,7 +247,7 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
         Standardize input features.
         """
 
-        return (x - self.offset) / (self.scale + 1e-6)
+        return (x - self.offset) / (self.scale + 1e-15)
 
     def _kaplan_meier(self, t, e):
 

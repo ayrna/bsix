@@ -459,7 +459,7 @@ class BaseSurvival(BaseEstimator, ABC):
         dataframe_transformed = dataframe_transformed.rename(columns={identifier: "identifier", event: "event", time: "time_stop"})
 
         # Move the new time_start column (time) down by inserting 0.0 as the first value
-        dataframe_transformed["time_start"] = dataframe_transformed.groupby("identifier")["time_stop"].shift(1).fillna(1e-6)
+        dataframe_transformed["time_start"] = dataframe_transformed.groupby("identifier")["time_stop"].shift(1).fillna(1e-15)
         dataframe_transformed = dataframe_transformed.astype({"time_start": float, "time_stop": float})
 
         # Move the event column down by inserting 0.0 as the first value (do not remove the row with the event)
@@ -475,7 +475,7 @@ class BaseSurvival(BaseEstimator, ABC):
 
         # Ensure that time_stop is greater than time_start
         invalid_mask = dataframe_transformed["time_stop"] <= dataframe_transformed["time_start"]
-        dataframe_transformed.loc[invalid_mask, "time_stop"] = dataframe_transformed.loc[invalid_mask, "time_start"] + 1e-6
+        dataframe_transformed.loc[invalid_mask, "time_stop"] = dataframe_transformed.loc[invalid_mask, "time_start"] + 1e-15
 
         # Rest index
         dataframe_transformed = dataframe_transformed.reset_index(drop=True)
@@ -516,7 +516,7 @@ class BaseSurvival(BaseEstimator, ABC):
         cmap = plt.get_cmap("coolwarm")
 
         # Normalise the color based on the maximum absolute mean coefficient
-        max_abs = np.max(np.abs(coefficients_mean)) + 1e-6
+        max_abs = np.max(np.abs(coefficients_mean)) + 1e-15
         normalise = plt.Normalize(vmin=-max_abs, vmax=max_abs)
 
         # Obtain color map
@@ -616,7 +616,7 @@ class BaseSurvival(BaseEstimator, ABC):
         cmap = plt.get_cmap("coolwarm")
 
         # Normalise the color based on the maximum absolute SHAP value
-        max_abs = np.nanmax(np.abs(sorted_values)) + 1e-6
+        max_abs = np.nanmax(np.abs(sorted_values)) + 1e-15
         normalise = plt.Normalize(vmin=-max_abs, vmax=max_abs)
 
         # Map SHAP values to colors
@@ -713,7 +713,7 @@ class BaseSurvival(BaseEstimator, ABC):
             
             # Normalise the color for the scatter points
             min_val = np.nanmin(x_original)
-            max_val = np.nanmax(x_original) + 1e-6
+            max_val = np.nanmax(x_original) + 1e-15
             
             # Add jitter to the y-axis to spread out the points (beeswarm effect)
             y = y_pos + np.random.normal(0, 0.075, size=len(x))
@@ -836,7 +836,7 @@ class BaseSurvival(BaseEstimator, ABC):
         # Plot curve
         lines = []
         for i, step_function in enumerate(X):
-            times = step_function.x
+            times = step_function.X
             probabilities = step_function(times)
             
             line, = ax.step(times, probabilities, where="post", alpha=0.6)
