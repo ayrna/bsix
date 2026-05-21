@@ -1,0 +1,28 @@
+[project]
+name = "MATRIX"
+version = "0.1"
+authors = [
+    {name = "Francisco Moreno Cano", email = "i02mocaf@uco.es"}
+]
+description = "Management & Analysis of Time-to-event, Results, Inference & eXplainability "
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence :: Statistics",
+]
+dependencies = [
+    "ipympl>=0.10.0",
+    "lifelines>=0.30.3",
+    "mplcursors>=0.7.1",
+    "numpy>=2.4.6",
+    "remayn>=1.0.9",
+    "scikit-learn>=1.8.0",
+    "scikit-survival>=0.27.0",
+    "shap>=0.51.0",
+    "statsmodels>=0.14.6",
+    "torch>=2.12.0",
+    "torchtuples>=0.2.2",
+]
