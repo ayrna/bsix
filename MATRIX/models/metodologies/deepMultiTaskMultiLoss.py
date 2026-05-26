@@ -483,7 +483,7 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index, estimator_name, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
         S(x, t) = exp(-H(x, t)).
@@ -502,12 +502,12 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
             self.survival_functions.append(survival_function)
 
             if plot:
-                figure, ax = self._plot_survival_hazard_functions(survival_function, index, estimator_name, dataset, "Survival", seed, p)
+                figure, ax = self._plot_survival_hazard_functions(survival_function, index, "DeepSurv Multi-Task Multi-Loss", dataset, "Survival", seed, p)
                 plt.show()
         
         return self.survival_functions
 
-    def predict_cumulative_hazard_function(self, X, index, estimator_name, dataset, seed, plot=False):
+    def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
         
         """
         H(x,t) = H₀(t) × exp(βᵀx).
@@ -526,7 +526,7 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
             self.cumulative_hazard_functions.append(cumulative_hazard_function)
 
             if plot:
-                figure, ax = self._plot_survival_hazard_functions(cumulative_hazard_function, index, estimator_name, dataset, "CumulativeRisk", seed, p)
+                figure, ax = self._plot_survival_hazard_functions(cumulative_hazard_function, index, "DeepSurv Multi-Task Multi-Loss", dataset, "CumulativeRisk", seed, p)
                 plt.show()
                 
         return self.cumulative_hazard_functions
@@ -534,7 +534,7 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, scaler, estimator_name, dataset, seed, feature_names, background=False, plot=False):
+    def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
 
         """
         Calculate XAI values.
@@ -570,7 +570,7 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
             self.shap_explainer[p] = explainer_risk(X_background)
 
             if plot:
-                figure, ax = BaseSurvival.plot_shap(self.shap_explainer[p], index, scaler, estimator_name, dataset, seed, p)
+                figure, ax = BaseSurvival.plot_shap(self.shap_explainer[p], index, scaler, "DeepSurv Multi-Task Multi-Loss", dataset, seed, p)
                 plt.show()
 
         return self.shap_explainer

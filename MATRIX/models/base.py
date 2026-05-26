@@ -291,8 +291,7 @@ class BaseSurvival(BaseEstimator, ABC):
 
             # Save figure
             plt.tight_layout()
-            plt.savefig(f"Plot_DiscretisedKM-{dataset}_s{seed}.png", bbox_inches="tight", dpi=300)
-            plt.close()
+            plt.show()
 
         splits = [0] + best_splits + [np.inf]
 

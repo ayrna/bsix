@@ -148,7 +148,7 @@ class CoxRegression(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index, estimator_name, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
         S(x, t) = exp(-H(x, t)).
@@ -164,12 +164,12 @@ class CoxRegression(BaseSurvival):
         self.survival_function = self.breslow.get_survival_function(risk)
 
         if plot:
-            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, estimator_name, dataset, "Survival", seed)
+            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Cox Regression", dataset, "Survival", seed)
             plt.show()
             
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index, estimator_name, dataset, seed, plot=False):
+    def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
         
         """
         H(x,t) = H₀(t) × exp(βᵀx).
@@ -185,7 +185,7 @@ class CoxRegression(BaseSurvival):
         self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
 
         if plot:
-            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, estimator_name, dataset, "CumulativeRisk", seed)
+            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Cox Regression", dataset, "CumulativeRisk", seed)
             plt.show()
         
         return self.cumulative_hazard_function
@@ -193,7 +193,7 @@ class CoxRegression(BaseSurvival):
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, scaler, estimator_name, dataset, seed, feature_names, background=False, plot=False):
+    def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
 
         """
         Calculate XAI values.
@@ -220,8 +220,8 @@ class CoxRegression(BaseSurvival):
         self.coefficients = {k: v for k, v in sorted(coefficients.items(), key=lambda item: abs(item[1]), reverse=True)}
 
         if plot:
-            figure, ax = BaseSurvival.plot_coefficients(self.coefficients, estimator_name, dataset, seed)
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, estimator_name, dataset, seed)
+            figure, ax = BaseSurvival.plot_coefficients(self.coefficients, "Cox Regression", dataset, seed)
+            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "Cox Regression", dataset, seed)
             
             plt.show()
 

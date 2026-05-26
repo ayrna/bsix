@@ -68,7 +68,7 @@ class RandomSurvForest(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index, estimator_name, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
         S(x, t) = exp(-H(x, t)).
@@ -82,12 +82,12 @@ class RandomSurvForest(BaseSurvival):
         self.survival_function = self.model.predict_survival_function(X)
 
         if plot:
-            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, estimator_name, dataset, "Survival", seed)
+            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Random Survival Forest", dataset, "Survival", seed)
             plt.show()
 
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index, estimator_name, dataset, seed, plot=False):
+    def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
         
         """
         H(x,t) = H₀(t) × exp(βᵀx).
@@ -101,7 +101,7 @@ class RandomSurvForest(BaseSurvival):
         self.cumulative_hazard_function = self.model.predict_cumulative_hazard_function(X)
 
         if plot:
-            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, estimator_name, dataset, "CumulativeRisk", seed)
+            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Random Survival Forest", dataset, "CumulativeRisk", seed)
             plt.show()
             
         return self.cumulative_hazard_function
@@ -109,7 +109,7 @@ class RandomSurvForest(BaseSurvival):
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, scaler, estimator_name, dataset, seed, feature_names, background=False, plot=False):
+    def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
 
         """
         Calculate XAI values.
@@ -133,7 +133,7 @@ class RandomSurvForest(BaseSurvival):
         self.shap_explainer = explainer_risk(X_background)
 
         if plot:
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, estimator_name, dataset, seed)
+            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "Random Survival Forest", dataset, seed)
             plt.show()
 
         return self.shap_explainer
