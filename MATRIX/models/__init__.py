@@ -6,6 +6,7 @@ from .metodologies.deepMultiTaskMultiLoss import DeepMultiTaskMultiLoss
 from .metodologies.deepSurv import DeepSurv
 from .metodologies.deepTimeVarying import DeepTimeVarying
 from .metodologies.randomSurvForest import RandomSurvForest
+from .metodologies.acceleratedFailureTime import AcceleratedFailureTime
 
 __all__ = [
     "BaseSurvival",
@@ -16,4 +17,5 @@ __all__ = [
     "DeepSurv",
     "DeepTimeVarying",
     "RandomSurvForest",
+    "AcceleratedFailureTime",
 ]

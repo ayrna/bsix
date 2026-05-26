@@ -49,13 +49,13 @@ def _sort_results(results, estimator_name, dataset, seed):
 
     return results
 
-def get_results(estimator_name=None, dataset=None, seed=None):
+def get_results(result_folder="./results", estimator_name=None, dataset=None, seed=None):
 
     """
     Get the results for the given estimator name, dataset and seed.
     """
 
-    rf = ResultFolder('./results')
+    rf = ResultFolder(result_folder)
     
     filtered_results = rf.filter(lambda result: _filter_search(result, estimator_name, dataset, seed))
     filtered_results = _sort_results(filtered_results, estimator_name, dataset, seed)
@@ -126,13 +126,13 @@ def _sort_dict(data_dict):
 
     return data_dict
 
-def get_xai_from_filter(estimator_name=None, dataset=None, seed=None, identifier_index=None):
+def get_xai_from_filter(result_folder="./results", estimator_name=None, dataset=None, seed=None, identifier_index=None):
 
     """
     Get the xai for the given estimator name, dataset and seed.
     """
 
-    rf = ResultFolder('./results')
+    rf = ResultFolder(result_folder)
     
     filtered_results = rf.filter(lambda result: _filter_search(result, estimator_name, dataset, seed))
 
@@ -242,13 +242,13 @@ def _from_dictionaries_to_xai(dictionary_coefficients, dictionary_shap, dictiona
 
     plt.show()
 
-def save_results(estimator_name=None, dataset=None, seed=None):
+def save_results(result_folder="./results", estimator_name=None, dataset=None, seed=None):
 
     """
     Save the results for the given estimator name, dataset and seed.
     """
 
-    rf = ResultFolder('./results')
+    rf = ResultFolder(result_folder)
     
     filtered_results = rf.filter(lambda result: _filter_search(result, estimator_name, dataset, seed))
 

@@ -12,6 +12,7 @@ CLASSIFIERS = [
     "DeepSurvFFNN",
     "DeepTimeVaryingFFNN",
     "RandomSurvForest",
+    "AcceleratedFailureTime",
 ]
 
 def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n_iter=30):
@@ -69,6 +70,19 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             ]
 
             estimator = DeepSurv(inputs.shape[1], seed=seed)
+
+        elif estimator_name == "AcceleratedFailureTime":
+            from ..models import AcceleratedFailureTime
+
+            param_grid = [
+                {
+                    "type": ["LogLogisticAFT", "WeibullAFT"],
+                    "penalizer": np.round(np.logspace(-1, 1, 3), 8),
+                    "l1_ratio": np.round(np.linspace(0, 1, 5, endpoint=False), 8),
+                }
+            ]
+
+            estimator = AcceleratedFailureTime()
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 

@@ -321,12 +321,8 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
     if scaler is None:
         if scaler_name == "log":
             from sklearn.preprocessing import FunctionTransformer
-
-            def logScaler(X, shift=(1 + 1e-15)):
-                X_log = np.round(np.log(X + shift), 6)
-                return X_log
             
-            scaler = FunctionTransformer(func=logScaler).set_output(transform="pandas")
+            scaler = FunctionTransformer(func=np.log1p).set_output(transform="pandas")
 
         elif scaler_name == "minmax":
             from sklearn.preprocessing import MinMaxScaler
@@ -342,6 +338,12 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
             from sklearn.preprocessing import RobustScaler
 
             scaler = RobustScaler().set_output(transform="pandas")
+
+        elif scaler_name == "product":
+            from sklearn.pipeline import Pipeline
+            from sklearn.preprocessing import FunctionTransformer, MinMaxScaler
+            
+            scaler = Pipeline([('minmax', MinMaxScaler((1, 10))), ('log', FunctionTransformer(func=np.log10))]).set_output(transform="pandas")
 
         scaler = scaler.fit(X_train_df)
         
