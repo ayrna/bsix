@@ -13,6 +13,7 @@ CLASSIFIERS = [
     "DeepTimeVaryingFFNN",
     "RandomSurvForest",
     "AcceleratedFailureTime",
+    "SurvTree",
 ]
 
 def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n_iter=30):
@@ -83,6 +84,19 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             ]
 
             estimator = AcceleratedFailureTime()
+
+        elif estimator_name == "SurvTree":
+            from ..models import SurvTree
+
+            param_grid = [
+                {
+                    "max_depth": [3, 5, 7],
+                    "min_samples_split": [2, 6, 10],
+                    "min_samples_leaf": [2, 3, 5],
+                }
+            ]
+
+            estimator = SurvTree()
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 

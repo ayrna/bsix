@@ -133,7 +133,7 @@ class CoxRegression(BaseSurvival):
         Predict risk scores for the given data.
         """
         
-        risk = np.dot(np.asarray(X), self.coef_)
+        risk = np.dot(X, self.coef_)
 
         return risk
     

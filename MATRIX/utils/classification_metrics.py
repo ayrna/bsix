@@ -84,8 +84,6 @@ def mae(y_true, y_pred):
         y_pred = y_pred.squeeze() if y_pred.ndim > 1 else y_pred
         y_true = y_true.squeeze() if y_true.ndim > 1 else y_true
 
-        y_true = np.asarray(y_true)
-        y_pred = np.asarray(y_pred)
         return abs(y_true - y_pred).sum() / len(y_true)
 
 def mmae(y_true, y_pred):

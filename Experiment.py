@@ -15,6 +15,7 @@ ESTIMATOR_TO_BLOCK = {
     "RandomSurvForest": "standard",
     "DeepSurvFFNN": "standard",
     "AcceleratedFailureTime": "standard",
+    "SurvTree": "standard",
     "DeepMultiTaskFFNN": "multitask",
     "DeepMultiTaskMultiLossFFNN": "multitask",
     "CoxRegressionWithTimeVarying": "time_varying",

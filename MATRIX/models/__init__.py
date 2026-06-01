@@ -7,6 +7,7 @@ from .metodologies.deepSurv import DeepSurv
 from .metodologies.deepTimeVarying import DeepTimeVarying
 from .metodologies.randomSurvForest import RandomSurvForest
 from .metodologies.acceleratedFailureTime import AcceleratedFailureTime
+from .metodologies.survTree import SurvTree
 
 __all__ = [
     "BaseSurvival",
@@ -18,4 +19,5 @@ __all__ = [
     "DeepTimeVarying",
     "RandomSurvForest",
     "AcceleratedFailureTime",
+    "SurvTree",
 ]
