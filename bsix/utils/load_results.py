@@ -2,8 +2,8 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from MATRIX.models import BaseSurvival
-from MATRIX.utils import from_results_to_metrics
+from bsix.models import BaseSurvival
+from bsix.utils import from_results_to_metrics
 
 from collections import defaultdict
 from remayn.report import create_excel_summary_report

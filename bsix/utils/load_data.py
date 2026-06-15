@@ -273,7 +273,7 @@ def _filter_high_vif(X, threshold=5.0):
     
     return mask
 
-def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, seed=0):
+def get_data(df=None, data_dir="bsix/datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, seed=0):
 
     """
     Load and preprocess the dataset.

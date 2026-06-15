@@ -1,5 +1,5 @@
 [project]
-name = "MATRIX"
+name = "BSIX"
 version = "0.1"
 authors = [
     {name = "Francisco Moreno Cano", email = "i02mocaf@uco.es"}

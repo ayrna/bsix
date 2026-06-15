@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import time
 
-from MATRIX.models import BaseSurvival
-from MATRIX.utils import get_data, get_estimator, compute_metrics, load_data_hdf, load_data_arff, load_data_csv, format_predictions
+from bsix.models import BaseSurvival
+from bsix.utils import get_data, get_estimator, compute_metrics, load_data_hdf, load_data_arff, load_data_csv, format_predictions
 
 from remayn.result import make_result
 from remayn.result_set import ResultFolder
@@ -274,8 +274,8 @@ def load_and_run_experiment(
             print(json.dumps(estimator.best_params_, indent=4))
 
 def _build_arg_parser():
-    parser = argparse.ArgumentParser(description="Runner unico MATRIX")
-    parser.add_argument("--data_dir", default="MATRIX/datasets", help="Ruta de datasets")
+    parser = argparse.ArgumentParser(description="Runner unico BSIX")
+    parser.add_argument("--data_dir", default="BSIX/datasets", help="Ruta de datasets")
     parser.add_argument("--results_dir", default="./results", help="Directorio de salida")
     parser.add_argument("--test_size", type=float, default=0.2, help="Tamano de test")
     parser.add_argument("--validation_size", type=float, default=0.2, help="Tamano de validacion")
