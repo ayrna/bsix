@@ -55,7 +55,7 @@ class RandomSurvForest(BaseSurvival):
             max_depth=self.max_depth, 
             min_samples_leaf=self.min_samples_leaf, 
             min_samples_split=self.min_samples_split, 
-            random_state=tree_seed
+            seed=tree_seed
         )
         
         # Train survival tree

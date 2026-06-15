@@ -101,7 +101,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
                 }
             ]
 
-            estimator = SurvTree()
+            estimator = SurvTree(seed=seed)
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
@@ -234,7 +234,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
                 }
             ]
 
-            estimator = BaseSurvivalTree()
+            estimator = BaseSurvivalTree(seed=seed)
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 

@@ -15,13 +15,14 @@ class BaseSurvivalTree(BaseSurvival):
     Survival Tree model.
     """
 
-    def __init__(self, max_depth=5, min_samples_split=2, min_samples_leaf=1):
+    def __init__(self, seed, max_depth=5, min_samples_split=2, min_samples_leaf=1):
 
         """
         Initialise model with specified parameters.
         """
 
         # Parameters 
+        self.seed = seed
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
@@ -40,7 +41,7 @@ class BaseSurvivalTree(BaseSurvival):
         # Sort by time
         X, y = self._sort(X, y)
 
-        self.model = SurvivalTree(max_depth=self.max_depth, min_samples_split=self.min_samples_split, min_samples_leaf=self.min_samples_leaf)
+        self.model = SurvivalTree(max_depth=self.max_depth, min_samples_split=self.min_samples_split, min_samples_leaf=self.min_samples_leaf, random_state=self.seed)
         self.model.fit(X, y)
         
         return self

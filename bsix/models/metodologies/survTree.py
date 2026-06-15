@@ -9,6 +9,7 @@ from ..base import BaseSurvival
 from .utils import StepFunction
 
 from numba import njit
+from sklearn.utils.validation import check_random_state
 
 warnings.filterwarnings("ignore")
 
@@ -156,7 +157,7 @@ class SurvTree(BaseSurvival):
     Survival Tree model using Log-Rank test for node splitting.
     """
 
-    def __init__(self, max_depth=None, min_samples_split=6, min_samples_leaf=3, random_state=0):
+    def __init__(self, max_depth=None, min_samples_split=6, min_samples_leaf=3, seed=0):
 
         """
         Initialise model with specified parameters.
@@ -166,7 +167,7 @@ class SurvTree(BaseSurvival):
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
-        self.random_state = random_state
+        self.seed = seed
         
         self.root = None
         self.unique_times = None
@@ -257,7 +258,7 @@ class SurvTree(BaseSurvival):
         events = y["event"]
         times = y["time"]
 
-        self.rng = np.random.RandomState(self.random_state)
+        self.rng = check_random_state(self.seed)
 
         self.unique_times = np.unique(times)
         self.root = self._build_tree(X, events, times, depth=0)

@@ -4,7 +4,7 @@ version = "0.1"
 authors = [
     {name = "Francisco Moreno Cano", email = "i02mocaf@uco.es"}
 ]
-description = "Management & Analysis of Time-to-event, Results, Inference & eXplainability "
+description = "Benchmarking, Survival analysis, Inference & eXplainability."
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
