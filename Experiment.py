@@ -11,15 +11,20 @@ from remayn.result import make_result
 from remayn.result_set import ResultFolder
 
 ESTIMATOR_TO_BLOCK = {
-    "CoxRegression": "standard",
-    "RandomSurvForest": "standard",
-    "DeepSurvFFNN": "standard",
+    "BaseCoxRegression": "standard",
+    "BaseCoxRegressionWithTimeVarying": "time_varying",
+    "BaseRandomSurvivalForest": "standard",
+    "BaseSurvivalTree": "standard",
+    
     "AcceleratedFailureTime": "standard",
-    "SurvTree": "standard",
+    "CoxRegression": "standard",
+    "CoxRegressionWithTimeVarying": "time_varying",
     "DeepMultiTaskFFNN": "multitask",
     "DeepMultiTaskMultiLossFFNN": "multitask",
-    "CoxRegressionWithTimeVarying": "time_varying",
+    "DeepSurvFFNN": "standard",
     "DeepTimeVaryingFFNN": "time_varying",
+    "RandomSurvForest": "standard",
+    "SurvTree": "standard",
 }
 
 def _set_global_seed(seed):

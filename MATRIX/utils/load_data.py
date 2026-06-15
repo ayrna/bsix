@@ -59,8 +59,8 @@ def _prepare_data(df, test_size, validation_size, seed):
     feature_names = [x for x in df.columns.to_list() if x not in labels]
     
     # Split dataset into train and test sets
-    # Standard data
-    if len(event_labels) == 1 and len(time_labels) == 1:
+    # If "identifier" is not present, use standard stratified splitting
+    if "identifier" not in feature_names:
         X_train, X_test, y_train, y_test, train_idx, test_idx = train_test_split(df[feature_names], df[labels], index, test_size=test_size, random_state=seed, stratify=df[event_labels])
         
         X_train, X_validation, y_train, y_validation, train_idx, val_idx = train_test_split(X_train, y_train, train_idx, test_size=validation_size, random_state=seed, stratify=y_train[event_labels])
@@ -71,8 +71,8 @@ def _prepare_data(df, test_size, validation_size, seed):
         y_validation = np.array(y_validation, np.float32)
         X_test = np.array(X_test, np.float32)
         y_test = np.array(y_test, np.float32)
-    # Time varying and multitask data
-    elif len(event_labels) >= 1 and len(time_labels) > 1:
+    # If "identifier" is present, use stratified group splitting
+    if "identifier" in feature_names:
         n_groups = df["identifier"].nunique()
         n_splits_outer = min(int(1 / test_size), max(2, n_groups // 2))
         n_splits_inner = min(int(1 / validation_size), max(2, n_groups // 4))
@@ -96,8 +96,7 @@ def _prepare_data(df, test_size, validation_size, seed):
             stratify_train_val = y_train_val[event_labels].astype(str).agg('_'.join, axis=1)
             train_idx, val_idx = next(group_split_inner.split(X_train_val, stratify_train_val, groups=X_train_val["identifier"]))
 
-        if "identifier" in feature_names:
-            feature_names.remove("identifier")
+        feature_names.remove("identifier")
             
         X_train = np.array(X_train_val.iloc[train_idx][feature_names].values, np.float32)
         y_train = np.array(y_train_val.iloc[train_idx][labels].values, np.float32)
@@ -291,7 +290,7 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
     else:
         print("ERROR : Wrong format of dataset.")
         return -1
-
+    
     mask = _filter_low_variance(X_train)
     X_train = X_train[:, mask]
     X_validation = X_validation[:, mask]
@@ -343,7 +342,7 @@ def get_data(df=None, data_dir="MATRIX/datasets", dataset_name="colon.csv", test
             from sklearn.pipeline import Pipeline
             from sklearn.preprocessing import FunctionTransformer, MinMaxScaler
             
-            scaler = Pipeline([('minmax', MinMaxScaler((1, 10))), ('log', FunctionTransformer(func=np.log10))]).set_output(transform="pandas")
+            scaler = Pipeline([('minmax', MinMaxScaler((1, 10))), ('log', FunctionTransformer(func=np.log))]).set_output(transform="pandas")
 
         scaler = scaler.fit(X_train_df)
         

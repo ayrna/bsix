@@ -13,37 +13,36 @@ from numba import njit
 warnings.filterwarnings("ignore")
 
 @njit(fastmath=True, cache=True)
-def _calculate_log_rank_njit(times1, events1, unique_times, n_j, d_j):
+def _calculate_log_rank_njit(times_left, events_left, unique_times, n_j, d_j):
 
     """
-    Calculate the Log-Rank statistic between two groups defined by mask1.
+    Calculate the Log-Rank statistic between two groups defined by left mask.
     """
     
-    # At-risk count in the left group (n1_j) at each unique event time
-    idx1 = np.searchsorted(times1, unique_times, side="left")
-    n1_j = (len(times1) - idx1).astype(np.float64)
+    # At-risk count in the left group (nleft_j) at each unique event time
+    idx_left = np.searchsorted(times_left, unique_times, side="left")
+    nleft_j = (len(times_left) - idx_left).astype(np.float64)
 
-    # Event count in the left group (d1_j) at each unique event time
-    mask = events1 != 0 
-    t1_events = times1[mask]
+    # Event count in the left group (dleft_j) at each unique event time
+    mask = events_left != 0 
+    tleft_events = times_left[mask]
     
-    if len(t1_events) > 0:
-        d1_j = np.bincount(np.searchsorted(unique_times, t1_events), minlength=len(unique_times)).astype(np.float64)
+    if len(tleft_events) > 0:
+        dleft_j = np.bincount(np.searchsorted(unique_times, tleft_events), minlength=len(unique_times)).astype(np.float64)
     else:
-        d1_j = np.zeros(len(unique_times), dtype=np.float64)
+        dleft_j = np.zeros(len(unique_times), dtype=np.float64)
 
     safe_n_j = np.where(n_j > 0, n_j, 1.0)
     # Calculate U statistic (Observed - Expected events)
-    U = np.sum(np.where(n_j > 0, d1_j - d_j * (n1_j / safe_n_j), 0.0))
+    U = np.sum(np.where(n_j > 0, dleft_j - d_j * (nleft_j / safe_n_j), 0.0))
 
     # Calculate Variance (V) assuming a hypergeometric distribution
     valid = n_j > 1.0
     nv = n_j[valid]
-    V = np.sum(d_j[valid] * n1_j[valid] * (nv - n1_j[valid]) * (nv - d_j[valid]) / (nv ** 2 * (nv - 1.0)))
+    V = np.sum(d_j[valid] * nleft_j[valid] * (nv - nleft_j[valid]) * (nv - d_j[valid]) / (nv ** 2 * (nv - 1.0)))
 
     # Return Log-Rank score
     return (U ** 2) / V if V > 0.0 else 0.0
-
 
 @njit(fastmath=True, cache=True)
 def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_samples_leaf):
@@ -64,11 +63,11 @@ def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_sam
         for i in range(len(uniq) - 1):
             thresh = uniq[i]
             left_mask = col <= thresh
-            nl = int(left_mask.sum())
-            nr = len(left_mask) - nl
+            num_left = int(left_mask.sum())
+            num_right = len(left_mask) - num_left
             
             # Check constraints
-            if nl < min_samples_leaf or nr < min_samples_leaf:
+            if num_left < min_samples_leaf or num_right < min_samples_leaf:
                 continue
 
             score = _calculate_log_rank_njit(times[left_mask], events[left_mask], unique_times, n_j, d_j)
@@ -151,7 +150,6 @@ class TreeNode:
         self.risk_value = risk_value
         self.estimator = estimator
 
-
 class SurvTree(BaseSurvival):
 
     """
@@ -173,36 +171,6 @@ class SurvTree(BaseSurvival):
         self.root = None
         self.unique_times = None
         self.labels_covariables = ["event", "time"]
-    
-    def _calculate_log_rank(self, times1, events1, unique_times, n_j, d_j):
-
-        """
-        Calculate the Log-Rank statistic between two groups defined by mask1.
-        """
-        
-        # At-risk count in the left group (n1_j) at each unique event time
-        idx1 = np.searchsorted(times1, unique_times, side="left")
-        n1_j = (len(times1) - idx1).astype(np.float64)
- 
-        # Event count in the left group (d1_j) at each unique event time
-        t1_events = times1[events1.astype(bool)]
-        if len(t1_events) > 0:
-            d1_j = np.bincount(np.searchsorted(unique_times, t1_events), minlength=len(unique_times)).astype(np.float64)
-        else:
-            d1_j = np.zeros(len(unique_times), dtype=np.float64)
-
-        safe_n_j = np.where(n_j > 0, n_j, 1.0)
-        # Calculate U statistic (Observed - Expected events)
-        U = np.sum(np.where(n_j > 0, d1_j - d_j * (n1_j / safe_n_j), 0.0))
- 
-        # Calculate Variance (V) assuming a hypergeometric distribution
-        valid = n_j > 1.0
-        nv = n_j[valid]
-        V = np.sum(d_j[valid] * n1_j[valid] * (nv - n1_j[valid]) * (nv - d_j[valid]) / (nv ** 2 * (nv - 1.0)))
-
-        # Return Log-Rank score
-        return (U ** 2) / V if V > 0.0 else 0.0
-
     
     def _best_split(self, X, events, times, n_features):
 
@@ -273,12 +241,11 @@ class SurvTree(BaseSurvival):
             return self._create_leaf(events, times)
 
         # Create boolean mask for the left branch
-        lm = X[:, best_feature] <= best_threshold
+        left_mask = X[:, best_feature] <= best_threshold
 
         # Recursively construct left and right branches
-        return TreeNode(feature=best_feature, threshold=best_threshold, left=self._build_tree(X[lm], events[lm], times[lm], depth + 1), right=self._build_tree(X[~lm], events[~lm], times[~lm], depth + 1))
+        return TreeNode(feature=best_feature, threshold=best_threshold, left=self._build_tree(X[left_mask], events[left_mask], times[left_mask], depth + 1), right=self._build_tree(X[~left_mask], events[~left_mask], times[~left_mask], depth + 1))
 
-    
     def fit(self, X, y):
 
         """
@@ -302,20 +269,14 @@ class SurvTree(BaseSurvival):
         """
         Predict risk scores for the given data.
         """
-
-        risks = np.empty(X.shape[0], dtype=np.float64)
-
-        for i in range(X.shape[0]):
-            node = self.root
-            while not node.is_leaf:
-                node = (
-                    node.left
-                    if X[i, node.feature] <= node.threshold
-                    else node.right
-                )
+    
+        leaves = self._get_leaves(X)
+        
+        risks = np.empty(len(leaves), dtype=np.float64)
+        for i, node in enumerate(leaves):
             risks[i] = node.risk_value
+            
         return risks
-
 
     def score(self, X, y):
 
@@ -324,10 +285,50 @@ class SurvTree(BaseSurvival):
         """
 
         return None
+    
+    def _get_leaves(self, X):
 
+        """
+        Finds and returns the leaf node for each sample.
+        """
+        
+        leaves = np.empty(X.shape[0], dtype=object)
+        for i in range(X.shape[0]):
+            node = self.root
+
+            while not node.is_leaf:
+                if X[i, node.feature] <= node.threshold:
+                    node = node.left
+                else:
+                    node = node.right
+
+            leaves[i] = node
+            
+        return leaves
+    
     # ----------------------
     # Base Survival methods
     # ----------------------
+    def _compute_survival_hazard_functions(self, X, survival=True):
+        
+        """
+        Auxiliary method for computing the cumulative hazard function.
+        """
+
+        if not self.root:
+            raise ValueError(f"When computing `cumulative_hazard_function` with a model, first fit the model.")
+            
+        leaves = self._get_leaves(X)
+        
+        functions = []
+        for node in leaves:
+            if survival:
+                functions.append(StepFunction(node.estimator.times, np.exp(-node.estimator.cumulative_hazard), is_survival=survival))
+            else:
+                functions.append(StepFunction(node.estimator.times, node.estimator.cumulative_hazard, is_survival=survival))           
+            
+        return np.array(functions, dtype=object)
+    
     def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
@@ -339,20 +340,7 @@ class SurvTree(BaseSurvival):
         except (TypeError, ValueError):
             raise ValueError(f"When using `predict_survival_function`, the seed must be an integer. Value received: {seed}")
         
-        function = []
-        for i in range(X.shape[0]):
-            node = self.root
-
-            while not node.is_leaf:
-                node = (
-                    node.left
-                    if X[i, node.feature] <= node.threshold
-                    else node.right
-                )
-
-            function.append(StepFunction(node.estimator.times, node.estimator.survival))
-
-        self.survival_function = np.array(function, dtype=object)
+        self.survival_function = self._compute_survival_hazard_functions(X, survival=True)
 
         if plot:
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Survival Tree", dataset, "Survival", seed)
@@ -370,21 +358,8 @@ class SurvTree(BaseSurvival):
             seed = int(seed)
         except (TypeError, ValueError):
             raise ValueError(f"When using `predict_cumulative_hazard_function`, the seed must be an integer. Value received: {seed}")
-
-        function = []
-        for i in range(X.shape[0]):
-            node = self.root
-
-            while not node.is_leaf:
-                node = (
-                    node.left
-                    if X[i, node.feature] <= node.threshold
-                    else node.right
-                )
-
-            function.append(StepFunction(node.estimator.times, node.estimator.cumulative_hazard))
         
-        self.cumulative_hazard_function = np.array(function, dtype=object)
+        self.cumulative_hazard_function = self._compute_survival_hazard_functions(X, survival=False)
 
         if plot:
             figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Survival Tree", dataset, "CumulativeRisk", seed)

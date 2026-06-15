@@ -49,7 +49,7 @@ class CoxRegression(BaseSurvival):
         self.coef_ = np.zeros(n_features)
         
         # Newton-Raphson algorithm
-        for i in range(self.n_iter):
+        for _ in range(self.n_iter):
             risk = np.dot(X, self.coef_)
             # Prevent overflow in exp by clipping the risk
             risk = np.clip(risk, -250, 250) 

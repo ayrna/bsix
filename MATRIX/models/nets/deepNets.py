@@ -18,6 +18,8 @@ class DeepSurvFFNN(nn.Module):
             activation_fn = nn.SELU
         elif activation == "tanh":
             activation_fn = nn.Tanh
+        elif activation == "sigmoid":
+            activation_fn = nn.Sigmoid
         else:
             raise ValueError(f"Unknown activation function: {activation}")
         
@@ -66,6 +68,8 @@ class DeepMultiTaskFFNN(nn.Module):
             activation_fn = nn.SELU
         elif activation == "tanh":
             activation_fn = nn.Tanh
+        elif activation == "sigmoid":
+            activation_fn = nn.Sigmoid
         else:
             raise ValueError(f"Unknown activation function: {activation}")
         
@@ -116,6 +120,8 @@ class DeepMultiTaskMultiLossFFNN(nn.Module):
             activation_fn = nn.SELU
         elif activation == "tanh":
             activation_fn = nn.Tanh
+        elif activation == "sigmoid":
+            activation_fn = nn.Sigmoid
         else:
             raise ValueError(f"Unknown activation function: {activation}")
         

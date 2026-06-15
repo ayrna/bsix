@@ -12,20 +12,23 @@ class StepFunction:
         self.is_survival = is_survival
         
     def __call__(self, t):
-        t = t
-        scalar_input = t.ndim == 0
-        if scalar_input:
-            t = np.array([t])
-            
+        scalar_input = np.ndim(t) == 0
+        t = np.atleast_1d(t)
+        
         res = np.zeros_like(t, dtype=float)
-        for i, t_val in enumerate(t):
-            if len(self.X) == 0 or t_val < self.X[0]:
-                res[i] = 1.0 if self.is_survival else 0.0
-            else:
-                idx = np.searchsorted(self.X, t_val, side='right') - 1
-                idx = min(max(idx, 0), len(self.y) - 1)
-                res[i] = self.y[idx]
-                
+        if len(self.X) == 0:
+            res[:] = 1.0 if self.is_survival else 0.0
+            return res[0] if scalar_input else res
+            
+        indices = np.searchsorted(self.X, t, side='right') - 1
+        
+        before_start = t < self.X[0]
+        
+        indices = np.clip(indices, 0, len(self.y) - 1)
+        
+        res = self.y[indices]
+        res[before_start] = 1.0 if self.is_survival else 0.0
+        
         return res[0] if scalar_input else res
     
     def __repr__(self):

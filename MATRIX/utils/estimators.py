@@ -5,6 +5,12 @@ from .survival_metrics import scorerConcordanceIndex
 from sklearn.metrics import make_scorer
 
 CLASSIFIERS = [
+    "BaseCoxRegression",
+    "BaseCoxRegressionWithTimeVarying",
+    "BaseRandomSurvivalForest",
+    "BaseSurvivalTree",
+
+    "AcceleratedFailureTime",
     "CoxRegression",
     "CoxRegressionWithTimeVarying",
     "DeepMultiTaskFFNN",
@@ -12,7 +18,6 @@ CLASSIFIERS = [
     "DeepSurvFFNN",
     "DeepTimeVaryingFFNN",
     "RandomSurvForest",
-    "AcceleratedFailureTime",
     "SurvTree",
 ]
 
@@ -27,18 +32,49 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
-        if estimator_name == "CoxRegression":
+        if estimator_name == "AcceleratedFailureTime":
+            from ..models import AcceleratedFailureTime
+
+            param_grid = [
+                {
+                    "type": ["LogLogisticAFT", "WeibullAFT"],
+                    "penalizer": np.round(np.logspace(-1, 1, 3), 8),
+                    "l1_ratio": np.round(np.linspace(0, 1, 5, endpoint=False), 8),
+                }
+            ]
+
+            estimator = AcceleratedFailureTime()
+        
+        elif estimator_name == "CoxRegression":
             from ..models import CoxRegression
 
             param_grid = [
                 {
-                    "alpha": np.round(np.logspace(-1, 1, 3), 8),
+                    "alpha": np.round(np.logspace(-3, -1, 3), 8),
                     "ties": ["efron", "breslow"],
-                    "n_iter": [100, 200, 300],
+                    "n_iter": [100, 200, 300, 400, 500],
                 }
             ]
 
             estimator = CoxRegression()
+
+        elif estimator_name == "DeepSurvFFNN":
+            from ..models import DeepSurv
+               
+            param_grid = [
+                {
+                    "epochs":[250, 500],
+                    "hidden_layers": [[4], [8], [16], [32]],
+                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
+                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
+                    "l1_reg": np.round(np.logspace(-5, -3, 3), 8),
+                    "l2_reg": np.round(np.logspace(-4, -2, 3), 8),
+                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
+                    "activation": ["relu", "selu", "tanh", "sigmoid"],
+                }
+            ]
+
+            estimator = DeepSurv(inputs.shape[1], seed=seed)
 
         elif estimator_name == "RandomSurvForest":
             from ..models import RandomSurvForest
@@ -53,37 +89,6 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             ]
             
             estimator = RandomSurvForest(seed=seed)
-
-        elif estimator_name == "DeepSurvFFNN":
-            from ..models import DeepSurv
-               
-            param_grid = [
-                {
-                    "epochs":[250, 500],
-                    "hidden_layers": [[4], [8], [16], [32]],
-                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
-                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
-                    "l1_reg": np.round(np.logspace(-5, -3, 3), 8),
-                    "l2_reg": np.round(np.logspace(-4, -2, 3), 8),
-                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
-                    "activation": ["relu", "selu", "tanh"],
-                }
-            ]
-
-            estimator = DeepSurv(inputs.shape[1], seed=seed)
-
-        elif estimator_name == "AcceleratedFailureTime":
-            from ..models import AcceleratedFailureTime
-
-            param_grid = [
-                {
-                    "type": ["LogLogisticAFT", "WeibullAFT"],
-                    "penalizer": np.round(np.logspace(-1, 1, 3), 8),
-                    "l1_ratio": np.round(np.linspace(0, 1, 5, endpoint=False), 8),
-                }
-            ]
-
-            estimator = AcceleratedFailureTime()
 
         elif estimator_name == "SurvTree":
             from ..models import SurvTree
@@ -178,7 +183,61 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             estimator = DeepMultiTaskMultiLoss(inputs.shape[1], seed=seed)
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
-        
+
+        elif estimator_name == "BaseCoxRegression":
+            from ..models import BaseCoxRegression
+
+            param_grid = [
+                {
+                    "alpha": np.round(np.logspace(-3, -1, 3), 8),
+                    "ties": ["efron", "breslow"],
+                    "n_iter": [100, 200, 300, 400, 500],
+                }
+            ]
+
+            estimator = BaseCoxRegression()
+
+        elif estimator_name == "BaseCoxRegressionWithTimeVarying":
+            from ..models import BaseCoxRegressionWithTimeVarying
+
+            param_grid = [
+                {
+                    "penalizer": np.round(np.logspace(-1, 1, 3), 8),
+                    "l1_ratio": np.round(np.linspace(0, 1, 5, endpoint=False), 8),
+                }
+            ]
+
+            estimator = BaseCoxRegressionWithTimeVarying()
+
+        elif estimator_name == "BaseRandomSurvivalForest":
+            from ..models import BaseRandomSurvivalForest
+
+            param_grid = [
+                {
+                    "n_estimators": [100, 300, 500],
+                    "max_depth": [3, 5, 7],
+                    "min_samples_leaf": [2, 3, 5],
+                    "min_samples_split": [2, 6, 10],
+                }
+            ]
+
+            estimator = BaseRandomSurvivalForest(seed=seed)
+            
+        elif estimator_name == "BaseSurvivalTree":
+            from ..models import BaseSurvivalTree
+
+            param_grid = [
+                {
+                    "max_depth": [3, 5, 7],
+                    "min_samples_split": [2, 6, 10],
+                    "min_samples_leaf": [2, 3, 5],
+                }
+            ]
+
+            estimator = BaseSurvivalTree()
+
+    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+
         else:
             raise NotImplementedError(
                 f"Estimator {estimator_name} not implemented in set_estimators function."

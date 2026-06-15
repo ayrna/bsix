@@ -1,12 +1,16 @@
 import logging
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import shap
 import warnings
 
 from ..base import BaseSurvival
+from .survTree import SurvTree
+from .utils import StepFunction
 
-from sksurv.ensemble import RandomSurvivalForest
+from joblib import Parallel, delayed
+from sklearn.utils.validation import check_random_state
 
 warnings.filterwarnings("ignore")
 
@@ -33,6 +37,31 @@ class RandomSurvForest(BaseSurvival):
         # Model (will be initialized in train())
         self.model = None
 
+    def _fit_single_tree(self, X, y, n_samples, tree_seed):
+
+        """
+        Fit a single survival tree on a bootstrap sample of the data.
+        """
+        
+        random_state_obj = check_random_state(tree_seed)
+
+        # Bagging
+        indices = random_state_obj.choice(n_samples, size=n_samples, replace=True)
+        X_boot = X[indices]
+        y_boot = y[indices]
+        
+        # Survival tree
+        tree = SurvTree(
+            max_depth=self.max_depth, 
+            min_samples_leaf=self.min_samples_leaf, 
+            min_samples_split=self.min_samples_split, 
+            random_state=tree_seed
+        )
+        
+        # Train survival tree
+        tree.fit(X_boot, y_boot)
+        return tree
+
     def fit(self, X, y):
 
         """
@@ -41,9 +70,17 @@ class RandomSurvForest(BaseSurvival):
                 
         # Sort by time
         X, y = self._sort(X, y)
+        n_samples = X.shape[0]
 
-        self.model = RandomSurvivalForest(n_estimators=self.n_estimators, max_depth=self.max_depth, min_samples_leaf=self.min_samples_leaf, min_samples_split=self.min_samples_split, n_jobs=self.n_jobs, random_state=self.seed)
-        self.model.fit(X, y)
+        # Generate random state object
+        random_state_obj = check_random_state(self.seed)
+        tree_seeds = random_state_obj.randint(0, np.iinfo(np.int32).max, size=self.n_estimators)
+            
+        # Parallelize the training of trees
+        self.model = Parallel(n_jobs=self.n_jobs)(
+            delayed(self._fit_single_tree)(X, y, n_samples, tree_seed) 
+            for tree_seed in tree_seeds
+        )
         
         return self
 
@@ -53,7 +90,8 @@ class RandomSurvForest(BaseSurvival):
         Predict risk scores for the given data.
         """
         
-        risk = self.model.predict(X)
+        chfs = self._compute_cumulative_hazard_function(X, survival=False)
+        risk = np.array([np.sum(chf.y) for chf in chfs])
 
         return risk
     
@@ -68,6 +106,33 @@ class RandomSurvForest(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
+    def _compute_cumulative_hazard_function(self, X, survival=False):
+        
+        """
+        Auxiliary method for computing the cumulative hazard function.
+        """
+
+        if not self.model:
+            raise ValueError(f"When computing `cumulative_hazard_function` with a model, first fit the model.")
+            
+        all_preds = []
+        for tree in self.model:
+            all_preds.append(tree._compute_survival_hazard_functions(X, survival))
+            
+        # Extract all unique time points across all trees
+        all_times = np.unique(np.concatenate([fn.X for tree_preds in all_preds for fn in tree_preds]))
+        
+        n_samples = X.shape[0]
+        functions = np.empty(n_samples, dtype=object)
+        for i in range(n_samples):
+            patient_evaluations = np.array([tree_preds[i](all_times) for tree_preds in all_preds])
+            mean_y = np.mean(patient_evaluations, axis=0)
+            
+            # StepFunctions
+            functions[i] = StepFunction(X=all_times, y=mean_y, is_survival=survival)
+            
+        return functions
+    
     def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
@@ -79,7 +144,7 @@ class RandomSurvForest(BaseSurvival):
         except (TypeError, ValueError):
             raise ValueError(f"When using `predict_survival_function` with a model, the seed must be an integer. Value received: {seed}")
         
-        self.survival_function = self.model.predict_survival_function(X)
+        self.survival_function = self._compute_cumulative_hazard_function(X, survival=True)
 
         if plot:
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Random Survival Forest", dataset, "Survival", seed)
@@ -97,8 +162,8 @@ class RandomSurvForest(BaseSurvival):
             seed = int(seed)
         except (TypeError, ValueError):
             raise ValueError(f"When using `predict_cumulative_hazard_function` with a model, the seed must be an integer. Value received: {seed}")
-        
-        self.cumulative_hazard_function = self.model.predict_cumulative_hazard_function(X)
+    
+        self.cumulative_hazard_function = self._compute_cumulative_hazard_function(X, survival=False)
 
         if plot:
             figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Random Survival Forest", dataset, "CumulativeRisk", seed)
