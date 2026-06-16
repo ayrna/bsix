@@ -106,7 +106,7 @@ class LeafEstimator:
                 
         self.times = global_times
 
-        # Sort by time
+        # Sort by time (already sorted?)
         sort_idx = np.argsort(times)
         t_sorted = times[sort_idx]
         e_sorted = events[sort_idx].astype(bool)
@@ -124,7 +124,7 @@ class LeafEstimator:
             # Counts multiple events happening at the same time
             np.add.at(d_events, idx, 1)
  
-        safe_risk = np.where(risk_set > 0, risk_set, 1)
+        safe_risk = np.where(risk_set > 0, risk_set, 1.0)
         # Calculate discrete hazards (d_i / n_i)
         hazards = np.where(risk_set > 0, d_events / safe_risk, 0.0)
  
