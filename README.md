@@ -1,2 +1,2 @@
 # BSIX 💊
-Benchmarking, Survival analysis, Inference &amp; eXplainability.
+Benchmarking Survival analysis: Inference and eXplainability.
