@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import re
 
+from importlib import resources
 from scipy.stats import mode
 from sklearn.model_selection import train_test_split
 from statsmodels.stats.outliers_influence import variance_inflation_factor
@@ -142,7 +143,7 @@ def load_data_hdf(data_dir, dataset_name):
     import h5py
 
     # Load dataset
-    f = h5py.File(f"{data_dir}/{dataset_name}", "r")
+    f = h5py.File(f"{resources.files(data_dir)}/{dataset_name}", "r")
     data = [f["x"][()], f["e"][()], f["t"][()]]
     f.close()
 
@@ -161,7 +162,7 @@ def load_data_arff(data_dir, dataset_name):
     from scipy.io import arff
 
     # Load dataset
-    file_path = f"./{data_dir}/{dataset_name}"
+    file_path = f"{resources.files(data_dir)}/{dataset_name}"
     data, meta = arff.loadarff(file_path)
     
     df = pd.DataFrame(data)
@@ -181,7 +182,7 @@ def load_data_csv(data_dir, dataset_name):
     """
 
     # Load dataset
-    df = pd.read_csv(f"./{data_dir}/{dataset_name}")
+    df = pd.read_csv(f"{resources.files(data_dir)}/{dataset_name}")
 
     print(f"\n- - - - {dataset_name} (csv) - - - -\n")
     
@@ -273,7 +274,7 @@ def _filter_high_vif(X, threshold=5.0):
     
     return mask
 
-def get_data(df=None, data_dir="bsix/datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, seed=0):
+def get_data(df=None, data_dir="bsix.datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, seed=0):
 
     """
     Load and preprocess the dataset.

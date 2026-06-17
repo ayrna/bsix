@@ -12,10 +12,11 @@ description = "Benchmarking Survival analysis: Inference and eXplainability."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence :: Statistics",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
     "h5py>=3.14.0",
@@ -38,6 +39,12 @@ dependencies = [
 
 [project.urls]
 Source = "https://github.com/ayrna/bsix"
+
+[project.optional-dependencies]
+tutorial = [
+    "jupyter",
+    "ipywidgets",
+]
 
 [tool.setuptools.package-data]
 "bsix.datasets" = ["*"]

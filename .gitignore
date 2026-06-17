@@ -11,5 +11,6 @@ tasksConfig/
 beatriz/
 RESULTS/
 bsix.egg-info/
+dist/
 
 __pycache__/
