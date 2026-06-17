@@ -143,7 +143,8 @@ def load_data_hdf(data_dir, dataset_name):
     import h5py
 
     # Load dataset
-    f = h5py.File(f"{resources.files(data_dir)}/{dataset_name}", "r")
+    path = resources.files(data_dir) / dataset_name
+    f = h5py.File(path, "r")
     data = [f["x"][()], f["e"][()], f["t"][()]]
     f.close()
 
@@ -162,8 +163,8 @@ def load_data_arff(data_dir, dataset_name):
     from scipy.io import arff
 
     # Load dataset
-    file_path = f"{resources.files(data_dir)}/{dataset_name}"
-    data, meta = arff.loadarff(file_path)
+    path = resources.files(data_dir) / dataset_name
+    data, meta = arff.loadarff(path)
     
     df = pd.DataFrame(data)
 
@@ -182,7 +183,8 @@ def load_data_csv(data_dir, dataset_name):
     """
 
     # Load dataset
-    df = pd.read_csv(f"{resources.files(data_dir)}/{dataset_name}")
+    path = resources.files(data_dir) / dataset_name
+    df = pd.read_csv(path)
 
     print(f"\n- - - - {dataset_name} (csv) - - - -\n")
     

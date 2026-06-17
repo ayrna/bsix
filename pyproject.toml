@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bsix"
-version = "0.0.0"
+version = "0.0.1"
 authors = [
     {name = "Francisco Moreno Cano", email = "i02mocaf@uco.es"}
 ]
@@ -44,6 +44,7 @@ Source = "https://github.com/ayrna/bsix"
 tutorial = [
     "jupyter",
     "ipywidgets",
+    "ipympl",
 ]
 
 [tool.setuptools.package-data]
