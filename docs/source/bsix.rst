@@ -1,19 +1,8 @@
-bsix package
-============
-
-Subpackages
------------
+BSIX
+==================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 1
 
    bsix.models
    bsix.utils
-
-Module contents
----------------
-
-.. automodule:: bsix
-   :members:
-   :undoc-members:
-   :show-inheritance:

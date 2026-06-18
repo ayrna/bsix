@@ -9,6 +9,7 @@ beatriz/
 bsix.egg-info/
 condor_output/
 dist/
+docs/build/
 results/
 RESULTS/
 tasksConfig/

@@ -1,10 +1,7 @@
-bsix.models package
+Models
 ===================
 
-Submodules
-----------
-
-bsix.models.base module
+Base
 -----------------------
 
 .. automodule:: bsix.models.base
@@ -12,9 +9,8 @@ bsix.models.base module
    :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
-
+Models
+-----------------------
 .. automodule:: bsix.models
    :members:
    :undoc-members:
