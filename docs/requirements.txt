@@ -1,2 +1,3 @@
+bsix
 sphinx
 sphinx-rtd-theme

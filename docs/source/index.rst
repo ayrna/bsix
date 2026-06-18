@@ -11,6 +11,6 @@ Welcome to the documentation for the `bsix` package. This package provides a set
 
 .. toctree::
    :maxdepth: 2
-   :caption: API Reference
+   :caption: API Reference:
 
    bsix
