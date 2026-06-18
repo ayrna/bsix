@@ -2,7 +2,7 @@
 
 ---
 
-### <ins>Project:</ins> [BSIX](https://pypi.org/project/bsix/)
+### <ins>Documentation:</ins> [BSIX](https://bsix.readthedocs.io/en/latest/)
 
 ### <ins>Development Status:</ins> Alpha
 

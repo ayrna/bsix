@@ -17,6 +17,7 @@ extensions = [
     'sphinx.ext.autodoc',     # Generate documentation from the code
     'sphinx.ext.napoleon',    # Supports Google/NumPy style docstrings
     'sphinx.ext.viewcode',    # Adds links to the source code
+    'sphinx.ext.intersphinx',
 ]
 
 templates_path = ['_templates']
@@ -29,3 +30,11 @@ exclude_patterns = []
 
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
+
+# Intersphinx mapping to link to external documentation
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'sklearn': ('https://scikit-learn.org/stable/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'pandas': ('https://pandas.pydata.org/docs/', None),
+}

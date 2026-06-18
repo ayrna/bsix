@@ -3,14 +3,33 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-BSIX Documentation
+.. image:: _static/BSIX_logo.png
+
+-------------------------------------
+
+BSIX
 ==================
 
-Welcome to the documentation for the `bsix` package. This package provides a set of tools and utilities for working with survival analysis data, including functions for data preprocessing, model fitting, and evaluation.
+**BSIX** is ...
 
+
+Installation
+------------------
+
+.. code-block:: console
+
+    pip install bsix
+
+Source Code
+------------------
+
+- Avalaible on GitHub, `ayrna/bsix <https://github.com/ayrna/bsix>`_.
+- PyPI project, `project/bsix <https://pypi.org/project/bsix/>`_.
+
+Documentation
+------------------
 
 .. toctree::
    :maxdepth: 2
-   :caption: API Reference:
 
    bsix

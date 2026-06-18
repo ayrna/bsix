@@ -1,4 +1,4 @@
-BSIX
+BSIX API Reference
 ==================
 
 .. toctree::
