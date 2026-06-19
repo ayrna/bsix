@@ -14,6 +14,7 @@ author = 'Francisco Moreno Cano'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
+    "sphinx_design",
     'sphinx.ext.autodoc',     # Generate documentation from the code
     'sphinx.ext.napoleon',    # Supports Google/NumPy style docstrings
     'sphinx.ext.viewcode',    # Adds links to the source code

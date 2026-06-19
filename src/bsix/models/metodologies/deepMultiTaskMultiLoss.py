@@ -560,7 +560,8 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
                 return binary[:, progressions]
 
             # Applying Explainer (model type)
-            explainer_risk = shap.Explainer(predict_risk_progressions, X, feature_names=feature_names, seed=seed)
+            masker = shap.maskers.Independent(X, max_samples=X.shape[0])
+            explainer_risk = shap.Explainer(predict_risk_progressions, masker, feature_names=feature_names, seed=seed)
             
             # Background (faster)
             X_background = X.copy()

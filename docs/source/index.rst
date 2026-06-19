@@ -16,9 +16,17 @@ BSIX
 Installation
 ------------------
 
+Normal usage:
+
 .. code-block:: console
 
     pip install bsix
+
+Tutorial:
+
+.. code-block:: console
+
+    pip install bsix[tutorial]
 
 Source Code
 ------------------

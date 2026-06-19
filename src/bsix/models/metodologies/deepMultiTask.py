@@ -447,7 +447,8 @@ class DeepMultiTask(BaseSurvival):
         self.shap_explainer = [None] * self.number_progressions
         for p in range(self.number_progressions):
             # Applying Explainer (model type)
-            explainer_risk = shap.Explainer(self.predict, X, feature_names=feature_names, seed=seed)
+            masker = shap.maskers.Independent(X, max_samples=X.shape[0])
+            explainer_risk = shap.Explainer(self.predict, masker, feature_names=feature_names, seed=seed)
             
             # Background (faster)
             X_background = X.copy()
