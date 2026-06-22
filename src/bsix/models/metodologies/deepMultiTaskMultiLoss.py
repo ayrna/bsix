@@ -16,7 +16,6 @@ from .utils import BreslowEstimator
 from ...utils.classification_metrics import scorerAmae
 from ...utils.survival_metrics import scorerConcordanceIndex
 
-from lifelines import KaplanMeierFitter
 from sksurv.metrics import concordance_index_censored
 
 warnings.filterwarnings("ignore")
@@ -25,6 +24,76 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
 
     """
     Deep Multi-Task Multi-Loss model.
+
+    Parameters
+    ----------
+    num_inputs : int
+        Number of input features.
+    valid_data : dict, default = ``None``
+        Validation data in the form of a dictionary with keys "x", "e", and "t" for features, events, and times, respectively.
+    hidden_layers : list of int, default = ``None``
+        List specifying the number of units in each hidden layer.
+    epochs : int, default = 500
+        Number of training epochs.
+    learn_rate : float, default = 0.0
+        Learning rate for the optimizer.
+    lr_decay : float, default = 0.0
+        Learning rate decay factor.
+    l1_reg : float, default = 0.0
+        L1 regularization strength.
+    l2_reg : float, default = 0.0
+        L2 regularization strength.
+    cox_reg : float, default = 0.0
+        Coefficient for the Cox loss in the total loss function.
+    bin_reg : float, default = 0.0
+        Coefficient for the binary loss in the total loss function.
+    momentum : float, default = 0.9
+        Momentum for the optimizer.
+    activation : str, default = ``"relu"``
+        Activation function to use in the hidden layers. ``relu``, ``selu``, ``tanh`` or ``sigmoid``.
+    dropout : float, default = 0.0
+        Dropout rate for regularization.
+    standardize : bool, default = ``True``
+        Whether to standardize input features.
+    ties : str, default = ``"cox"``
+        Method for handling tied event times. ``"cox"`` or ``"breslow"``.
+    device : torch.device, default = ``None``
+        Device to run the model on (e.g., "cpu" or "cuda").
+    validation_frequency : int, default = 10
+        Frequency (in epochs) to perform validation.
+    patience : int, default = 2000
+        Number of epochs to wait for improvement before early stopping.
+    improvement_threshold : float, default = 0.99999
+        Threshold for considering an improvement in validation loss.
+    patience_increase : int, default = 2
+        Factor by which to increase patience when an improvement is observed.
+    logger : DeepSurvLogger, default = ``None``
+        Logger for tracking training progress.
+    verbose : bool, default = ``True``
+        Whether to print training progress.
+    seed : int, default = ``None``
+        Random seed for reproducibility.
+    coef_likelihood : list of float, default = [1.0]
+        Coefficients for the likelihood loss of each progression in the total loss function.
+    coef_binary : list of float, default = [1.0]
+        Coefficients for the binary loss of each progression in the total loss function.
+
+    Attributes
+    ----------
+    survival_function : array-like, shape (n_samples, n_times)
+        Estimated survival function.
+    cumulative_hazard_function : array-like, shape (n_samples, n_times)
+        Estimated cumulative hazard function.
+    shap_explainer : list of shap.Explainer
+        SHAP explainer for model interpretability.
+
+    Examples
+    --------
+    .. code:: python
+
+        from bsix.models.metodologies import DeepMultiTaskMultiLoss
+        model = DeepMultiTaskMultiLoss(num_inputs=10, hidden_layers=[32,], epochs=200, learn_rate=0.01)
+        model.fit(X_train, y_train)
     """
         
     def __init__(self, num_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, cox_reg=0.0, bin_reg=0.0,
@@ -197,7 +266,7 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
 
         return l2_loss
     
-    def _get_loss(self, x, e, t, kaplan_risk):
+    def _get_loss(self, x, e, t):
 
         """
         Compute total loss including regularization.
@@ -248,33 +317,23 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
         """
 
         return (x - self.offset) / (self.scale + 1e-15)
-
-    def _kaplan_meier(self, t, e):
-
-        """
-        Compute kaplan meier.
-        """
-                
-        kmf = KaplanMeierFitter()
-
-        k_risks = []
-        for p in range(self.number_progressions):
-            kmf.fit(durations=t[:, p], event_observed=e[:, p])
-
-            survival = kmf.predict(t[:, p])
-            k_risk = (1 - survival)
-
-            min = np.min(k_risk)
-            max = np.max(k_risk)
-            k_risk = ((k_risk - min) / (max - min + 1e-8))
-            k_risks.append(k_risk)
-
-        return torch.tensor(np.array(k_risks, np.float32).T, dtype=torch.float32, device=self.device)
     
     def fit(self, X_train, y_train, **kwargs):
         
         """
         Fit the model to the data.
+
+        Parameters
+        ----------
+        X_train : array-like, shape (n_progressions, n_samples, n_features)
+            Training data.
+        y_train : structured array-like, shape (n_progressions, n_samples,)
+            Target training values (events, times).
+
+        Returns
+        -------
+        self : DeepMultiTaskMultiLoss
+            Fitted estimator.
         """
         
         # Set random seeds
@@ -330,11 +389,6 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
             e_val = np.array(e_val, np.bool_).T
             t_val = np.array(t_val, np.float32).T
         
-        # Calculate kaplan_meier
-        self.train_kaplan_risk = self._kaplan_meier(t_train, e_train)
-        if self.valid_data:
-            self.val_kaplan_risk = self._kaplan_meier(t_val, e_val)
-        
         # Convert to tensors
         x_train_tensor = torch.tensor(X_train, dtype=torch.float32, device=self.device)
         e_train_tensor = torch.tensor(e_train, dtype=torch.long, device=self.device)
@@ -376,7 +430,7 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
             self.network.train()
             self.optimizer.zero_grad()
             
-            loss = self._get_loss(x_train_tensor, e_train_tensor, t_train_tensor, self.train_kaplan_risk)
+            loss = self._get_loss(x_train_tensor, e_train_tensor, t_train_tensor)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
             self.optimizer.step()
@@ -392,7 +446,7 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
             if self.valid_data and (epoch % self.validation_frequency == 0):
                 self.network.eval()
                 with torch.no_grad():
-                    validation_loss = self._get_loss(x_val_tensor, e_val_tensor, t_val_tensor, self.val_kaplan_risk)
+                    validation_loss = self._get_loss(x_val_tensor, e_val_tensor, t_val_tensor)
                     logger.logValue("valid_loss", validation_loss.item(), epoch)
                 
                 ci_valid = self._get_concordance_index(X_val, t_val, e_val)
@@ -441,6 +495,16 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
 
         """
         Predict risk scores for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_progressions, n_samples, n_features)
+            Input data.
+
+        Returns
+        -------
+        risk : array-like, shape (n_progressions, n_samples,)
+            Predicted risk scores.
         """
 
         self.network.eval()
@@ -454,10 +518,6 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
         return risk, binary_proba
 
     def score(self, x, y):
-
-        """
-        Calculate score for crossvalidation.
-        """
 
         # Reshape y if it"s 1 progression
         y = y[:, np.newaxis] if y.ndim == 1 else y
@@ -486,7 +546,25 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
     def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
-        S(x, t) = exp(-H(x, t)).
+        Predict the survival function for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        plot : bool, default = ``False``
+            Whether to plot the survival function.
+
+        Returns
+        -------
+        survival_function : array-like, shape (n_progressions, n_samples, n_times)
+            Predicted survival functions.
         """
 
         try:
@@ -510,7 +588,25 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
         
         """
-        H(x,t) = H₀(t) × exp(βᵀx).
+        Predict the cumulative hazard function for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        plot : bool, default = ``False``
+            Whether to plot the cumulative hazard function.
+
+        Returns
+        -------
+        cumulative_hazard_function : array-like, shape (n_progressions, n_samples, n_times)
+            Predicted cumulative hazard functions.
         """
 
         try:
@@ -538,6 +634,30 @@ class DeepMultiTaskMultiLoss(BaseSurvival):
 
         """
         Calculate XAI values.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        scaler : object
+            Scaler used for the data.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        feature_names : list of str
+            Names of the features.
+        background : bool, default = ``False``
+            Whether to use background data for SHAP.
+        plot : bool, default = ``False``
+            Whether to plot the XAI values.
+
+        Returns
+        -------
+        shap_explainer : list of shap.Explainer, shape (n_progressions,)
+            SHAP explainer for model interpretability.
         """
 
         try:

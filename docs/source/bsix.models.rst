@@ -6,12 +6,11 @@ Base
 
 .. automodule:: bsix.models.base
    :members:
-   :undoc-members:
    :show-inheritance:
 
-Models
+Metodologies
 -----------------------
 .. automodule:: bsix.models
    :members:
-   :undoc-members:
    :show-inheritance:
+   :exclude-members: BaseSurvival

@@ -21,16 +21,23 @@ extensions = [
     'sphinx.ext.intersphinx',
 ]
 
+autodoc_default_options = {
+    'exclude-members': 'set_fit_request, set_score_request, set_predict_request',
+}
+
 templates_path = ['_templates']
 exclude_patterns = []
-
-
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
+
+html_theme_options = {
+    'navigation_depth': 5,
+    'collapse_navigation': True, 
+}
 
 # Intersphinx mapping to link to external documentation
 intersphinx_mapping = {
@@ -39,3 +46,8 @@ intersphinx_mapping = {
     'numpy': ('https://numpy.org/doc/stable/', None),
     'pandas': ('https://pandas.pydata.org/docs/', None),
 }
+
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath('../../src/')) # Local path to bsix/src

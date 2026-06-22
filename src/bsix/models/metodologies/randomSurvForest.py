@@ -18,6 +18,38 @@ class RandomSurvForest(BaseSurvival):
 
     """
     Random Survival Forest model.
+
+    Parameters
+    ----------
+    seed : int
+        Random seed for reproducibility.
+    n_jobs : int, default =-1
+        Number of jobs to run in parallel.
+    n_estimators : int, default =100
+        The number of trees in the forest.
+    max_depth : int, default =´´None´´
+        The maximum depth of the tree.
+    min_samples_leaf : int, default =3
+        The minimum number of samples required to be at a leaf node.
+    min_samples_split : int, default =6
+        The minimum number of samples required to split an internal node.
+
+    Attributes
+    ----------
+    survival_function : array-like, shape (n_samples, n_times)
+        Estimated survival function.
+    cumulative_hazard_function : array-like, shape (n_samples, n_times)
+        Estimated cumulative hazard function.
+    shap_explainer : shap.Explainer
+        SHAP explainer for model interpretability.
+
+    Examples
+    --------
+    .. code:: python
+    
+        from bsix.models.metodologies import RandomSurvForest
+        model = RandomSurvForest(seed=42, n_estimators=100, max_depth=5)
+        model.fit(X_train, y_train)
     """
 
     def __init__(self, seed, n_jobs=-1, n_estimators=100, max_depth=None, min_samples_leaf=3, min_samples_split=6):
@@ -66,6 +98,18 @@ class RandomSurvForest(BaseSurvival):
 
         """
         Fit the model to the data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Training data.
+        y : structured array-like, shape (n_samples,)
+            Target training values (events, times).
+
+        Returns
+        -------
+        self : RandomSurvForest
+            Fitted estimator.
         """
                 
         # Sort by time
@@ -88,6 +132,16 @@ class RandomSurvForest(BaseSurvival):
 
         """
         Predict risk scores for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+
+        Returns
+        -------
+        risk : array-like, shape (n_samples,)
+            Predicted risk scores.
         """
         
         chfs = self._compute_cumulative_hazard_function(X, survival=False)
@@ -96,10 +150,6 @@ class RandomSurvForest(BaseSurvival):
         return risk
     
     def score(self, X, y):
-
-        """
-        Calculate the score for the model.
-        """
         
         return None
     
@@ -136,7 +186,25 @@ class RandomSurvForest(BaseSurvival):
     def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
-        S(x, t) = exp(-H(x, t)).
+        Predict the survival function for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        plot : bool, default = ``False``
+            Whether to plot the survival function.
+
+        Returns
+        -------
+        survival_function : array-like, shape (n_samples, n_times)
+            Predicted survival function.
         """
 
         try:
@@ -155,7 +223,25 @@ class RandomSurvForest(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
         
         """
-        H(x,t) = H₀(t) × exp(βᵀx).
+        Predict the cumulative hazard function for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        plot : bool, default = ``False``
+            Whether to plot the cumulative hazard function.
+
+        Returns
+        -------
+        cumulative_hazard_function : array-like, shape (n_samples, n_times)
+            Predicted cumulative hazard function.
         """
 
         try:
@@ -178,6 +264,30 @@ class RandomSurvForest(BaseSurvival):
 
         """
         Calculate XAI values.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        scaler : object
+            Scaler used for the data.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        feature_names : list of str
+            Names of the features.
+        background : bool, default = ``False``
+            Whether to use background data for SHAP.
+        plot : bool, default = ``False``
+            Whether to plot the XAI values.
+
+        Returns
+        -------
+        shap_explainer : shap.Explainer
+            SHAP explainer for model interpretability.
         """
 
         try:

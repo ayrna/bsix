@@ -154,7 +154,7 @@ class TreeNode:
 class SurvTree(BaseSurvival):
 
     """
-    Survival Tree model using Log-Rank test for node splitting.
+    Survival Tree model.
     """
 
     def __init__(self, max_depth=None, min_samples_split=6, min_samples_leaf=3, seed=0):
@@ -251,6 +251,18 @@ class SurvTree(BaseSurvival):
 
         """
         Fit the model to the data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Training data.
+        y : structured array-like, shape (n_samples,)
+            Target training values (events, times).
+
+        Returns
+        -------
+        self : SurvTree
+            Fitted estimator.
         """
         
         X, y = self._sort(X, y)
@@ -269,6 +281,16 @@ class SurvTree(BaseSurvival):
 
         """
         Predict risk scores for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+
+        Returns
+        -------
+        risk : array-like, shape (n_samples,)
+            Predicted risk scores.
         """
     
         leaves = self._get_leaves(X)
@@ -280,10 +302,6 @@ class SurvTree(BaseSurvival):
         return risks
 
     def score(self, X, y):
-
-        """
-        Calculate the score for the model.
-        """
 
         return None
     
@@ -333,7 +351,25 @@ class SurvTree(BaseSurvival):
     def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
-        Survival function.
+        Predict the survival function for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        plot : bool, default = ``False``
+            Whether to plot the survival function.
+
+        Returns
+        -------
+        survival_function : array-like, shape (n_samples, n_times)
+            Predicted survival function.
         """
 
         try:
@@ -352,7 +388,25 @@ class SurvTree(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
 
         """
-        Cumulative hazard function.
+        Predict the cumulative hazard function for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        plot : bool, default = ``False``
+            Whether to plot the cumulative hazard function.
+
+        Returns
+        -------
+        cumulative_hazard_function : array-like, shape (n_samples, n_times)
+            Predicted cumulative hazard function.
         """
 
         try:
@@ -375,6 +429,30 @@ class SurvTree(BaseSurvival):
 
         """
         Calculate XAI values.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        scaler : object
+            Scaler used for the data.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        feature_names : list of str
+            Names of the features.
+        background : bool, default = ``False``
+            Whether to use background data for SHAP.
+        plot : bool, default = ``False``
+            Whether to plot the XAI values.
+
+        Returns
+        -------
+        shap_explainer : shap.Explainer
+            SHAP explainer for model interpretability.
         """
 
         try:

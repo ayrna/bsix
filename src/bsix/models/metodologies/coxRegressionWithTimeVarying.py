@@ -14,6 +14,36 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
 
     """
     Cox Regression Time-Varying model.
+
+    Parameters
+    ----------
+    alpha : float, default =0.0
+        Regularization strength.
+    ties : str, default = ``"breslow"``
+        Method for handling tied event times. ``"breslow"`` or ``"efron"``.
+    n_iter : int, default =100
+        Number of iterations for the Newton-Raphson algorithm.
+
+    Attributes
+    ----------
+    coef_ : array-like, shape (n_features,)
+        Estimated coefficients for the model.
+    breslow : BreslowEstimator
+        Breslow estimator for baseline hazards.
+    survival_function : array-like, shape (n_samples, n_times)
+        Estimated survival function.
+    cumulative_hazard_function : array-like, shape (n_samples, n_times)
+        Estimated cumulative hazard function.
+    shap_explainer : shap.Explainer
+        SHAP explainer for model interpretability.
+
+    Examples
+    --------
+    .. code:: python
+
+        from bsix.models.metodologies import CoxRegressionWithTimeVarying
+        model = CoxRegressionWithTimeVarying(alpha=0.1, ties="efron", n_iter=200)
+        model.fit(X_train, y_train)
     """
 
     def __init__(self, alpha=0.0, ties="breslow", n_iter=100):
@@ -36,6 +66,18 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
 
         """
         Fit the model to the data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Training data.
+        y : structured array-like, shape (n_samples,)
+            Target training values (event, start times, stop times).
+
+        Returns
+        -------
+        self : CoxRegressionWithTimeVarying
+            Fitted estimator.
         """
 
         # Sort by time_stop
@@ -136,6 +178,16 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
 
         """
         Predict risk scores for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+
+        Returns
+        -------
+        risk : array-like, shape (n_samples,)
+            Predicted risk scores.
         """
         
         risk = np.dot(X, self.coef_)
@@ -143,10 +195,6 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
         return risk
     
     def score(self, X, y):
-
-        """
-        Calculate the score for the model.
-        """
         
         return None
     
@@ -156,7 +204,25 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
     def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
-        S(x, t) = exp(-H(x, t)).
+        Predict the survival function for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        plot : bool, default = ``False``
+            Whether to plot the survival function.
+
+        Returns
+        -------
+        survival_function : array-like, shape (n_samples, n_times)
+            Predicted survival function.
         """
 
         try:
@@ -177,7 +243,25 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
         
         """
-        H(x,t) = H₀(t) × exp(βᵀx).
+        Predict the cumulative hazard function for the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        plot : bool, default = ``False``
+            Whether to plot the cumulative hazard function.
+
+        Returns
+        -------
+        cumulative_hazard_function : array-like, shape (n_samples, n_times)
+            Predicted cumulative hazard function.
         """
 
         try:
@@ -202,6 +286,32 @@ class CoxRegressionWithTimeVarying(BaseSurvival):
 
         """
         Calculate XAI values.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input data.
+        index : array-like, shape (n_samples,)
+            Index for the samples.
+        scaler : object
+            Scaler used for the data.
+        dataset : str
+            Name of the dataset.
+        seed : int
+            Random seed for reproducibility.
+        feature_names : list of str
+            Names of the features.
+        background : bool, default = ``False``
+            Whether to use background data for SHAP.
+        plot : bool, default = ``False``
+            Whether to plot the XAI values.
+
+        Returns
+        -------
+        shap_explainer : shap.Explainer
+            SHAP explainer for model interpretability.
+        coefficients : dict
+            Dictionary of feature coefficients sorted by absolute value.
         """
 
         try:
