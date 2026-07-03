@@ -18,6 +18,7 @@ ESTIMATOR_TO_BLOCK = {
     "AcceleratedFailureTime": "standard",
     "CoxRegression": "standard",
     "CoxRegressionWithTimeVarying": "time_varying",
+    "DeepHitFFNN": "multitask",
     "DeepMultiTaskFFNN": "multitask",
     "DeepMultiTaskMultiLossFFNN": "multitask",
     "DeepSurvFFNN": "standard",
@@ -235,7 +236,7 @@ def load_and_run_experiment(
 
     estimator.best_estimator_.predict_survival_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
     estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
-    estimator.best_estimator_.calculate_xai(X_train_val, np.concatenate([train_idx, val_idx]), scaler, dataset, seed, feature_names, background=False)
+    estimator.best_estimator_.calculate_xai(X_train_val, np.concatenate([train_idx, val_idx]), scaler, dataset, seed, feature_names, background=25)
     
     y_train_val = np.squeeze(y_train_val)
     y_test = np.squeeze(y_test)

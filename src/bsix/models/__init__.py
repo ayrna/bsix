@@ -8,6 +8,7 @@ from .metodologies.baseRandomSurvivalForest import BaseRandomSurvivalForest
 from .metodologies.acceleratedFailureTime import AcceleratedFailureTime
 from .metodologies.coxRegression import CoxRegression
 from .metodologies.coxRegressionWithTimeVarying import CoxRegressionWithTimeVarying
+from .metodologies.deepHit import DeepHit
 from .metodologies.deepMultiTask import DeepMultiTask
 from .metodologies.deepMultiTaskMultiLoss import DeepMultiTaskMultiLoss
 from .metodologies.deepSurv import DeepSurv
@@ -27,6 +28,7 @@ __all__ = [
     "AcceleratedFailureTime",
     "CoxRegression",
     "CoxRegressionWithTimeVarying",
+    "DeepHit",
     "DeepMultiTask",
     "DeepMultiTaskMultiLoss",
     "DeepSurv",

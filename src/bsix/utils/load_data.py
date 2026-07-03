@@ -276,7 +276,7 @@ def _filter_high_vif(X, threshold=5.0):
     
     return mask
 
-def get_data(df=None, data_dir="bsix.datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, to_multitask=False, seed=0):
+def get_data(df=None, data_dir="bsix.datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, preprocess=True, to_multitask=False, seed=0):
 
     """
     Load and preprocess the dataset.
@@ -294,25 +294,27 @@ def get_data(df=None, data_dir="bsix.datasets", dataset_name="colon.csv", test_s
         print("ERROR : Wrong format of dataset.")
         return -1
     
-    mask = _filter_low_variance(X_train)
-    X_train = X_train[:, mask]
-    X_validation = X_validation[:, mask]
-    X_test = X_test[:, mask]
-    feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
-
-    if X_train.shape[1] > 1:
-        mask = _filter_high_correlation(X_train)
+    # Filter out low variance, high correlation and high VIF features
+    if preprocess:
+        mask = _filter_low_variance(X_train)
         X_train = X_train[:, mask]
         X_validation = X_validation[:, mask]
         X_test = X_test[:, mask]
         feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
 
-    if X_train.shape[1] > 1:
-        mask = _filter_high_vif(X_train)
-        X_train = X_train[:, mask]
-        X_validation = X_validation[:, mask]
-        X_test = X_test[:, mask]
-        feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
+        if X_train.shape[1] > 1:
+            mask = _filter_high_correlation(X_train)
+            X_train = X_train[:, mask]
+            X_validation = X_validation[:, mask]
+            X_test = X_test[:, mask]
+            feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
+
+        if X_train.shape[1] > 1:
+            mask = _filter_high_vif(X_train)
+            X_train = X_train[:, mask]
+            X_validation = X_validation[:, mask]
+            X_test = X_test[:, mask]
+            feature_names = [feature_names[i] for i in range(len(feature_names)) if mask[i]]
         
     # Convert to DataFrame for scaling
     X_train_df = pd.DataFrame(X_train, columns=feature_names)
