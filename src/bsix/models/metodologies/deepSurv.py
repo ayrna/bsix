@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore")
 class DeepSurv(BaseSurvival):
 
     """
-    Deep Survival model.
+    Deep Survival model (DeepSurv).
 
     Parameters
     ----------
@@ -31,21 +31,21 @@ class DeepSurv(BaseSurvival):
         Validation data in the form of a dictionary with keys "x", "e", and "t" for features, events, and times, respectively.
     hidden_layers : list of int, default = ``None``
         List specifying the number of units in each hidden layer.
-    epochs : int, default =500
+    epochs : int, default = 500
         Number of training epochs.
-    learn_rate : float, default =0.0
+    learn_rate : float, default = 0.0
         Learning rate for the optimizer.
-    lr_decay : float, default =0.0
+    lr_decay : float, default = 0.0
         Learning rate decay factor.
-    l1_reg : float, default =0.0
+    l1_reg : float, default = 0.0
         L1 regularization strength.
-    l2_reg : float, default =0.0
+    l2_reg : float, default = 0.0
         L2 regularization strength.
-    momentum : float, default =0.9
+    momentum : float, default = 0.9
         Momentum for the optimizer.
     activation : str, default = ``"relu"``
         Activation function to use in the hidden layers. ``relu``, ``selu``, ``tanh`` or ``sigmoid``.
-    dropout : float, default =0.0
+    dropout : float, default = 0.0
         Dropout rate for regularization.
     standardize : bool, default = ``True``
         Whether to standardize input features.
@@ -53,13 +53,13 @@ class DeepSurv(BaseSurvival):
         Method for handling tied event times. ``"cox"`` or ``"breslow"``.
     device : torch.device, default = ``None``
         Device to run the model on (e.g., "cpu" or "cuda").
-    validation_frequency : int, default =10
+    validation_frequency : int, default = 10
         Frequency (in epochs) to perform validation.
-    patience : int, default =2000
+    patience : int, default = 2000
         Number of epochs to wait for improvement before early stopping.
-    improvement_threshold : float, default =0.99999
+    improvement_threshold : float, default = 0.99999
         Threshold for considering an improvement in validation loss.
-    patience_increase : int, default =2
+    patience_increase : int, default = 2
         Factor by which to increase patience when an improvement is observed.
     logger : DeepSurvLogger, default = ``None``
         Logger for tracking training progress.

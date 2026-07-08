@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore")
 class DeepMultiTask(BaseSurvival):
 
     """
-    Deep Multi-Task model.
+    Deep Survival Multi-Task model.
 
     Parameters
     ----------

@@ -2,6 +2,7 @@ from .base import BaseSurvival
 
 from .metodologies.baseCoxRegression import BaseCoxRegression
 from .metodologies.baseCoxRegressionWithTimeVarying import BaseCoxRegressionWithTimeVarying
+from .metodologies.baseDeepHit import BaseDeepHit
 from .metodologies.baseSurvivalTree import BaseSurvivalTree
 from .metodologies.baseRandomSurvivalForest import BaseRandomSurvivalForest
 
@@ -22,6 +23,7 @@ __all__ = [
 
     "BaseCoxRegression",
     "BaseCoxRegressionWithTimeVarying",
+    "BaseDeepHit",
     "BaseSurvivalTree",
     "BaseRandomSurvivalForest",
 

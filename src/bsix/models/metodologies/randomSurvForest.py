@@ -25,13 +25,13 @@ class RandomSurvForest(BaseSurvival):
         Random seed for reproducibility.
     n_jobs : int, default =-1
         Number of jobs to run in parallel.
-    n_estimators : int, default =100
+    n_estimators : int, default = 100
         The number of trees in the forest.
     max_depth : int, default =´´None´´
         The maximum depth of the tree.
-    min_samples_leaf : int, default =3
+    min_samples_leaf : int, default = 3
         The minimum number of samples required to be at a leaf node.
-    min_samples_split : int, default =6
+    min_samples_split : int, default = 6
         The minimum number of samples required to split an internal node.
 
     Attributes

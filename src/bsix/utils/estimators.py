@@ -7,6 +7,7 @@ from sklearn.metrics import make_scorer
 CLASSIFIERS = [
     "BaseCoxRegression",
     "BaseCoxRegressionWithTimeVarying",
+    "BaseDeepHit",
     "BaseRandomSurvivalForest",
     "BaseSurvivalTree",
 
@@ -144,35 +145,22 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             
             rng = np.random.default_rng(seed=seed)
             param_grid = [
-                {
-                    "epochs": [50],
-                    "hidden_layers_shared": [[4]],
-                    "hidden_layers_specific": [[4]],
-                    "learn_rate": [1e-05],
-                    "lr_decay": [1e-08],
-                    "l1_reg_output": [0.001],
-                    "l2_reg_hidden": [0.01],
-                    "dropout": [0.25],
-                    "activation": ["tanh"],
-                    "alpha": [0.9],
-                    "beta": [0.7],
-                    
-                    # "epochs": [250, 500],
-                    # "hidden_layers_shared": [[4], [8], [16], [32]],
-                    # "hidden_layers_specific": [[4], [8], [16], [32]],
-                    # "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
-                    # "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
-                    # "l1_reg_output": np.round(np.logspace(-5, -3, 3), 8),
-                    # "l2_reg_hidden": np.round(np.logspace(-4, -2, 3), 8),
-                    # "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
-                    # "activation": ["relu", "selu", "tanh", "sigmoid"],
-                    # "alpha": np.round(np.linspace(0.1, 0.9, 5), 8),
-                    # "beta": np.round(np.linspace(0.1, 0.9, 5), 8),
-                    # #"gamma": np.round(np.linspace(0.1, 0.9, 5), 8),
+                {   
+                    "epochs": [50, 100],
+                    "hidden_layers_shared": [[4], [8], [16], [32]],
+                    "hidden_layers_specific": [[4], [8], [16], [32]],
+                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
+                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
+                    "l1_reg_output": np.round(np.logspace(-5, -3, 3), 8),
+                    "l2_reg_hidden": np.round(np.logspace(-4, -2, 3), 8),
+                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
+                    "activation": ["relu", "selu", "tanh", "sigmoid"],
+                    "alpha": np.round(np.linspace(0.1, 0.9, 5), 8),
+                    "beta": np.round(np.linspace(0.1, 0.9, 5), 8),
                 }
             ]
 
-            estimator = DeepHit(inputs.shape[1], len(np.unique(labels["event"])) - 1, 100, seed=seed)
+            estimator = DeepHit(inputs.shape[1], len(np.unique(labels["event"])) - 1, 100, time_threshold=(100 - 50), seed=seed)
 
         elif estimator_name == "DeepMultiTaskFFNN":
             from ..models import DeepMultiTask
@@ -244,6 +232,24 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             ]
 
             estimator = BaseCoxRegressionWithTimeVarying()
+
+        elif estimator_name == "BaseDeepHit":
+            from ..models import BaseDeepHit
+            
+            rng = np.random.default_rng(seed=seed)
+            param_grid = [
+                {   
+                    "epochs": [50, 100],
+                    "num_nodes": [[4], [8], [16], [32]],
+                    "learning_rate": np.round(np.logspace(-5, -3, 3), 8),
+                    "alpha": np.round(np.linspace(0.1, 0.9, 5), 8),
+                    "sigma": np.round(np.linspace(0.1, 0.9, 5), 8),
+                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
+                    "activation": ["relu", "selu", "tanh", "sigmoid"],
+                }
+            ]
+
+            estimator = BaseDeepHit(100, time_threshold=(100 - 50), seed=seed)
 
         elif estimator_name == "BaseRandomSurvivalForest":
             from ..models import BaseRandomSurvivalForest

@@ -23,7 +23,7 @@ warnings.filterwarnings("ignore")
 class DeepMultiTaskMultiLoss(BaseSurvival):
 
     """
-    Deep Multi-Task Multi-Loss model.
+    Deep Survival Multi-Task Multi-Loss model.
 
     Parameters
     ----------
