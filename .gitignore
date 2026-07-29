@@ -4,14 +4,23 @@ run_condor.py
 run_experiment.py
 depurar.py
 
+tabpfn-v2-classifier.ckpt
+tabpfn-v2-regressor.ckpt
 # Ignorar una carpeta entera
-beatriz/
-bsix.egg-info/
 condor_output/
 dist/
-docs/build/
 results/
 RESULTS/
 tasksConfig/
+
+_not_used/
+
+docs/build/
+
+src/bsix.egg-info/
+src/bsix/datasets/beatriz/
+src/bsix/datasets/pre.datasets/
+
+
 
 __pycache__/

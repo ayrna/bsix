@@ -216,8 +216,8 @@ def _transformTrainValidationTest(X, y):
         dtype = [('event', '?'), ('time_start', 'f8'), ('time_stop', 'f8')]
         survival_y = np.empty(len(y), dtype=dtype)
         survival_y['event'] = y[:, 0].astype(bool)
-        survival_y['time_start'] = y[:, 1].astype(float)
-        survival_y['time_stop'] = y[:, 2].astype(float)
+        survival_y['time_start'] = y[:, 1].astype(np.float32)
+        survival_y['time_stop'] = y[:, 2].astype(np.float32)
     # Multitask (multi-progression): [event1, time1, event2, time2, ...]
     else:
         _yE = y[:, 0::2].astype(np.float32) # (0, 2, 4...)

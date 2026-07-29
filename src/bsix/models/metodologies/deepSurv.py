@@ -25,7 +25,7 @@ class DeepSurv(BaseSurvival):
 
     Parameters
     ----------
-    num_inputs : int
+    number_inputs : int
         Number of input features.
     valid_data : dict, default = ``None``
         Validation data in the form of a dictionary with keys "x", "e", and "t" for features, events, and times, respectively.
@@ -84,11 +84,11 @@ class DeepSurv(BaseSurvival):
     .. code:: python
 
         from bsix.models.metodologies import DeepSurv
-        model = DeepSurv(num_inputs=10, hidden_layers=[32,], epochs=200, learn_rate=0.01)
+        model = DeepSurv(number_inputs=10, hidden_layers=[32,], epochs=200, learn_rate=0.01)
         model.fit(X_train, y_train)
     """
 
-    def __init__(self, num_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, momentum=0.9, 
+    def __init__(self, number_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, momentum=0.9, 
                  activation="relu", dropout=0.0, standardize=True, ties="cox", device=None, validation_frequency=10, patience=2000, 
                  improvement_threshold=0.99999, patience_increase=2, logger=None, verbose=True, seed=None):
           
@@ -103,12 +103,12 @@ class DeepSurv(BaseSurvival):
             self.device = device
         
         # Standardization parameters
-        self.offset = torch.zeros(num_inputs, dtype=torch.float32, device=self.device)
-        self.scale = torch.ones(num_inputs, dtype=torch.float32, device=self.device)
+        self.offset = torch.zeros(number_inputs, dtype=torch.float32, device=self.device)
+        self.scale = torch.ones(number_inputs, dtype=torch.float32, device=self.device)
         self.standardize = standardize
     
         # Parameters
-        self.num_inputs = num_inputs
+        self.number_inputs = number_inputs
         self.learn_rate = learn_rate
         self.lr_decay = lr_decay
         self.l1_reg = l1_reg
@@ -297,7 +297,7 @@ class DeepSurv(BaseSurvival):
         
         # Build network
         self.network = DeepSurvFFNN(
-            num_inputs=self.num_inputs,
+            number_inputs=self.number_inputs,
             hidden_layers=self.hidden_layers,
             activation=self.activation,
             dropout=self.dropout,
@@ -318,12 +318,12 @@ class DeepSurv(BaseSurvival):
         
         # Events and Times
         e_train = np.array([evento for evento, _ in y_train], np.bool_)
-        t_train = np.array([tiempo for _, tiempo in y_train], np.float64)
+        t_train = np.array([tiempo for _, tiempo in y_train], np.float32)
 
         if self.valid_data:
-            X_valid = np.array(self.valid_data["x"], np.float64)
+            X_valid = np.array(self.valid_data["x"], np.float32)
             e_valid = np.array(self.valid_data["e"], np.bool_)
-            t_valid = np.array(self.valid_data["t"], np.float64)
+            t_valid = np.array(self.valid_data["t"], np.float32)
         
         # Convert to tensors
         x_train_tensor = torch.tensor(X_train, dtype=torch.float32, device=self.device)

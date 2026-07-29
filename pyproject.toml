@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "bsix"
 version = "0.0.4"
 authors = [
-    {name = "Francisco Moreno Cano", email = "i02mocaf@uco.es"}
+    {name = "Francisco Moreno Cano", email = "francisco.moreno@uco.es"}
 ]
 description = "Benchmarking Survival analysis: Inference and eXplainability."
 readme = "README.md"

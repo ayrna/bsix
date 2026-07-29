@@ -13,6 +13,8 @@ from ..base import BaseSurvival
 from pycox.models import DeepHitSingle
 from pycox.preprocessing.label_transforms import LabTransDiscreteTime
 
+from numba import njit
+
 warnings.filterwarnings("ignore")
 
 _ACTIVATIONS = {
@@ -33,14 +35,25 @@ def _get_activation(activation):
         return _ACTIVATIONS[activation]
     except KeyError:
         raise ValueError(f"Unknown activation function: {activation}")
+
+@njit(fastmath=True, cache=True)
+def _discretize_time_njit(t_ravel, time_grid, number_categories):
+
+    """
+    Numba optimized time discretization.
+    """
+
+    idx = np.searchsorted(time_grid, t_ravel, side="right")
     
+    return np.minimum(idx, number_categories - 1)
+
 class BaseDeepHit(BaseSurvival):
 
     """
     DeepHit Regression model (using pycox and PyTorch).
     """
 
-    def __init__(self, num_durations, epochs=50, learning_rate=1e-3, num_nodes=None, alpha=0.2, sigma=0.1, activation="relu", dropout=0.0, seed=None, time_threshold=None):
+    def __init__(self, num_durations, epochs=50, learning_rate=1e-3, num_nodes=[4], alpha=0.2, sigma=0.1, activation="relu", dropout=0.0, seed=None, time_threshold=None):
 
         """
         Initialise model with specified parameters.
@@ -84,6 +97,27 @@ class BaseDeepHit(BaseSurvival):
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
+    
+    def _build_time_grid(self, t):
+
+        """
+        Build the bin edges used to discretise continuous event/censoring times into ``self.num_durations`` discrete bins (quantile-based).
+        """
+
+        quantiles = np.linspace(0, 1, self.num_durations)[1:-1]
+        self.time_grid = np.unique(np.quantile(t, quantiles)) if self.num_durations > 1 else np.array([])
+
+    def _discretize_time(self, t):
+
+        """
+        Map continuous times to an integer bin index in ``[0, number_categories - 1]``.
+        """
+
+        t_ravel = np.ravel(t)
+        idx = _discretize_time_njit(t_ravel, self.time_grid, self.num_durations)
+
+        return idx.reshape(t.shape).astype(np.int64)
+
     def fit(self, X, y):
 
         """
@@ -98,11 +132,19 @@ class BaseDeepHit(BaseSurvival):
         time = np.array(y["time"]).astype('float32')
         event = np.array(y["event"]).astype('int32')
 
-        self.labtrans = LabTransDiscreteTime(self.num_durations, scheme="quantiles")
-        y_train = self.labtrans.fit_transform(time, event)
+        # Discretise time
+        self._build_time_grid(time)
+        self.num_durations = len(self.time_grid)
+
+        time_binarized = self._discretize_time(time)
+
+        if self.time_threshold >= self.num_durations:
+            self.time_threshold = self.num_durations - 1
+
+        y_train = (time_binarized, event)
 
         in_features = X_np.shape[1]
-        out_features = self.labtrans.out_features
+        out_features = self.num_durations
         
         layers = []
         in_dim = in_features
@@ -120,7 +162,7 @@ class BaseDeepHit(BaseSurvival):
             tt.optim.Adam, 
             alpha=self.alpha, 
             sigma=self.sigma, 
-            duration_index=self.labtrans.cuts
+            duration_index=self.time_grid
         )
         self.model.optimizer.set_lr(self.learning_rate)
 
@@ -135,7 +177,7 @@ class BaseDeepHit(BaseSurvival):
         """
         X_np = X.values.astype('float32') if isinstance(X, pd.DataFrame) else X.astype('float32')
         
-        surv = self.model.predict_surv_df(X_np).iloc[self.time_threshold - 1, :]
+        surv = self.model.predict_surv_df(X_np).iloc[self.time_threshold, :]
         risk = 1.0 - surv.values
 
         return risk
@@ -224,13 +266,9 @@ class BaseDeepHit(BaseSurvival):
         self.shap_explainer = explainer_risk(X_background)
 
         mean_shap_values = np.abs(self.shap_explainer.values).mean(axis=0)
-        coefficients = {feature_names[i]: round(val, 8) for i, val in enumerate(mean_shap_values)}
-        self.coefficients = {k: v for k, v in sorted(coefficients.items(), key=lambda item: abs(item[1]), reverse=True)}
 
         if plot:
-            figure, ax = BaseSurvival.plot_coefficients(self.coefficients, "BaseDeepHit", dataset, seed)
             figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "BaseDeepHit", dataset, seed)
-            
             plt.show()
 
-        return self.shap_explainer, self.coefficients
+        return self.shap_explainer

@@ -1,0 +1,62 @@
+# # # # #  flchain.csv  # # # # # 
+
+
+# - - Description - - #
+
+The Assay of Serum Free Light Chain
+
+
+# - - Info - - #
+
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 6521 entries, 0 to 6520
+Data columns (total 10 columns):
+ #   Column       Non-Null Count  Dtype  
+---  ------       --------------  -----  
+ 0   event        6521 non-null   int64  
+ 1   time         6521 non-null   int64  
+ 2   age          6521 non-null   int64  
+ 3   sex          6521 non-null   object 
+ 4   sample_year  6521 non-null   int64  
+ 5   kappa        6521 non-null   float64
+ 6   lambda       6521 non-null   float64
+ 7   flc_group    6521 non-null   int64  
+ 8   creatinine   6521 non-null   float64
+ 9   mgus         6521 non-null   bool   
+dtypes: bool(1), float64(3), int64(5), object(1)
+memory usage: 465.0+ KB
+
+
+
+# - - Stats - - #
+
+              event         time          age   sex  sample_year        kappa  \
+count   6521.000000  6521.000000  6521.000000  6521  6521.000000  6521.000000   
+unique          NaN          NaN          NaN     2          NaN          NaN   
+top             NaN          NaN          NaN     F          NaN          NaN   
+freq            NaN          NaN          NaN  3589          NaN          NaN   
+mean       0.300414  3649.180187    65.044932   NaN  1996.622604     1.451476   
+std        0.458473  1456.522512    10.667247   NaN     1.416285     0.936545   
+min        0.000000     1.000000    50.000000   NaN  1995.000000     0.010000   
+25%        0.000000  2911.000000    56.000000   NaN  1996.000000     0.960000   
+50%        0.000000  4303.000000    63.000000   NaN  1996.000000     1.280000   
+75%        1.000000  4771.000000    73.000000   NaN  1997.000000     1.700000   
+max        1.000000  5166.000000   101.000000   NaN  2003.000000    20.500000   
+
+             lambda    flc_group   creatinine   mgus  
+count   6521.000000  6521.000000  6521.000000   6521  
+unique          NaN          NaN          NaN      2  
+top             NaN          NaN          NaN  False  
+freq            NaN          NaN          NaN   6425  
+mean       1.727594     5.535807     1.093207    NaN  
+std        1.074244     2.883098     0.416336    NaN  
+min        0.043300     1.000000     0.400000    NaN  
+25%        1.210000     3.000000     0.900000    NaN  
+50%        1.520000     6.000000     1.000000    NaN  
+75%        1.950000     8.000000     1.200000    NaN  
+max       26.600000    10.000000    10.800000    NaN  
+
+
+# - - Reference - - #
+
+https://stat.ethz.ch/R-manual/R-devel/library/survival/html/flchain.html

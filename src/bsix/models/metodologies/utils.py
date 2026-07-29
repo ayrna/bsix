@@ -1,4 +1,78 @@
 import numpy as np
+from sksurv.ensemble import RandomSurvivalForest
+
+def impute_censored_times(X, y, n_estimators=100, random_state=0):
+
+    """
+    Estimate survival times for censored patients using restricted conditional life expectancy.
+    """
+    
+    estimator = RandomSurvivalForest(n_estimators=n_estimators, random_state=random_state)
+    estimator.fit(X, y)
+    
+    survival_f = estimator.predict_survival_function(X)
+
+    events = y["event"].astype(bool)
+    times = y["time"].astype(np.float32)
+    
+    imputed_times = np.copy(times)
+    
+    for i in range(len(y)):
+        e_i = events[i]
+        t_i = times[i]
+        
+        if not e_i:
+            f = survival_f[i]
+            
+            mask_residual = f.x >= t_i
+            t_residual = f.x[mask_residual]
+            
+            if len(t_residual) > 1:
+                survival_t_i = f(t_i)
+                
+                if survival_t_i > 0:
+                    survival_t_residual = f(t_residual)
+                    integral = np.trapezoid(y=survival_t_residual, x=t_residual)
+                    
+                    imputed_times[i] = t_i + (integral / survival_t_i)
+                    
+    return imputed_times
+
+def compute_jackknife_soft_labels(time, event, t_max):
+
+    """
+    Compute the soft labels based on pseudo-Jackknife values at t_max
+    """
+
+    n_samples = len(time)
+    mask_events = (time <= t_max) & (event == 1)
+    unique_t, d_j = np.unique(time[mask_events], return_counts=True)
+
+    if len(unique_t) == 0:
+        raise ValueError(f"When using `compute_jackknife_soft_labels`, there are no events before t_max={t_max}")
+    
+    n_j = np.array([np.sum(time >= t) for t in unique_t])
+    
+    global_km = np.prod(1.0 - d_j / n_j)
+    
+    at_risk_mask = time[:, None] >= unique_t
+    n_matrix = n_j - at_risk_mask.astype(np.float32)
+    
+    event_mask = (time[:, None] == unique_t) & (event[:, None] == 1)
+    d_matrix = d_j - event_mask.astype(np.float32)
+    
+    with np.errstate(divide='ignore', invalid='ignore'):
+        hazard_factors = 1.0 - (d_matrix / n_matrix)
+        hazard_factors[n_matrix == 0] = 1.0
+        
+    km_minus_i = np.prod(hazard_factors, axis=1)
+    
+    pseudo_values = n_samples * global_km - (n_samples - 1) * km_minus_i
+    
+    pseudo_values = np.clip(pseudo_values, 0.0, 1.0)
+    soft_labels = 1.0 - pseudo_values
+    
+    return soft_labels
 
 class StepFunction:
 
@@ -51,7 +125,6 @@ class BreslowEstimator:
     def fit(self, risk_scores, events, times):
         log_risk = np.exp(risk_scores)
         
-        # Sort unique times
         unique_times = np.unique(times[events])
         unique_times.sort()
         self.times_ = unique_times

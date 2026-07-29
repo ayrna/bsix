@@ -2,10 +2,11 @@ from .calculate_metrics import compute_metrics, compute_survival_metrics, comput
 from .estimators import CLASSIFIERS, get_estimator
 from .load_data import get_data, load_data_hdf, load_data_arff, load_data_csv
 from .load_results import get_results, get_xai_from_filter, get_xai_from_model_list, save_results
-from .survival_metrics import scorerConcordanceIndex, concordanceIndexHarrel, concordanceIndexIPCW, cumulativeDinamicAUC
+from .survival_metrics import scorerConcordanceIndex, brierScore, concordanceIndexHarrel, concordanceIndexIPCW, cumulativeDinamicAUC
 
 __all__ = [
     "scorerConcordanceIndex",
+    "brierScore",
     "concordanceIndexHarrel",
     "concordanceIndexIPCW",
     "cumulativeDinamicAUC",

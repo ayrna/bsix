@@ -46,8 +46,7 @@ def _build_hidden_layers(input_size, hidden_layers, activation_fn, dropout=0.0, 
     output_size = input_size
 
     return layers, output_size
-
-
+    
 class DeepSurvFFNN(nn.Module):
 
     """
@@ -77,8 +76,7 @@ class DeepMultiTaskFFNN(nn.Module):
     Neural network architecture for DeepMultiTask.
     """
 
-    def __init__(self, number_inputs, hidden_layers=None, activation="relu", dropout=0.0, batch_norm=False,
-                 number_outputs=4):
+    def __init__(self, number_inputs, number_events=None, hidden_layers=None, activation="relu", dropout=0.0, batch_norm=False):
         super(DeepMultiTaskFFNN, self).__init__()
 
         activation_fn = _get_activation(activation)
@@ -86,42 +84,13 @@ class DeepMultiTaskFFNN(nn.Module):
         self.layers = nn.ModuleList(layers)
 
         # Output layer (log hazard ratio per task)
-        self.cox_output = nn.Linear(output_size, number_outputs)
+        self.cox_output = nn.Linear(output_size, number_events)
 
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
 
-        return self.cox_output(x)
-
-
-class DeepMultiTaskMultiLossFFNN(nn.Module):
-
-    """
-    Neural network architecture for DeepMultiTaskMultiLoss.
-    """
-
-    def __init__(self, number_inputs, hidden_layers=None, activation="relu", dropout=0.0, batch_norm=False, number_cox_outputs=4, number_binary_outputs=4):
-        super(DeepMultiTaskMultiLossFFNN, self).__init__()
-
-        activation_fn = _get_activation(activation)
-        layers, output_size = _build_hidden_layers(number_inputs, hidden_layers, activation_fn, dropout, batch_norm)
-        self.layers = nn.ModuleList(layers)
-
-        # Output layer (log hazard ratio)
-        self.cox_output = nn.Linear(output_size, number_cox_outputs)
-        # Output layer (binary classification)
-        self.binary_output = nn.Linear(output_size, number_binary_outputs)
-
-    def forward(self, x):
-        for layer in self.layers:
-            x = layer(x)
-
-        cox_output = self.cox_output(x)
-        binary_output = self.binary_output(x)
-
-        return torch.cat((cox_output, binary_output), dim=1)
-
+        return x, self.cox_output(x)
 
 class DeepHitFFNN(nn.Module):
 
@@ -146,7 +115,7 @@ class DeepHitFFNN(nn.Module):
         # Residual connection: each specific sub-network sees the raw inputs concatenated with the shared sub-network's output.
         specific_input_size = number_inputs + self.shared_output_dimension
 
-        # Build one specific sub-network per progression
+        # Build one specific sub-network per competitive events
         self.specific_nets = nn.ModuleList()
         for _ in range(self.number_events):
             specific_layers, specific_output_size = _build_hidden_layers(specific_input_size, hidden_layers_specific, activation_fn, dropout, batch_norm)
@@ -168,7 +137,13 @@ class DeepHitFFNN(nn.Module):
 
         output = self.output_layer(specific_outputs)
 
+        # Phantom logit
+        zero_logit = torch.zeros(output.shape[0], 1, device=output.device, dtype=output.dtype)
+        output = torch.cat([output, zero_logit], dim=1)
+
         output = torch.softmax(output, dim=1)
+
+        output = output[:, :-1]
         output = output.reshape(-1, self.number_events, self.number_categories)
 
         return output

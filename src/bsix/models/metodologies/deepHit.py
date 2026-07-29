@@ -15,6 +15,8 @@ from ..nets.deepNets import DeepHitFFNN
 
 from numba import njit
 from sksurv.metrics import concordance_index_censored
+from torch.utils.data import TensorDataset, DataLoader
+from .utils import StepFunction
 
 warnings.filterwarnings("ignore")
 
@@ -144,9 +146,9 @@ class DeepHit(BaseSurvival):
     """
 
     def __init__(self, number_inputs, number_events, number_categories, time_threshold=None, valid_data=None, hidden_layers_shared=None, hidden_layers_specific=None,
-                 epochs=500, learn_rate=1e-4, lr_decay=0.0, alpha=1.0, beta=1.0, gamma=1.0, ranking_sigma=0.1, l2_reg_hidden=1e-4, l1_reg_output=1e-4, momentum=0.9,
+                 epochs=50, learn_rate=1e-4, lr_decay=0.0, alpha=1.0, beta=1.0, gamma=1.0, ranking_sigma=0.1, l2_reg_hidden=1e-4, l1_reg_output=1e-4, momentum=0.9,
                  activation="relu", dropout=0.0, standardize=True, device=None, validation_frequency=10, patience=2000, improvement_threshold=0.99999,
-                 patience_increase=2, logger=None, verbose=True, seed=None):
+                 patience_increase=2, logger=None, verbose=True, seed=None, batch_size=256):
 
         """
         Initialise model with specified parameters.
@@ -195,6 +197,7 @@ class DeepHit(BaseSurvival):
         self.logger = logger
         self.verbose = verbose
         self.seed = seed
+        self.batch_size = batch_size
     
         # Time discretisation (computed in fit())
         self.time_grid = None
@@ -282,53 +285,50 @@ class DeepHit(BaseSurvival):
         # Censored: log sum P(T>t|x), marginalised over every competing cause.
         pmf_marginal = pmf.sum(dim=1)
         censored = (mask2 * pmf_marginal).sum(dim=1, keepdim=True)
+
+        # Phantom logit
+        survival_past_tmax = 1.0 - pmf.sum(dim=(1, 2), keepdim=True)
+        survival_past_tmax = torch.clamp(survival_past_tmax, min=0.0)
+        
+        censored = censored + survival_past_tmax
         censored = (1.0 - e_ocurred) * torch.log(censored + 1e-15)
 
         return -torch.mean(uncensored + censored)
 
-    def _loss_ranking(self, pmf, mask2, t, e):
+    def _loss_ranking(self, pmf, t_bin, e):
+
         """
         Loss 2 -- Ranking loss.
         """
-        t_col = t.view(-1, 1)
-        risk_set = torch.relu(torch.sign(t_col - t_col.t()))
+        
+        t_bin = t_bin.view(-1).long()
+        e_col = e.view(-1, 1)
+        t_col = t_bin.view(-1, 1)
 
-        etas = []
-        for i in range(self.number_events):
-            competing_e_ocurred = (e == i + 1).float()
-            pmf_competing_event = pmf[:, i, :]
+        any_event_i = e_col > 0
+        earlier = t_col < t_col.t()
+        tie_j_censored = (t_col == t_col.t()) & (e_col.t() == 0)
+        
+        comparable_pairs = (any_event_i & (earlier | tie_j_censored)).float()
 
-            matrix_R = pmf_competing_event @ mask2.t()
-            diagonal_matrix_R = torch.diag(matrix_R)
-            matrix_R = diagonal_matrix_R.view(-1, 1) - matrix_R.t() # R_{ij} = r_i(T_i) - r_j(T_i)
+        # Cumulative distribution function (CDF)
+        cdf = torch.cumsum(pmf, dim=2)
 
-            matrix_T = competing_e_ocurred.view(-1, 1) * risk_set
+        cause_specific_losses = []
+        for k in range(self.number_events):
+            cdf_k = cdf[:, k, :]
+            # Cross risk: F_i(T_j)
+            cross_risk = cdf_k[:, t_bin]
+            # Own risk: F_i(T_i)
+            own_risk = cross_risk.diagonal()
+            # Risks difference: (F_i(T_i) - F_j(T_i))
+            risk_diff = own_risk.view(-1, 1) - cross_risk.t()
 
-            eta = (matrix_T * torch.exp(-matrix_R / self.ranking_sigma)).mean(dim=1, keepdim=True)
-            etas.append(eta)
+            cause_mask = (e == k + 1).float().view(-1, 1)
+            loss_k = (comparable_pairs * cause_mask * torch.exp(-risk_diff / self.ranking_sigma)).mean(dim=1, keepdim=True)
+            cause_specific_losses.append(loss_k)
 
-        eta = torch.stack(etas, dim=1).reshape(-1, self.number_events).mean(dim=1, keepdim=True)
-
-        return torch.sum(eta)
-
-    def _loss_calibration(self, pmf, mask2, e):
-
-        """
-        Loss 3 -- Calibration loss.
-        """
-
-        etas = []
-        for i in range(self.number_events):
-            competing_e_ocurred = (e == i + 1).float().view(-1, 1)
-            pmf_competing_event = pmf[:, i, :]
-
-            r = (pmf_competing_event * mask2).sum(dim=0)
-
-            eta = ((r.unsqueeze(0) - competing_e_ocurred) ** 2).mean(dim=1, keepdim=True)
-            etas.append(eta)
-
-        eta = torch.stack(etas, dim=1).reshape(-1, self.number_events).mean(dim=1, keepdim=True)
-
+        eta = torch.stack(cause_specific_losses, dim=1).reshape(-1, self.number_events).sum(dim=1, keepdim=True)
         return torch.sum(eta)
 
     def _compute_l2_loss_hidden(self):
@@ -360,12 +360,9 @@ class DeepHit(BaseSurvival):
         pmf = self.network(x)
 
         loss1 = self._loss_log_likelihood(pmf, mask1, mask2, e)
-        loss2 = self._loss_ranking(pmf, mask2, t, e)
+        loss2 = self._loss_ranking(pmf, t, e)
 
         total_loss = (self.alpha * loss1) + (self.beta * loss2)
-
-        if self.gamma > 0.0:
-            total_loss += self.gamma * self._loss_calibration(pmf, mask2, e)
 
         if self.l2_reg_hidden > 0.0:
             total_loss += self.l2_reg_hidden * self._compute_l2_loss_hidden()
@@ -435,8 +432,7 @@ class DeepHit(BaseSurvival):
         # Set random seeds
         self._set_seeds()
 
-        if self.logger is None:
-            logger = DeepMultiTaskLogger("DeepHit")
+        logger = self.logger if self.logger is not None else DeepMultiTaskLogger("DeepHit")
 
         # Build network
         self.network = DeepHitFFNN(
@@ -493,14 +489,16 @@ class DeepHit(BaseSurvival):
         # Convert to tensors
         x_train_tensor = torch.tensor(X_train, dtype=torch.float32, device=self.device)
         e_train_tensor = torch.tensor(e_train, dtype=torch.float32, device=self.device)
-        t_train_tensor = torch.tensor(t_train, dtype=torch.float32, device=self.device)
+        #t_train_tensor = torch.tensor(t_train, dtype=torch.float32, device=self.device)
+        tb_train_tensor = torch.tensor(tb_train, dtype=torch.float32, device=self.device)
         m1_train_tensor = torch.tensor(mask1_train, dtype=torch.float32, device=self.device)
         m2_train_tensor = torch.tensor(mask2_train, dtype=torch.float32, device=self.device)
 
         if self.valid_data:
             x_valid_tensor = torch.tensor(X_val, dtype=torch.float32, device=self.device)
             e_valid_tensor = torch.tensor(e_val, dtype=torch.float32, device=self.device)
-            t_valid_tensor = torch.tensor(t_val, dtype=torch.float32, device=self.device)
+            #t_valid_tensor = torch.tensor(t_val, dtype=torch.float32, device=self.device)
+            tb_valid_tensor = torch.tensor(tb_valid, dtype=torch.float32, device=self.device)
             m1_valid_tensor = torch.tensor(mask1_valid, dtype=torch.float32, device=self.device)
             m2_valid_tensor = torch.tensor(mask2_valid, dtype=torch.float32, device=self.device)
 
@@ -510,11 +508,14 @@ class DeepHit(BaseSurvival):
             if self.valid_data:
                 x_valid_tensor = self._standardize_x(x_valid_tensor)
 
-        # Initialize optimizer (Adam vs SGD)
+        # Dataloader for training
+        train_dataset = TensorDataset(x_train_tensor, e_train_tensor, tb_train_tensor, m1_train_tensor, m2_train_tensor)
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+
+        # Initialize optimizer
         self.optimizer = tt.optim.Adam(
             params=self.network.parameters(),
             lr=self.learn_rate,
-            # momentum=self.momentum,
         )
 
         # Training metrics
@@ -534,15 +535,19 @@ class DeepHit(BaseSurvival):
 
             logger.logValue("lr", lr, epoch)
 
-            # Training step
+            # Batches
             self.network.train()
-            self.optimizer.zero_grad()
+            epoch_loss = 0.0
+            
+            for b_x, b_e, b_t, b_m1, b_m2 in train_loader:
+                self.optimizer.zero_grad()
+                loss = self._get_loss(b_x, b_e, b_t, b_m1, b_m2)
+                loss.backward()
+                self.optimizer.step()
+                epoch_loss += loss.item()
 
-            loss = self._get_loss(x_train_tensor, e_train_tensor, t_train_tensor, m1_train_tensor, m2_train_tensor)
-            loss.backward()
-            self.optimizer.step()
-
-            logger.logValue("loss", loss.item(), epoch)
+            avg_epoch_loss = epoch_loss / len(train_loader)
+            logger.logValue("loss", avg_epoch_loss, epoch)
 
             # Validation
             if epoch % self.validation_frequency == 0:
@@ -555,7 +560,7 @@ class DeepHit(BaseSurvival):
                     self.network.eval()
                     with torch.no_grad():
                         validation_loss = self._get_loss(
-                            x_valid_tensor, e_valid_tensor, t_valid_tensor, 
+                            x_valid_tensor, e_valid_tensor, tb_valid_tensor, 
                             m1_valid_tensor, m2_valid_tensor
                         )
                         logger.logValue("valid_loss", validation_loss.item(), epoch)
@@ -577,9 +582,9 @@ class DeepHit(BaseSurvival):
 
                 if self.verbose:
                     if self.valid_data:
-                        logger.print_progress_bar(epoch, self.epochs, loss.item(), validation_loss.item(), ci_train, ci_valid)
+                        logger.print_progress_bar(epoch, self.epochs, avg_epoch_loss, validation_loss.item(), ci_train, ci_valid)
                     else:
-                        logger.print_progress_bar(epoch, self.epochs, loss=loss.item(), ci=ci_train)
+                        logger.print_progress_bar(epoch, self.epochs, loss=avg_epoch_loss, ci=ci_train)
 
             if patience <= epoch:
                 print("Early stopping at epoch %d" % epoch)
@@ -666,8 +671,8 @@ class DeepHit(BaseSurvival):
 
         cumulative_incidence = np.cumsum(pmf.sum(axis=1), axis=1)
 
-        self.survival_function = 1.0 - cumulative_incidence
-
+        survival_function = 1.0 - cumulative_incidence
+        self.survival_function = np.array([StepFunction(X=self.time_grid, y=individual_survival, is_survival=True) for individual_survival in survival_function])
         if plot:
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "DeepHit", dataset, "Survival", seed)
             plt.show()

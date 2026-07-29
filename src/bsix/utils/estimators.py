@@ -2,27 +2,69 @@ import numpy as np
 
 from .survival_metrics import scorerConcordanceIndex
 
+from scipy import stats
 from sklearn.metrics import make_scorer
 
 CLASSIFIERS = [
     "BaseCoxRegression",
     "BaseCoxRegressionWithTimeVarying",
     "BaseDeepHit",
-    "BaseRandomSurvivalForest",
     "BaseSurvivalTree",
+    "BaseRandomSurvivalForest",
 
     "AcceleratedFailureTime",
+
     "CoxRegression",
-    "CoxRegressionWithTimeVarying",
-    "DeepHitFFNN",
-    "DeepMultiTaskFFNN",
-    "DeepMultiTaskMultiLossFFNN",
-    "DeepSurvFFNN",
-    "DeepTimeVaryingFFNN",
+    "DeepHit",
+    "DeepSurv",
     "RandomSurvForest",
     "SurvTree",
+    "SurvivalTabPFN",
+
+    "CoxRegressionWithTimeVarying",
+    "DeepTimeVarying",
+    
+    "DeepMultiTask",
 ]
 
+NETS = [
+    "BaseDeepHit",
+    "DeepHit",
+    "DeepMultiTask",
+    "DeepSurv",
+    "DeepTimeVarying",
+]
+
+class SerializableUniform:
+    def __init__(self, loc=0, scale=1):
+        self.loc = loc
+        self.scale = scale
+        self._dist = stats.uniform(loc=loc, scale=scale)
+
+    def rvs(self, random_state=None, size=None):
+        return self._dist.rvs(random_state=random_state, size=size)
+
+    def __str__(self):
+        return f"uniform(loc={self.loc}, scale={self.scale})"
+    
+    def __repr__(self):
+        return self.__str__()
+
+class SerializableLogUniform:
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
+        self._dist = stats.loguniform(a=a, b=b)
+
+    def rvs(self, random_state=None, size=None):
+        return self._dist.rvs(random_state=random_state, size=size)
+
+    def __str__(self):
+        return f"loguniform(a={self.a}, b={self.b})"
+    
+    def __repr__(self):
+        return self.__str__()
+    
 def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n_iter=30):
 
     """
@@ -30,7 +72,8 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
     """
 
     if estimator_name in CLASSIFIERS:
-        from sklearn.model_selection import RandomizedSearchCV
+        from sklearn.experimental import enable_halving_search_cv
+        from sklearn.model_selection import RandomizedSearchCV, HalvingRandomSearchCV
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
@@ -60,23 +103,54 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
 
             estimator = CoxRegression()
 
-        elif estimator_name == "DeepSurvFFNN":
+        elif estimator_name == "DeepHit":
+            from ..models import DeepHit
+            
+            rng = np.random.default_rng(seed=seed)
+            param_grid = [
+                {   
+                    #"epochs": [250, 500],
+                    "hidden_layers_shared": [[8], [16], [32], [16, 16], [32, 32]],
+                    "hidden_layers_specific": [[8], [16], [32], [16, 16], [32, 32]],
+                    "learn_rate": SerializableLogUniform(1e-5, 1e-1),
+                    "lr_decay": SerializableLogUniform(1e-6, 1e-3),
+                    "l1_reg_output": SerializableLogUniform(1e-5, 1e-1),
+                    "l2_reg_hidden": SerializableLogUniform(1e-5, 1e-1),
+                    "dropout": SerializableUniform(loc=0.0, scale=1.0),
+                    "activation": ["relu", "selu", "tanh", "sigmoid"],
+                    "alpha": SerializableUniform(loc=0.0, scale=1.0),
+                    "beta": SerializableUniform(loc=0.0, scale=1.0),
+                }
+            ]
+
+            estimator = DeepHit(inputs.shape[1], len(np.unique(labels["event"])) - 1, 100, time_threshold=(100 - 20), seed=seed)
+
+        elif estimator_name == "DeepSurv":
             from ..models import DeepSurv
                
             param_grid = [
                 {
-                    "epochs":[250, 500],
-                    "hidden_layers": [[4], [8], [16], [32]],
-                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
-                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
-                    "l1_reg": np.round(np.logspace(-5, -3, 3), 8),
-                    "l2_reg": np.round(np.logspace(-4, -2, 3), 8),
-                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
+                    #"epochs": [250, 500],
+                    "hidden_layers": [[8], [16], [32], [16, 16], [32, 32]],
+                    "learn_rate": SerializableLogUniform(1e-5, 1e-1),
+                    "lr_decay": SerializableLogUniform(1e-6, 1e-3),
+                    "l1_reg": SerializableLogUniform(1e-5, 1e-1),
+                    "l2_reg": SerializableLogUniform(1e-5, 1e-1),
+                    "dropout": SerializableUniform(loc=0.0, scale=1.0),
                     "activation": ["relu", "selu", "tanh", "sigmoid"],
                 }
             ]
 
             estimator = DeepSurv(inputs.shape[1], seed=seed)
+
+        elif estimator_name == "SurvivalTabPFN":
+            from ..models import SurvivalTabPFN
+               
+            param_grid = {
+                "n_estimators":[2, 4, 8, 16],
+            }
+
+            estimator = SurvivalTabPFN(seed=seed)
 
         elif estimator_name == "RandomSurvForest":
             from ..models import RandomSurvForest
@@ -120,18 +194,18 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
 
             estimator = CoxRegressionWithTimeVarying()
 
-        elif estimator_name == "DeepTimeVaryingFFNN":
+        elif estimator_name == "DeepTimeVarying":
             from ..models import DeepTimeVarying
                
             param_grid = [
                 {
-                    "epochs":[250, 500],
-                    "hidden_layers": [[4], [8], [16], [32]],
-                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
-                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
-                    "l1_reg": np.round(np.logspace(-5, -3, 3), 8),
-                    "l2_reg": np.round(np.logspace(-4, -2, 3), 8),
-                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
+                    #"epochs": [250, 500],
+                    "hidden_layers": [[8], [16], [32], [16, 16], [32, 32]],
+                    "learn_rate": SerializableLogUniform(1e-5, 1e-1),
+                    "lr_decay": SerializableLogUniform(1e-6, 1e-3),
+                    "l1_reg": SerializableLogUniform(1e-5, 1e-1),
+                    "l2_reg": SerializableLogUniform(1e-5, 1e-1),
+                    "dropout": SerializableUniform(loc=0.0, scale=1.0),
                     "activation": ["relu", "selu", "tanh", "sigmoid"],
                 }
             ]
@@ -140,73 +214,26 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
-        elif estimator_name == "DeepHitFFNN":
-            from ..models import DeepHit
-            
-            rng = np.random.default_rng(seed=seed)
-            param_grid = [
-                {   
-                    "epochs": [50, 100],
-                    "hidden_layers_shared": [[4], [8], [16], [32]],
-                    "hidden_layers_specific": [[4], [8], [16], [32]],
-                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
-                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
-                    "l1_reg_output": np.round(np.logspace(-5, -3, 3), 8),
-                    "l2_reg_hidden": np.round(np.logspace(-4, -2, 3), 8),
-                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
-                    "activation": ["relu", "selu", "tanh", "sigmoid"],
-                    "alpha": np.round(np.linspace(0.1, 0.9, 5), 8),
-                    "beta": np.round(np.linspace(0.1, 0.9, 5), 8),
-                }
-            ]
-
-            estimator = DeepHit(inputs.shape[1], len(np.unique(labels["event"])) - 1, 100, time_threshold=(100 - 50), seed=seed)
-
-        elif estimator_name == "DeepMultiTaskFFNN":
+        elif estimator_name == "DeepMultiTask":
             from ..models import DeepMultiTask
             
             rng = np.random.default_rng(seed=seed)
             param_grid = [
                 {
-                    "epochs":[250, 500],
-                    "hidden_layers": [[4], [8], [16], [32]],
-                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
-                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
-                    "l1_reg": np.round(np.logspace(-5, -3, 3), 8),
-                    "l2_reg": np.round(np.logspace(-4, -2, 3), 8),
-                    "cox_reg": np.round(np.logspace(-3, 3, 7), 8),
-                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
-                    "activation": ["relu", "selu", "tanh"],
-                    "coef_likelihood": np.round(rng.dirichlet(alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]), size=7), 8).tolist(),
+                    #"epochs": [250, 500],
+                    "hidden_layers": [[8], [16], [32], [16, 16], [32, 32]],
+                    "learn_rate": SerializableLogUniform(1e-5, 1e-1),
+                    "lr_decay": SerializableLogUniform(1e-6, 1e-3),
+                    "cox_reg": SerializableLogUniform(1e-1, 1e1),
+                    "l1_reg": SerializableLogUniform(1e-5, 1e-1),
+                    "l2_reg": SerializableLogUniform(1e-5, 1e-1),
+                    "dropout": SerializableUniform(loc=0.0, scale=1.0),
+                    "activation": ["relu", "selu", "tanh", "sigmoid"],
+                    "coef_likelihood": np.round(rng.dirichlet(alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]), size=30), 8).tolist(),
                 }
             ]
 
             estimator = DeepMultiTask(inputs.shape[1], seed=seed)
-
-        elif estimator_name == "DeepMultiTaskMultiLossFFNN":
-            from ..models import DeepMultiTaskMultiLoss
-            
-            rng = np.random.default_rng(seed=seed)
-            param_grid = [
-                {
-                    "epochs":[250, 500],
-                    "hidden_layers": [[4], [8], [16], [32]],
-                    "learn_rate": np.round(np.logspace(-5, -3, 3), 8),
-                    "lr_decay": np.round(np.logspace(-8, -6, 3), 8),
-                    "l1_reg": np.round(np.logspace(-5, -3, 3), 8),
-                    "l2_reg": np.round(np.logspace(-4, -2, 3), 8),
-                    "cox_reg": np.round(np.logspace(-3, 3, 7), 8),
-                    "bin_reg": np.round(np.logspace(-3, 3, 7), 8),
-                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
-                    "activation": ["relu", "selu", "tanh"],
-                    "coef_likelihood": np.round(rng.dirichlet(alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]), size=7), 8).tolist(),
-                    "coef_binary": np.round(rng.dirichlet(alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]), size=7), 8).tolist(),
-                }
-            ]
-
-            estimator = DeepMultiTaskMultiLoss(inputs.shape[1], seed=seed)
-
-    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
         elif estimator_name == "BaseCoxRegression":
             from ..models import BaseCoxRegression
@@ -239,17 +266,17 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             rng = np.random.default_rng(seed=seed)
             param_grid = [
                 {   
-                    "epochs": [50, 100],
-                    "num_nodes": [[4], [8], [16], [32]],
-                    "learning_rate": np.round(np.logspace(-5, -3, 3), 8),
-                    "alpha": np.round(np.linspace(0.1, 0.9, 5), 8),
-                    "sigma": np.round(np.linspace(0.1, 0.9, 5), 8),
-                    "dropout": np.round(np.linspace(0.25, 0.75, 3), 8),
+                    #"epochs": [50, 100],
+                    "num_nodes": [[8], [16], [32], [16, 16], [32, 32]],
+                    "learning_rate": SerializableLogUniform(1e-5, 1e-1),
+                    "alpha": SerializableUniform(loc=0.0, scale=1.0),
+                    "sigma": SerializableUniform(loc=0.0, scale=1.0),
+                    "dropout": SerializableUniform(loc=0.0, scale=1.0),
                     "activation": ["relu", "selu", "tanh", "sigmoid"],
                 }
             ]
 
-            estimator = BaseDeepHit(100, time_threshold=(100 - 50), seed=seed)
+            estimator = BaseDeepHit(100, time_threshold=(100 - 20), seed=seed)
 
         elif estimator_name == "BaseRandomSurvivalForest":
             from ..models import BaseRandomSurvivalForest
@@ -286,17 +313,38 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             )
         
         if len(param_grid) > 0:
-            return RandomizedSearchCV(
-                estimator=estimator,
-                param_distributions=param_grid,
-                n_iter=n_iter,
-                n_jobs=n_jobs,
-                cv=valid_data,
-                scoring=make_scorer(scorerConcordanceIndex, greater_is_better=True),
-                error_score="raise",
-                random_state=seed,
-                verbose=10
-            )
+            if estimator_name in NETS:
+                return HalvingRandomSearchCV(
+                    estimator=estimator,
+                    param_distributions=param_grid,
+                    refit=True,
+                    return_train_score=True,
+                    n_candidates=n_iter,
+                    factor=2,
+                    resource='epochs',
+                    min_resources='exhaust',
+                    max_resources=1000,
+                    n_jobs=n_jobs,
+                    cv=valid_data,
+                    scoring=make_scorer(scorerConcordanceIndex, greater_is_better=True),
+                    error_score="raise",
+                    random_state=seed,
+                    verbose=10
+                )
+            else:
+                return RandomizedSearchCV(
+                    estimator=estimator,
+                    param_distributions=param_grid,
+                    refit=True,
+                    return_train_score=True,
+                    n_iter=n_iter,
+                    n_jobs=n_jobs,
+                    cv=valid_data,
+                    scoring=make_scorer(scorerConcordanceIndex, greater_is_better=True),
+                    error_score="raise",
+                    random_state=seed,
+                    verbose=10
+                )
         else:
             return estimator
 

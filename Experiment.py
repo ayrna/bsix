@@ -12,20 +12,23 @@ from remayn.result_set import ResultFolder
 ESTIMATOR_TO_BLOCK = {
     "BaseCoxRegression": "standard",
     "BaseCoxRegressionWithTimeVarying": "time_varying",
-    "BaseDeepHit" : "standard",
-    "BaseRandomSurvivalForest": "standard",
+    "BaseDeepHit": "standard",
     "BaseSurvivalTree": "standard",
-    
+    "BaseRandomSurvivalForest": "standard",
+
     "AcceleratedFailureTime": "standard",
+
     "CoxRegression": "standard",
-    "CoxRegressionWithTimeVarying": "time_varying",
-    "DeepHitFFNN": "standard",
-    "DeepMultiTaskFFNN": "multitask",
-    "DeepMultiTaskMultiLossFFNN": "multitask",
-    "DeepSurvFFNN": "standard",
-    "DeepTimeVaryingFFNN": "time_varying",
+    "DeepHit": "standard",
+    "DeepSurv": "standard",
     "RandomSurvForest": "standard",
     "SurvTree": "standard",
+    "SurvivalTabPFN": "standard",
+
+    "CoxRegressionWithTimeVarying": "time_varying",
+    "DeepTimeVarying": "time_varying",
+    
+    "DeepMultiTask": "multitask",
 }
 
 def _set_global_seed(seed):
@@ -128,6 +131,7 @@ def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_s
             dataset_name=dataset_name,
             test_size=test_size,
             validation_size=validation_size,
+            preprocess=False,
             seed=seed,
         )
 
@@ -137,6 +141,7 @@ def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_s
             dataset_name=dataset_name,
             test_size=test_size,
             validation_size=validation_size,
+            preprocess=True,
             to_multitask=True,
             seed=seed,
         )
@@ -147,6 +152,7 @@ def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_s
             df=df_time_varying,
             test_size=test_size,
             validation_size=validation_size,
+            preprocess=True,
             seed=seed,
         )
 
@@ -235,18 +241,22 @@ def load_and_run_experiment(
     estimator.best_estimator_.val_idx_ = val_idx
     estimator.best_estimator_.test_idx_ = test_idx
 
-    # estimator.best_estimator_.predict_survival_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
-    # estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
-    # estimator.best_estimator_.calculate_xai(X_train_val, np.concatenate([train_idx, val_idx]), scaler, dataset, seed, feature_names, background=25)
-    
+    # survival_function_train_val = estimator.best_estimator_.predict_survival_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
+    # cumulative_hazard_function_train_val = estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
+    # xai_train_val = estimator.best_estimator_.calculate_xai(X_train_val, np.concatenate([train_idx, val_idx]), scaler, dataset, seed, feature_names, background=25)
+
+    # survival_function_test = estimator.best_estimator_.predict_survival_function(X_test, test_idx, dataset, seed)
+    # cumulative_hazard_function_test = estimator.best_estimator_.predict_cumulative_hazard_function(X_test, test_idx, dataset, seed)
+    # xai_test = estimator.best_estimator_.calculate_xai(X_test, test_idx, scaler, dataset, seed, feature_names, background=25)
+
     y_train_val = np.squeeze(y_train_val)
     y_test = np.squeeze(y_test)
 
     train_pred = estimator.predict(X_train_val)
     test_pred = estimator.predict(X_test)
 
-    train_metrics = compute_metrics(y_train_val, y_train_val, format_predictions(train_pred))
-    test_metrics = compute_metrics(y_train_val, y_test, format_predictions(test_pred))
+    train_metrics = compute_metrics(y_train_val, y_train_val, format_predictions(train_pred))#, survival_function_train_val)
+    test_metrics = compute_metrics(y_train_val, y_test, format_predictions(test_pred))#, survival_function_test)
 
     config = _get_config(estimator, estimator_name, dataset, seed)
     best_params = estimator.best_params_ if hasattr(estimator, "best_params_") else {}

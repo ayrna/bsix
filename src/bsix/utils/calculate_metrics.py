@@ -1,7 +1,7 @@
 import numpy as np
 
 from .classification_metrics import mae, amae, ms, ccr, recall
-from .survival_metrics import concordanceIndexHarrel, concordanceIndexIPCW, cumulativeDinamicAUC
+from .survival_metrics import brierScore, concordanceIndexHarrel, concordanceIndexIPCW, cumulativeDinamicAUC
 
 def format_predictions(preds):
 
@@ -22,16 +22,17 @@ def from_results_to_metrics(targets, predictions):
 
     return compute_metrics(targets[0], targets[1], predictions)
 
-def compute_survival_metrics(train_targets, evaluation_targets, predictions):
+def compute_survival_metrics(train_targets, evaluation_targets, predictions, survival_function=None):
 
     """
     Compute survival metrics for given targets and predictions.
+    If survival_function is provided, additional metrics are computed.
     """
     
     metrics = {}
 
     number_progressions = predictions.shape[1] if predictions.ndim > 1 else 1
-    progressions = ["P1", "P2", "P3", "P4", "P5"] #["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
+    progressions = [f"P{k} " for k in range(number_progressions)] #["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
     has_progressions = number_progressions > 1
 
     for p in range(number_progressions):
@@ -46,6 +47,13 @@ def compute_survival_metrics(train_targets, evaluation_targets, predictions):
             f"{prefix}Cumulative Dinamic AUC": cumulativeDinamicAUC(targets_survival, predictions_survival),
         })
 
+        if survival_function is not None:
+            survival_function_p = survival_function[p] if has_progressions else survival_function
+
+            metrics.update({
+                f"{prefix}Brier Score": brierScore(targets_survival, survival_function_p),
+            })
+
     return metrics
 
 def compute_binary_metrics(evaluation_targets, predictions):
@@ -57,7 +65,7 @@ def compute_binary_metrics(evaluation_targets, predictions):
     metrics = {}
 
     number_progressions = predictions.shape[1] if predictions.ndim > 1 else 1
-    progressions = ["P1", "P2", "P3", "P4", "P5"] # ["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
+    progressions = [f"P{k} " for k in range(number_progressions)] # ["EXTENT_PROGRESS", "NEW_EIMSFUP", "COLECTOMY_FUP", "DYSPL_NEO"]
     has_progressions = number_progressions > 1
 
     for p in range(number_progressions):
@@ -79,10 +87,11 @@ def compute_binary_metrics(evaluation_targets, predictions):
 
     return metrics
 
-def compute_metrics(train_targets, evaluation_targets, predictions):
+def compute_metrics(train_targets, evaluation_targets, predictions, survival_function=None):
 
     """
     Compute metrics for given targets and predictions (experiments).
+    If survival_function is provided, additional metrics are computed.
     """
     
     try:
@@ -100,10 +109,10 @@ def compute_metrics(train_targets, evaluation_targets, predictions):
     has_binary = "binary" in list(predictions.keys())
 
     if has_binary:
-        metrics.update(compute_survival_metrics(train_targets, evaluation_targets, predictions["survival"]))
+        metrics.update(compute_survival_metrics(train_targets, evaluation_targets, predictions["survival"], survival_function))
         metrics.update(compute_binary_metrics(evaluation_targets, predictions["binary"]))
     else:
-        metrics.update(compute_survival_metrics(train_targets, evaluation_targets, predictions["survival"]))    
+        metrics.update(compute_survival_metrics(train_targets, evaluation_targets, predictions["survival"], survival_function))
 
     return metrics
 
@@ -123,7 +132,7 @@ def compute_metric_confidence_interval(y, prediction, metric_name, n_iterations=
         y = rfn.rename_fields(y, {'time_stop': 'time'})
         
     event = np.array([evento for evento, _ in y], np.bool_)
-    time = np.array([tiempo for _, tiempo in y], np.float64)
+    time = np.array([tiempo for _, tiempo in y], np.float32)
     n_samples = len(time)
     
     bootstrapped_c_indices = []

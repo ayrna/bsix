@@ -22,16 +22,16 @@ def _calculate_log_rank_njit(times_left, events_left, unique_times, n_j, d_j):
     
     # At-risk count in the left group (nleft_j) at each unique event time
     idx_left = np.searchsorted(times_left, unique_times, side="left")
-    nleft_j = (len(times_left) - idx_left).astype(np.float64)
+    nleft_j = (len(times_left) - idx_left).astype(np.float32)
 
     # Event count in the left group (dleft_j) at each unique event time
     mask = events_left != 0 
     tleft_events = times_left[mask]
     
     if len(tleft_events) > 0:
-        dleft_j = np.bincount(np.searchsorted(unique_times, tleft_events), minlength=len(unique_times)).astype(np.float64)
+        dleft_j = np.bincount(np.searchsorted(unique_times, tleft_events), minlength=len(unique_times)).astype(np.float32)
     else:
-        dleft_j = np.zeros(len(unique_times), dtype=np.float64)
+        dleft_j = np.zeros(len(unique_times), dtype=np.float32)
 
     safe_n_j = np.where(n_j > 0, n_j, 1.0)
     # Calculate U statistic (Observed - Expected events)
@@ -115,7 +115,7 @@ class LeafEstimator:
         risk_set = len(times) - np.searchsorted(t_sorted, self.times, side="left")
  
         # Count the exact number of events (d_i) at each global time point
-        d_events = np.zeros(len(self.times), dtype=np.float64)
+        d_events = np.zeros(len(self.times), dtype=np.float32)
         event_times = t_sorted[e_sorted]
 
         if len(event_times) > 0:
@@ -188,8 +188,8 @@ class SurvTree(BaseSurvival):
             return None, None
  
         # Pre-compute parent at-risk counts (n_j) and events (d_j).
-        n_j = (len(times) - np.searchsorted(times, unique_times, side="left")).astype(np.float64)
-        d_j = d_j_int.astype(np.float64)
+        n_j = (len(times) - np.searchsorted(times, unique_times, side="left")).astype(np.float32)
+        d_j = d_j_int.astype(np.float32)
 
         # Shuffle features to ensure random, reproducible tie-breaking
         features = np.arange(n_features)
@@ -295,7 +295,7 @@ class SurvTree(BaseSurvival):
     
         leaves = self._get_leaves(X)
         
-        risks = np.empty(len(leaves), dtype=np.float64)
+        risks = np.empty(len(leaves), dtype=np.float32)
         for i, node in enumerate(leaves):
             risks[i] = node.risk_value
             
