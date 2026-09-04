@@ -39,6 +39,10 @@ html_theme_options = {
     'collapse_navigation': True, 
 }
 
+html_css_files = [
+    'custom.css',
+]
+
 # Intersphinx mapping to link to external documentation
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),

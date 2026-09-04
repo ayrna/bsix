@@ -65,7 +65,7 @@ class SerializableLogUniform:
     def __repr__(self):
         return self.__str__()
     
-def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n_iter=30):
+def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False, n_jobs=-1, n_iter=30):
 
     """
     Get estimator (search cv) based on name.
@@ -147,7 +147,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             from ..models import SurvivalTabPFN
                
             param_grid = {
-                "n_estimators":[2, 4, 8, 16],
+                "n_estimators":[2, 4, 8],
             }
 
             estimator = SurvivalTabPFN(seed=seed)
@@ -311,42 +311,45 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, n_jobs=-1, n
             raise NotImplementedError(
                 f"Estimator {estimator_name} not implemented in set_estimators function."
             )
-        
-        if len(param_grid) > 0:
-            if estimator_name in NETS:
-                return HalvingRandomSearchCV(
-                    estimator=estimator,
-                    param_distributions=param_grid,
-                    refit=True,
-                    return_train_score=True,
-                    n_candidates=n_iter,
-                    factor=2,
-                    resource='epochs',
-                    min_resources='exhaust',
-                    max_resources=1000,
-                    n_jobs=n_jobs,
-                    cv=valid_data,
-                    scoring=make_scorer(scorerConcordanceIndex, greater_is_better=True),
-                    error_score="raise",
-                    random_state=seed,
-                    verbose=10
-                )
-            else:
-                return RandomizedSearchCV(
-                    estimator=estimator,
-                    param_distributions=param_grid,
-                    refit=True,
-                    return_train_score=True,
-                    n_iter=n_iter,
-                    n_jobs=n_jobs,
-                    cv=valid_data,
-                    scoring=make_scorer(scorerConcordanceIndex, greater_is_better=True),
-                    error_score="raise",
-                    random_state=seed,
-                    verbose=10
-                )
+
+        if config:
+            return estimator, param_grid
         else:
-            return estimator
+            if len(param_grid) > 0:
+                if estimator_name in NETS:
+                    return HalvingRandomSearchCV(
+                        estimator=estimator,
+                        param_distributions=param_grid,
+                        refit=True,
+                        return_train_score=True,
+                        n_candidates=n_iter,
+                        factor=2,
+                        resource='epochs',
+                        min_resources='exhaust',
+                        max_resources=1000,
+                        n_jobs=n_jobs,
+                        cv=valid_data,
+                        scoring=make_scorer(scorerConcordanceIndex, greater_is_better=True),
+                        error_score="raise",
+                        random_state=seed,
+                        verbose=10
+                    )
+                else:
+                    return RandomizedSearchCV(
+                        estimator=estimator,
+                        param_distributions=param_grid,
+                        refit=True,
+                        return_train_score=True,
+                        n_iter=n_iter,
+                        n_jobs=n_jobs,
+                        cv=valid_data,
+                        scoring=make_scorer(scorerConcordanceIndex, greater_is_better=True),
+                        error_score="raise",
+                        random_state=seed,
+                        verbose=10
+                    )
+            else:
+                return estimator
 
     else:
         raise ValueError(f"Estimator {estimator_name} not recognised.")

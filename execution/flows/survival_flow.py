@@ -54,7 +54,11 @@ def _set_global_seed(seed):
     torch.backends.cudnn.benchmark = False
 
 def _get_config(estimator, estimator_name, dataset, seed):
-    config = estimator.get_params().copy()
+    if estimator is not None:
+        config = estimator.get_params().copy()
+    else:
+        config = {}
+        
     config["estimator_name"] = estimator_name
     config["random_state"] = seed
     config["dataset"] = dataset
@@ -178,21 +182,33 @@ def _get_validation(X_train, y_train, X_validation, y_validation):
     validation_split = PredefinedSplit(validation_fold)
 
     return X_train_val, y_train_val, validation_split
-    
-def load_and_run_experiment(
+
+def run_survival_flow(
+    *,
     data_dir,
-    results_dir,
+    results_dir="./results",
     dataset,
-    test_size=0.2,
-    validation_size=0.2,
-    estimator_name="CoxRegression",
+    test_size=None,
+    validation_size=None,
     seed=0,
+    estimator_name="CoxRegression",
+    n_iter=30,
     n_jobs=-1,
-    interactive=False, n_iter=30
+    interactive=False,
+    dry_run=False,
 ):
+    if dry_run:
+        print("Dry run - experiment configuration:")
+        print(
+            json.dumps(
+                _get_config(None, estimator_name, dataset, seed),
+                indent=4,
+            )
+        )
+        return
 
     _set_global_seed(seed)
-
+    
     block_name = ESTIMATOR_TO_BLOCK[estimator_name]
     print(f"\n=== Running block: {block_name} ({dataset}, seed={seed}) ===")
 
@@ -265,9 +281,9 @@ def load_and_run_experiment(
         result = make_result(
             base_path=results_dir,
             config=config,
-            predictions=np.array(format_predictions(test_pred), dtype=object),
+            predictions=np.array([format_predictions(test_pred)], dtype=object), # np.array([dict]) -> array 1-D
             targets=np.array([y_train_val, y_test], dtype=object),
-            train_predictions=np.array(format_predictions(train_pred), dtype=object),
+            train_predictions=np.array([format_predictions(train_pred)], dtype=object), # np.array([dict]) -> array 1-D
             train_targets=np.array([y_train_val, y_train_val]),
             time=total_time,
             best_params=best_params,
@@ -285,16 +301,16 @@ def load_and_run_experiment(
             print(json.dumps(estimator.best_params_, indent=4))
 
 def _build_arg_parser():
-    parser = argparse.ArgumentParser(description="Runner unico BSIX")
-    parser.add_argument("--data_dir", default="BSIX/datasets", help="Ruta de datasets")
+    parser = argparse.ArgumentParser(description="Run BSIX")
+    parser.add_argument("--data_dir", default="bsix.datasets", help="Directorio de datasets")
     parser.add_argument("--results_dir", default="./results", help="Directorio de salida")
-    parser.add_argument("--test_size", type=float, default=0.2, help="Tamano de test")
-    parser.add_argument("--validation_size", type=float, default=0.2, help="Tamano de validacion")
-    parser.add_argument("--dataset", default="colon.csv", help="Dataset para corrida unica")
-    parser.add_argument("--estimator_name", default="CoxRegression", help="Estimador para corrida unica")
-    parser.add_argument("--seed", type=int, default=0, help="Semilla para corrida unica")
-    parser.add_argument("--n_jobs", type=int, default=-1, help="Procesos paralelos")
-    parser.add_argument("--n_iter", type=int, default=30, help="Iteraciones RandomizedSearchCV")
+    parser.add_argument("--dataset", default="colon.csv", help="Nombre de dataset")
+    parser.add_argument("--test_size", type=float, default=0.25, help="Tamaño de test")
+    parser.add_argument("--validation_size", type=float, default=0.2, help="Tamaño de validación")
+    parser.add_argument("--seed", type=int, default=0, help="Número de semilla")
+    parser.add_argument("--estimator_name", default="CoxRegression", help="Nombre del estimador")
+    parser.add_argument("--n_iter", type=int, default=30, help="Iteraciones búsqueda de hiperparámetros")
+    parser.add_argument("--n_jobs", type=int, default=-1, help="Número de trabajos en paralelo")
 
     return parser
 
@@ -306,7 +322,7 @@ def main():
     print("Running experiment with config:")
     print(json.dumps(vars(args), indent=4))
 
-    load_and_run_experiment(
+    run_survival_flow(
         data_dir=args.data_dir,
         results_dir=args.results_dir,
         dataset=args.dataset,
@@ -314,9 +330,9 @@ def main():
         validation_size=args.validation_size,
         seed=args.seed,
         estimator_name=args.estimator_name,
+        n_iter=args.n_iter,
         n_jobs=args.n_jobs,
         interactive=True,
-        n_iter=args.n_iter,
     )
 
 

@@ -1,19 +1,13 @@
 # Ignorar un archivo específico
-export_results.py
-run_condor.py
-run_experiment.py
 depurar.py
 
-tabpfn-v2-classifier.ckpt
-tabpfn-v2-regressor.ckpt
 # Ignorar una carpeta entera
-condor_output/
+logs/
 dist/
+
 results/
 RESULTS/
-tasksConfig/
-
-_not_used/
+prepared_results/
 
 docs/build/
 
@@ -22,5 +16,11 @@ src/bsix/datasets/beatriz/
 src/bsix/datasets/pre.datasets/
 
 
-
+___/
+_not_used/
 __pycache__/
+
+# TODAVÍA NO
+survivalTabPFN.py
+tabpfn-v2-classifier.ckpt
+tabpfn-v2-regressor.ckpt

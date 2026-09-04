@@ -10,7 +10,10 @@
 BSIX
 ==================
 
-**BSIX** is ...
+.. rst-class:: justificado
+
+**BSIX** is a python package for survival analysis, providing a comprehensive suite of tools and methodologies for analyzing time-to-event data. 
+It includes various models, utilities, and functionalities to facilitate the implementation of survival analysis techniques.
 
 
 Installation

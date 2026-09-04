@@ -6,7 +6,7 @@ from .survival_metrics import brierScore, concordanceIndexHarrel, concordanceInd
 def format_predictions(preds):
 
     """
-    Format predictions to be a list of arrays, one per progression. If the model only has one progression, wrap it in a list.
+    Format predictions to survival or binary mode.
     """
     
     claves = ["survival", "binary"]
@@ -102,7 +102,7 @@ def compute_metrics(train_targets, evaluation_targets, predictions, survival_fun
         pass
 
     if not isinstance(predictions, dict):
-        predictions  = format_predictions(predictions)
+        predictions = format_predictions(predictions)
     
     metrics = {}
 
