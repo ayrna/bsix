@@ -1,3 +1,10 @@
+"""Multi-task deep survival model.
+
+This estimator combines several survival heads or likelihood terms to learn a
+shared latent representation while preserving compatibility with the package's
+survival prediction API.
+"""
+
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,81 +28,158 @@ warnings.filterwarnings("ignore")
 class DeepMultiTask(BaseSurvival):
 
     """
-    Deep Survival Multi-Task model.
+    Multi-task deep survival model for competing-risk learning.
+
+    This implementation builds a shared latent representation from the input
+    covariates and then fits multiple Cox-style survival heads in parallel. Each
+    head models a different progression or competing-risk channel, while the
+    overall network is optimized with a composite loss combining the Cox partial
+    likelihood terms and regularization penalties. The fitted risk scores are then
+    transformed into survival and cumulative hazard curves through the Breslow
+    baseline estimator associated with each event type.
 
     Parameters
     ----------
     number_inputs : int
         Number of input features.
-    valid_data : dict, default = ``None``
-        Validation data in the form of a dictionary with keys "x", "e", and "t" for features, events, and times, respectively.
-    hidden_layers : list of int, default = ``None``
-        List specifying the number of units in each hidden layer.
-    epochs : int, default = 500
+    valid_data : dict, optional
+        Validation dataset containing the keys ``x``, ``e`` and ``t``.
+    hidden_layers : list of int, optional
+        Hidden-layer widths used by the network.
+    epochs : int, default=500
         Number of training epochs.
-    learn_rate : float, default = 0.0
+    learn_rate : float, default=0.0
         Learning rate for the optimizer.
-    lr_decay : float, default = 0.0
-        Learning rate decay factor.
-    l1_reg : float, default = 0.0
+    lr_decay : float, default=0.0
+        Learning-rate decay factor.
+    l1_reg : float, default=0.0
         L1 regularization strength.
-    l2_reg : float, default = 0.0
+    l2_reg : float, default=0.0
         L2 regularization strength.
-    cox_reg : float, default = 0.0
-        Coefficient for the Cox loss in the total loss function.
-    momentum : float, default = 0.9
+    cox_reg : float, default=0.0
+        Weight applied to the Cox-oriented loss in the total objective.
+    momentum : float, default=0.9
         Momentum for the optimizer.
-    activation : str, default = ``"relu"``
-        Activation function to use in the hidden layers. ``relu``, ``selu``, ``tanh`` or ``sigmoid``.
-    dropout : float, default = 0.0
-        Dropout rate for regularization.
-    standardize : bool, default = ``True``
-        Whether to standardize input features.
-    ties : str, default = ``"cox"``
-        Method for handling tied event times. ``"cox"`` or ``"breslow"``.
-    device : torch.device, default = ``None``
-        Device to run the model on (e.g., "cpu" or "cuda").
-    validation_frequency : int, default = 10
-        Frequency (in epochs) to perform validation.
-    patience : int, default = 2000
-        Number of epochs to wait for improvement before early stopping.
-    improvement_threshold : float, default = 0.99999
-        Threshold for considering an improvement in validation loss.
-    patience_increase : int, default = 2
-        Factor by which to increase patience when an improvement is observed.
-    logger : DeepSurvLogger, default = ``None``
-        Logger for tracking training progress.
-    verbose : bool, default = ``True``
+    activation : str, default="relu"
+        Activation function used in the hidden layers.
+    dropout : float, default=0.0
+        Dropout probability applied inside the model.
+    standardize : bool, default=True
+        Whether to standardize the input features before training.
+    ties : {"cox", "breslow"}, default="cox"
+        Tie-handling rule used inside the partial log-likelihood.
+    device : torch.device, optional
+        Device used for training and inference, e.g. ``cpu`` or ``cuda``.
+    validation_frequency : int, default=10
+        Validation interval in epochs.
+    patience : int, default=500
+        Maximum number of epochs to wait for validation improvement before early
+        stopping.
+    improvement_threshold : float, default=0.99999
+        Minimal relative improvement required to count as progress.
+    patience_increase : int, default=25
+        Factor by which patience is increased after improvement.
+    logger : object, optional
+        Logger used to track training metrics.
+    verbose : bool, default=True
         Whether to print training progress.
-    seed : int, default = ``None``
+    seed : int, optional
         Random seed for reproducibility.
-    coef_likelihood : list of float, default = [1.0]
-        Coefficients for the likelihood loss of each progression in the total loss function.
+    coef_likelihood : list of float, default=[1.0]
+        Weights assigned to the likelihood term of each competing event.
 
     Attributes
     ----------
-    survival_function : array-like, shape (n_samples, n_times)
-        Estimated survival function.
-    cumulative_hazard_function : array-like, shape (n_samples, n_times)
-        Estimated cumulative hazard function.
+    number_events : int
+        Number of competing-risk heads learned by the model.
+    network : object
+        Trained neural network model.
+    optimizer : object
+        Optimizer used during training.
+    breslow : list of BreslowEstimator
+        Baseline hazard estimator associated with each risk head.
+    survival_functions : list or ndarray
+        Estimated survival function(s) for each sample and risk channel.
+    cumulative_hazard_functions : list or ndarray
+        Estimated cumulative hazard function(s) for each sample and risk channel.
     shap_explainer : list of shap.Explainer
-        SHAP explainer for model interpretability.
+        SHAP explainers used to interpret the model output.
+
+    Notes
+    -----
+    The model assumes a proportional hazards structure within each risk channel,
+    and the risk score is computed as the output of the event-specific head after
+    the shared latent representation is learned. The baseline survival curves are
+    reconstructed by fitting a Breslow estimator for each event type.
 
     Examples
     --------
-    .. code:: python
-
-        from bsix.models.metodologies import DeepMultiTask
-        model = DeepMultiTask(number_inputs=10, hidden_layers=[32,], epochs=200, learn_rate=0.01)
-        model.fit(X_train, y_train)
+    >>> from bsix.models.metodologies import DeepMultiTask
+    >>> model = DeepMultiTask(
+    ...     number_inputs=10,
+    ...     hidden_layers=[32, 16],
+    ...     epochs=200,
+    ...     learn_rate=0.01,
+    ... )
+    >>> model.fit(X_train, y_train)
+    >>> risk = model.predict(X_test)
     """
-        
+    
     def __init__(self, number_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, cox_reg=0.0,
                  momentum=0.9, activation="relu", dropout=0.0, standardize=True, ties="cox", device=None, validation_frequency=10, 
                  patience=500, improvement_threshold=0.99999, patience_increase=25, logger=None, verbose=True, seed=None, coef_likelihood=[1.0]):
         
         """
-        Initialise model with specified parameters.
+        Initialize the multi-task deep survival model.
+
+        Parameters
+        ----------
+        number_inputs : int
+            Number of input features.
+        valid_data : dict, optional
+            Validation dataset with keys ``x``, ``e`` and ``t``.
+        hidden_layers : list of int, optional
+            Hidden-layer widths used by the network.
+        epochs : int, default=500
+            Number of training epochs.
+        learn_rate : float, default=0.0
+            Learning rate for the optimizer.
+        lr_decay : float, default=0.0
+            Learning-rate decay factor.
+        l1_reg : float, default=0.0
+            L1 regularization strength.
+        l2_reg : float, default=0.0
+            L2 regularization strength.
+        cox_reg : float, default=0.0
+            Weight applied to the Cox loss in the total objective.
+        momentum : float, default=0.9
+            Momentum for the optimizer.
+        activation : str, default="relu"
+            Activation function in the hidden layers.
+        dropout : float, default=0.0
+            Dropout probability.
+        standardize : bool, default=True
+            Whether to standardize the input features.
+        ties : {"cox", "breslow"}, default="cox"
+            Method used to handle tied event times.
+        device : torch.device, optional
+            Device used for training and inference.
+        validation_frequency : int, default=10
+            Validation interval in epochs.
+        patience : int, default=500
+            Maximum number of epochs to wait for improvement.
+        improvement_threshold : float, default=0.99999
+            Minimal relative improvement threshold for early stopping.
+        patience_increase : int, default=25
+            Increase factor applied to patience after improvement.
+        logger : object, optional
+            Logger used to track optimization metrics.
+        verbose : bool, default=True
+            Whether to print training progress.
+        seed : int, optional
+            Random seed for reproducibility.
+        coef_likelihood : list of float, default=[1.0]
+            Weight of the likelihood term for each risk channel.
         """
         
         # Set device
@@ -147,7 +231,12 @@ class DeepMultiTask(BaseSurvival):
     def _set_seeds(self):
 
         """
-        Initialise random seeds for reproducibility.
+        Initialize random seeds for reproducibility.
+
+        Returns
+        -------
+        None
+            This method updates the Python, NumPy and PyTorch random generators.
         """
 
         if self.seed is not None:
@@ -170,7 +259,21 @@ class DeepMultiTask(BaseSurvival):
     def _negative_log_likelihood(self, risk, t, e):
 
         """
-        Compute the negative partial log-likelihood for Cox proportional hazards.
+        Compute the negative partial log-likelihood for a Cox-type risk head.
+
+        Parameters
+        ----------
+        risk : torch.Tensor of shape (n_samples,)
+            Predicted log-risk score for each sample.
+        t : torch.Tensor of shape (n_samples,)
+            Observation time for each sample.
+        e : torch.Tensor of shape (n_samples,)
+            Event indicator, where 1 denotes event and 0 denotes censoring.
+
+        Returns
+        -------
+        torch.Tensor
+            Scalar negative partial log-likelihood for the supplied risk head.
         """
         
         risk, t, e = self._sort_multitask(risk, t, e)
@@ -199,7 +302,12 @@ class DeepMultiTask(BaseSurvival):
     def _compute_l1_loss(self):
 
         """
-        Compute L1 regularization loss.
+        Compute the L1 regularization penalty over the network weights.
+
+        Returns
+        -------
+        torch.Tensor
+            Total L1 loss for the network parameters.
         """
 
         l1_loss = 0.0
@@ -211,7 +319,12 @@ class DeepMultiTask(BaseSurvival):
     def _compute_l2_loss(self):
 
         """
-        Compute L2 regularization loss.
+        Compute the L2 regularization penalty over the network weights.
+
+        Returns
+        -------
+        torch.Tensor
+            Total L2 loss for the network parameters.
         """
 
         l2_loss = 0.0
@@ -223,7 +336,21 @@ class DeepMultiTask(BaseSurvival):
     def _get_loss(self, x, e, t):
 
         """
-        Compute total loss including regularization.
+        Compute the total training loss for the multi-task survival model.
+
+        Parameters
+        ----------
+        x : torch.Tensor of shape (n_samples, n_features)
+            Input feature matrix for the current batch.
+        e : torch.Tensor of shape (n_samples, n_events)
+            Event indicator matrix for each competing-risk head.
+        t : torch.Tensor of shape (n_samples, n_events)
+            Observation time matrix for each competing-risk head.
+
+        Returns
+        -------
+        torch.Tensor
+            Scalar total loss value, including Cox terms and regularization.
         """
 
         risk = self.network(x)[1][:, :self.number_events]
@@ -243,7 +370,23 @@ class DeepMultiTask(BaseSurvival):
     def _get_concordance_index(self, x, t, e, **kwargs):
 
         """
-        Calculate concordance index (C-index) for model predictions.
+        Compute the concordance index for each risk head.
+
+        Parameters
+        ----------
+        x : array-like of shape (n_samples, n_features)
+            Feature matrix used for prediction.
+        t : array-like of shape (n_samples, n_events)
+            Observation times for each event head.
+        e : array-like of shape (n_samples, n_events)
+            Event indicators for each event head.
+        **kwargs
+            Additional keyword arguments accepted for compatibility.
+
+        Returns
+        -------
+        torch.Tensor of shape (n_events,)
+            Concordance index value for each risk head.
         """
 
         self.network.eval()
@@ -263,7 +406,17 @@ class DeepMultiTask(BaseSurvival):
     def _standardize_x(self, x):
 
         """
-        Standardize input features.
+        Standardize input features using the training-time offset and scale.
+
+        Parameters
+        ----------
+        x : torch.Tensor of shape (n_samples, n_features)
+            Input feature matrix to standardize.
+
+        Returns
+        -------
+        torch.Tensor
+            Standardized feature matrix.
         """
 
         return (x - self.offset) / (self.scale + 1e-15)
@@ -271,19 +424,20 @@ class DeepMultiTask(BaseSurvival):
     def fit(self, X_train, y_train, **kwargs):
         
         """
-        Fit the model to the data.
+        Fit the model to the training data.
 
         Parameters
         ----------
-        X_train : array-like, shape (n_progressions, n_samples, n_features)
-            Training data.
-        y_train : structured array-like, shape (n_progressions, n_samples,)
-            Target training values (events, times).
+        X_train : array-like of shape (n_samples, n_features)
+            Training feature matrix.
+        y_train : structured array-like of shape (n_events, n_samples)
+            Target values for each event head, where each column contains the
+            event indicator and time pairs for one progression channel.
 
         Returns
         -------
-        self : DeepMultiTask
-            Fitted estimator.
+        DeepMultiTask
+            The fitted estimator instance.
         """
         
         # Set random seeds
@@ -449,13 +603,13 @@ class DeepMultiTask(BaseSurvival):
 
         Parameters
         ----------
-        X : array-like, shape (n_progressions, n_samples, n_features)
-            Input data.
+        x : array-like of shape (n_samples, n_features)
+            Input feature matrix.
 
         Returns
         -------
-        risk : array-like, shape (n_progressions, n_samples,)
-            Predicted risk scores.
+        ndarray of shape (n_samples, n_events)
+            Predicted relative risk for each event channel.
         """
 
         self.network.eval()
@@ -470,17 +624,17 @@ class DeepMultiTask(BaseSurvival):
     def predict_outputs(self, x):
 
         """
-        Predict outputs for the given data.
+        Predict the raw model outputs for the given data.
 
         Parameters
         ----------
-        X : array-like, shape (n_progressions, n_samples, n_features)
-            Input data.
+        x : array-like of shape (n_samples, n_features)
+            Input feature matrix.
 
         Returns
         -------
-        outputs : array-like, shape (n_progressions, n_samples, n_outputs)
-            Predicted outputs.
+        ndarray
+            Raw output tensor from the neural network, before any post-processing.
         """
 
         self.network.eval()
@@ -515,8 +669,9 @@ class DeepMultiTask(BaseSurvival):
 
         Returns
         -------
-        survival_function : array-like, shape (n_progressions, n_samples, n_times)
-            Predicted survival functions.
+        list or ndarray
+            Estimated survival functions for each event head. If there is only one
+            event channel, a single array is returned.
         """
 
         try:
@@ -558,8 +713,9 @@ class DeepMultiTask(BaseSurvival):
 
         Returns
         -------
-        cumulative_hazard_function : array-like, shape (n_progressions, n_samples, n_times)
-            Predicted cumulative hazard functions.
+        list or ndarray
+            Estimated cumulative hazard functions for each event head. If there is
+            only one event channel, a single array is returned.
         """
 
         try:
@@ -588,31 +744,31 @@ class DeepMultiTask(BaseSurvival):
     def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
 
         """
-        Calculate XAI values.
+        Compute SHAP-based explainability values for the model.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix used for explanation.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting.
         scaler : object
-            Scaler used for the data.
+            Scaler used in the preprocessing pipeline, if any.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated visualization.
         seed : int
             Random seed for reproducibility.
         feature_names : list of str
-            Names of the features.
-        background : bool, default = ``False``
-            Whether to use background data for SHAP.
-        plot : bool, default = ``False``
-            Whether to plot the XAI values.
+            Names of the model features.
+        background : bool, default=False
+            If ``True``, compute the SHAP background using k-means summary data.
+        plot : bool, default=False
+            If ``True``, display the SHAP plot.
 
         Returns
         -------
-        shap_explainer : list of shap.Explainer, shape (n_progressions,)
-            SHAP explainer for model interpretability.
+        shap.Explainer
+            SHAP explainer for the fitted model.
         """
 
         try:

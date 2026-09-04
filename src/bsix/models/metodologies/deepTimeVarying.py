@@ -21,71 +21,94 @@ warnings.filterwarnings("ignore")
 class DeepTimeVarying(BaseSurvival):
 
     """
-    Deep Survival Time-Varying model.
+    Deep survival model for time-varying covariates.
+
+    This implementation adapts the DeepSurv formulation to interval-based
+    longitudinal observations, where each sample is represented by a start time,
+    stop time and event indicator. The network learns a nonlinear risk score from
+    the covariates, while the partial log-likelihood is evaluated only over the
+    risk intervals active at each time point. The resulting risk is then mapped to
+    survival and cumulative hazard curves using a Breslow baseline estimator.
 
     Parameters
     ----------
     number_inputs : int
         Number of input features.
-    valid_data : dict, default = ``None``
-        Validation data in the form of a dictionary with keys "x", "e", and "t" for features, events, and times, respectively.
-    hidden_layers : list of int, default = ``None``
-        List specifying the number of units in each hidden layer.
-    epochs : int, default = 500
+    valid_data : dict, optional
+        Validation dataset containing the keys ``x``, ``e``, and ``t``.
+    hidden_layers : list of int, optional
+        Hidden-layer widths of the network.
+    epochs : int, default=500
         Number of training epochs.
-    learn_rate : float, default = 0.0
-        Learning rate for the optimizer.
-    lr_decay : float, default = 0.0
-        Learning rate decay factor.
-    l1_reg : float, default = 0.0
+    learn_rate : float, default=0.0
+        Learning rate used by the optimizer.
+    lr_decay : float, default=0.0
+        Learning-rate decay factor.
+    l1_reg : float, default=0.0
         L1 regularization strength.
-    l2_reg : float, default = 0.0
+    l2_reg : float, default=0.0
         L2 regularization strength.
-    momentum : float, default = 0.9
+    momentum : float, default=0.9
         Momentum for the optimizer.
-    activation : str, default = ``"relu"``
-        Activation function to use in the hidden layers. ``relu``, ``selu``, ``tanh`` or ``sigmoid``.
-    dropout : float, default = 0.0
-        Dropout rate for regularization.
-    standardize : bool, default = ``True``
-        Whether to standardize input features.
-    ties : str, default = ``"cox"``
-        Method for handling tied event times. ``"cox"`` or ``"breslow"``.
-    device : torch.device, default = ``None``
-        Device to run the model on (e.g., "cpu" or "cuda").
-    validation_frequency : int, default = 10
-        Frequency (in epochs) to perform validation.
-    patience : int, default = 2000
-        Number of epochs to wait for improvement before early stopping.
-    improvement_threshold : float, default = 0.99999
-        Threshold for considering an improvement in validation loss.
-    patience_increase : int, default = 2
-        Factor by which to increase patience when an improvement is observed.
-    logger : DeepSurvLogger, default = ``None``
-        Logger for tracking training progress.
-    verbose : bool, default = ``True``
+    activation : str, default="relu"
+        Activation function used by the hidden layers.
+    dropout : float, default=0.0
+        Dropout probability.
+    standardize : bool, default=True
+        Whether to standardize the input features before training.
+    ties : {"cox", "breslow"}, default="cox"
+        Method used to handle tied event times.
+    device : torch.device, optional
+        Device used for training and inference.
+    validation_frequency : int, default=10
+        Validation interval in epochs.
+    patience : int, default=2000
+        Maximum number of epochs to wait for validation improvement before early
+        stopping.
+    improvement_threshold : float, default=0.99999
+        Minimal relative improvement required to count as progress.
+    patience_increase : int, default=2
+        Factor by which patience is increased after improvement.
+    logger : object, optional
+        Logger used to track training metrics.
+    verbose : bool, default=True
         Whether to print training progress.
-    seed : int, default = ``None``
+    seed : int, optional
         Random seed for reproducibility.
 
     Attributes
     ----------
     breslow : BreslowEstimator
-        Breslow estimator for baseline hazards.
-    survival_function : array-like, shape (n_samples, n_times)
-        Estimated survival function.
-    cumulative_hazard_function : array-like, shape (n_samples, n_times)
-        Estimated cumulative hazard function.
+        Estimator used to compute the baseline hazard and survival functions.
+    network : object
+        Trained neural-network model.
+    optimizer : object
+        Optimizer used during training.
+    survival_function : ndarray of shape (n_samples, n_times)
+        Estimated survival function for each sample.
+    cumulative_hazard_function : ndarray of shape (n_samples, n_times)
+        Estimated cumulative hazard function for each sample.
     shap_explainer : shap.Explainer
-        SHAP explainer for model interpretability.
+        SHAP explainer used to interpret the model output.
+
+    Notes
+    -----
+    The model assumes a proportional hazards structure across time intervals,
+    which is appropriate for longitudinal observations recorded as risk sets over
+    ``[time_start, time_stop]``. The risk score is learned by the network and then
+    converted into survival curves through the Breslow estimator.
 
     Examples
     --------
-    .. code:: python
-
-        from bsix.models.metodologies import DeepTimeVarying
-        model = DeepTimeVarying(number_inputs=10, hidden_layers=[32,], epochs=200, learn_rate=0.01)
-        model.fit(X_train, y_train)
+    >>> from bsix.models.metodologias import DeepTimeVarying
+    >>> model = DeepTimeVarying(
+    ...     number_inputs=10,
+    ...     hidden_layers=[32, 16],
+    ...     epochs=200,
+    ...     learn_rate=0.01,
+    ... )
+    >>> model.fit(X_train, y_train)
+    >>> risk = model.predict(X_test)
     """
 
     def __init__(self, number_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, momentum=0.9, 
@@ -93,7 +116,52 @@ class DeepTimeVarying(BaseSurvival):
                  improvement_threshold=0.99999, patience_increase=2, logger=None, verbose=True, seed=None):
           
         """
-        Initialise model with specified parameters.
+        Initialize the time-varying DeepSurv model.
+
+        Parameters
+        ----------
+        number_inputs : int
+            Number of input features.
+        valid_data : dict, optional
+            Validation data with keys ``x``, ``e`` and ``t``.
+        hidden_layers : list of int, optional
+            Hidden-layer widths for the network.
+        epochs : int, default=500
+            Number of training epochs.
+        learn_rate : float, default=0.0
+            Learning rate for the optimizer.
+        lr_decay : float, default=0.0
+            Learning-rate decay factor.
+        l1_reg : float, default=0.0
+            L1 regularization strength.
+        l2_reg : float, default=0.0
+            L2 regularization strength.
+        momentum : float, default=0.9
+            Momentum for the optimizer.
+        activation : str, default="relu"
+            Activation function used in the hidden layers.
+        dropout : float, default=0.0
+            Dropout probability.
+        standardize : bool, default=True
+            Whether to standardize the input features.
+        ties : {"cox", "breslow"}, default="cox"
+            Method used to handle tied event times.
+        device : torch.device, optional
+            Device used for training and inference.
+        validation_frequency : int, default=10
+            Validation interval in epochs.
+        patience : int, default=2000
+            Maximum number of epochs to wait for improvement.
+        improvement_threshold : float, default=0.99999
+            Minimal relative improvement threshold for early stopping.
+        patience_increase : int, default=2
+            Factor by which patience is increased after improvement.
+        logger : object, optional
+            Logger used to track training metrics.
+        verbose : bool, default=True
+            Whether to print training progress.
+        seed : int, optional
+            Random seed for reproducibility.
         """
                 
         # Set device
@@ -141,7 +209,12 @@ class DeepTimeVarying(BaseSurvival):
     def _set_seeds(self):
 
         """
-        Initialise random seeds for reproducibility.
+        Initialize random seeds for reproducibility.
+
+        Returns
+        -------
+        None
+            This method updates the Python, NumPy and PyTorch random generators.
         """
 
         if self.seed is not None:
@@ -164,7 +237,23 @@ class DeepTimeVarying(BaseSurvival):
     def _negative_log_likelihood(self, risk, t_start, t_stop, e):
 
         """
-        Compute the negative partial log-likelihood for Cox proportional hazards.
+        Compute the negative partial log-likelihood for time-varying Cox hazards.
+
+        Parameters
+        ----------
+        risk : torch.Tensor of shape (n_samples,)
+            Predicted log-risk score for each sample.
+        t_start : torch.Tensor of shape (n_samples,)
+            Start time of each risk interval.
+        t_stop : torch.Tensor of shape (n_samples,)
+            End time of each risk interval.
+        e : torch.Tensor of shape (n_samples,)
+            Event indicator, where 1 denotes event and 0 denotes censoring.
+
+        Returns
+        -------
+        torch.Tensor
+            Scalar negative partial log-likelihood for the supplied interval data.
         """
 
         # start_j < stop_i <= stop_j (j in risk set of i)
@@ -190,7 +279,12 @@ class DeepTimeVarying(BaseSurvival):
     def _compute_l1_loss(self):
 
         """
-        Compute L1 regularization loss.
+        Compute the L1 regularization penalty over the network weights.
+
+        Returns
+        -------
+        torch.Tensor
+            Total L1 loss for the network parameters.
         """
 
         l1_loss = 0.0
@@ -202,7 +296,12 @@ class DeepTimeVarying(BaseSurvival):
     def _compute_l2_loss(self):
 
         """
-        Compute L2 regularization loss.
+        Compute the L2 regularization penalty over the network weights.
+
+        Returns
+        -------
+        torch.Tensor
+            Total L2 loss for the network parameters.
         """
 
         l2_loss = 0.0
@@ -214,7 +313,23 @@ class DeepTimeVarying(BaseSurvival):
     def _get_loss(self, x, e, t_start, t_stop):
 
         """
-        Compute total loss including regularization.
+        Compute the total training loss for the time-varying survival model.
+
+        Parameters
+        ----------
+        x : torch.Tensor of shape (n_samples, n_features)
+            Input feature matrix for the current batch.
+        e : torch.Tensor of shape (n_samples,)
+            Event indicator vector.
+        t_start : torch.Tensor of shape (n_samples,)
+            Start time of each risk interval.
+        t_stop : torch.Tensor of shape (n_samples,)
+            End time of each risk interval.
+
+        Returns
+        -------
+        torch.Tensor
+            Scalar total loss value including the Cox term and regularization.
         """
 
         risk = self.network(x)
@@ -230,21 +345,21 @@ class DeepTimeVarying(BaseSurvival):
     def _get_concordance_index(self, x, t, e, **kwargs):
 
         """
-        Calculate concordance index (C-index) for model predictions.
+        Compute the concordance index for the trained model.
 
         Parameters
         ----------
-        x : array-like, shape (n_samples, n_features)
-            Input data.
-        t : array-like, shape (n_samples,)
-            Censoring times.
-        e : array-like, shape (n_samples,)
+        x : array-like of shape (n_samples, n_features)
+            Feature matrix used for prediction.
+        t : array-like of shape (n_samples,)
+            Observation times.
+        e : array-like of shape (n_samples,)
             Event indicators.
 
         Returns
         -------
-        c_index : float
-            Concordance index.
+        float
+            Concordance index value.
         """
 
         self.network.eval()
@@ -259,7 +374,17 @@ class DeepTimeVarying(BaseSurvival):
     def _standardize_x(self, x):
 
         """
-        Standardize input features.
+        Standardize input features using the training-time offset and scale.
+
+        Parameters
+        ----------
+        x : torch.Tensor of shape (n_samples, n_features)
+            Input feature matrix to standardize.
+
+        Returns
+        -------
+        torch.Tensor
+            Standardized feature matrix.
         """
 
         return (x - self.offset) / (self.scale + 1e-15)
@@ -267,19 +392,20 @@ class DeepTimeVarying(BaseSurvival):
     def fit(self, X_train, y_train, **kwargs):
         
         """
-        Fit the model to the data.
+        Fit the time-varying DeepSurv model to the training data.
 
         Parameters
         ----------
-        X_train : array-like, shape (n_samples, n_features)
-            Training data.
-        y_train : structured array-like, shape (n_samples,)
-            Target training values (events, start times, stop times).
+        X_train : array-like of shape (n_samples, n_features)
+            Training feature matrix.
+        y_train : structured array-like of shape (n_samples,)
+            Target values containing the fields ``event``, ``time_start`` and
+            ``time_stop``.
 
         Returns
         -------
-        self : DeepTimeVarying
-            Fitted estimator.
+        DeepTimeVarying
+            The fitted estimator instance.
         """
         
         # Set random seeds
@@ -439,12 +565,12 @@ class DeepTimeVarying(BaseSurvival):
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
+        x : array-like of shape (n_samples, n_features)
+            Input feature matrix.
 
         Returns
         -------
-        risk : array-like, shape (n_samples,)
+        ndarray of shape (n_samples,)
             Predicted risk scores.
         """
 
@@ -463,25 +589,25 @@ class DeepTimeVarying(BaseSurvival):
     def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
-        Predict the survival function for the given data.
+        Predict the survival function for the given samples.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix for prediction.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting and identification.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated plot.
         seed : int
-            Random seed for reproducibility.
-        plot : bool, default = ``False``
-            Whether to plot the survival function.
+            Random seed used for reproducibility in plotting.
+        plot : bool, default=False
+            If ``True``, display the survival-function plot.
 
         Returns
         -------
-        survival_function : array-like, shape (n_samples, n_times)
-            Predicted survival function.
+        ndarray of shape (n_samples, n_times)
+            Estimated survival function for each sample.
         """
 
         try:
@@ -502,25 +628,25 @@ class DeepTimeVarying(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
         
         """
-        Predict the cumulative hazard function for the given data.
+        Predict the cumulative hazard function for the given samples.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix for prediction.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting and identification.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated plot.
         seed : int
-            Random seed for reproducibility.
-        plot : bool, default = ``False``
-            Whether to plot the cumulative hazard function.
+            Random seed used for reproducibility in plotting.
+        plot : bool, default=False
+            If ``True``, display the cumulative hazard plot.
 
         Returns
         -------
-        cumulative_hazard_function : array-like, shape (n_samples, n_times)
-            Predicted cumulative hazard function.
+        ndarray of shape (n_samples, n_times)
+            Estimated cumulative hazard function for each sample.
         """
 
         try:
@@ -544,31 +670,31 @@ class DeepTimeVarying(BaseSurvival):
     def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
 
         """
-        Calculate XAI values.
+        Compute SHAP-based explainability values for the model.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix used for explanation.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting.
         scaler : object
-            Scaler used for the data.
+            Scaler used in the preprocessing pipeline, if any.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated visualization.
         seed : int
             Random seed for reproducibility.
         feature_names : list of str
-            Names of the features.
-        background : bool, default = ``False``
-            Whether to use background data for SHAP.
-        plot : bool, default = ``False``
-            Whether to plot the XAI values.
+            Names of the model features.
+        background : bool, default=False
+            If ``True``, compute the SHAP background using k-means summary data.
+        plot : bool, default=False
+            If ``True``, display the SHAP plot.
 
         Returns
         -------
-        shap_explainer : shap.Explainer
-            SHAP explainer for model interpretability.
+        shap.Explainer
+            SHAP explainer for the fitted model.
         """
         
         try:

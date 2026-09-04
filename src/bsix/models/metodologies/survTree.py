@@ -17,7 +17,25 @@ warnings.filterwarnings("ignore")
 def _calculate_log_rank_njit(times_left, events_left, unique_times, n_j, d_j):
 
     """
-    Calculate the Log-Rank statistic between two groups defined by left mask.
+    Compute the log-rank test statistic for a single split candidate.
+
+    Parameters
+    ----------
+    times_left : ndarray of shape (n_left,)
+        Observation times in the left branch.
+    events_left : ndarray of shape (n_left,)
+        Event indicators in the left branch.
+    unique_times : ndarray of shape (n_unique_times,)
+        Unique event times in the parent node.
+    n_j : ndarray of shape (n_unique_times,)
+        Number at risk in the parent node at each event time.
+    d_j : ndarray of shape (n_unique_times,)
+        Number of observed events in the parent node at each event time.
+
+    Returns
+    -------
+    float
+        Log-rank score for the candidate split.
     """
     
     # At-risk count in the left group (nleft_j) at each unique event time
@@ -49,7 +67,31 @@ def _calculate_log_rank_njit(times_left, events_left, unique_times, n_j, d_j):
 def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_samples_leaf):
 
     """
-    Return (best_feature_idx, best_threshold) maximising log-rank score.
+    Find the best split for a survival-tree node.
+
+    Parameters
+    ----------
+    X : ndarray of shape (n_samples, n_features)
+        Feature matrix for the current node.
+    events : ndarray of shape (n_samples,)
+        Event indicator for each sample.
+    times : ndarray of shape (n_samples,)
+        Observation time for each sample.
+    unique_times : ndarray of shape (n_unique_times,)
+        Unique event times observed in the node.
+    n_j : ndarray of shape (n_unique_times,)
+        Number at risk in the node at each event time.
+    d_j : ndarray of shape (n_unique_times,)
+        Number of events observed in the node at each event time.
+    features : ndarray of shape (n_features,)
+        Candidate feature indices to consider.
+    min_samples_leaf : int
+        Minimum number of samples required in each child node.
+
+    Returns
+    -------
+    tuple
+        Best feature index and the corresponding split threshold.
     """
 
     best_score = -1.0
@@ -84,13 +126,13 @@ def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_sam
 class LeafEstimator:
 
     """
-    Local estimator for leaf nodes in the Survival Tree.
+    Local estimator for leaf nodes in the survival tree.
     """
 
     def __init__(self):
 
         """
-        Initialise with specified parameters.
+        Initialize the leaf estimator state.
         """
 
         # Parameters
@@ -101,7 +143,22 @@ class LeafEstimator:
     def fit(self, events, times, global_times):
 
         """
-        Fit the estimator to the data.
+        Fit the leaf node hazard and survival estimates.
+
+        Parameters
+        ----------
+        events : ndarray of shape (n_samples,)
+            Event indicator for the samples in the leaf.
+        times : ndarray of shape (n_samples,)
+            Observation time for the samples in the leaf.
+        global_times : ndarray of shape (n_unique_times,)
+            Global time grid used for the tree-level estimation.
+
+        Returns
+        -------
+        None
+            The estimator updates its internal ``times``, ``survival`` and
+            ``cumulative_hazard`` attributes in-place.
         """
                 
         self.times = global_times
@@ -134,13 +191,30 @@ class LeafEstimator:
 class TreeNode:
 
     """
-    Node in the Survival Tree.
+    Node in the survival tree.
     """
  
     def __init__(self, feature=None, threshold=None, left=None, right=None, *, is_leaf=False, risk_value=None, estimator=None):
         
         """
-        Initialise with specified parameters.
+        Initialize a tree node.
+
+        Parameters
+        ----------
+        feature : int, optional
+            Feature index used for the split.
+        threshold : float, optional
+            Threshold value used in the split.
+        left : TreeNode, optional
+            Left child node.
+        right : TreeNode, optional
+            Right child node.
+        is_leaf : bool, default=False
+            Whether the node is a terminal leaf.
+        risk_value : float, optional
+            Aggregated risk score associated with the leaf node.
+        estimator : LeafEstimator, optional
+            Leaf estimator storing survival and hazard information.
         """
                 
         self.feature = feature
@@ -154,13 +228,68 @@ class TreeNode:
 class SurvTree(BaseSurvival):
 
     """
-    Survival Tree model.
+    Survival tree model for time-to-event data.
+
+    This implementation builds a tree using log-rank splitting criteria and
+    estimates a leaf-specific survival function from the empirical hazard. The
+    resulting model is a nonparametric alternative to the proportional-hazards
+    estimators and is designed to be easily aggregated into a random survival
+    forest.
+
+    Parameters
+    ----------
+    max_depth : int or None, default=None
+        Maximum depth of the tree.
+    min_samples_split : int, default=6
+        Minimum number of samples required to perform a split.
+    min_samples_leaf : int, default=3
+        Minimum number of samples required in each child node.
+    seed : int, default=0
+        Random seed used to randomize feature selection and tie-breaking.
+
+    Attributes
+    ----------
+    root : TreeNode or None
+        Root node of the fitted tree.
+    unique_times : ndarray
+        Unique observed times used to define the node-level time grid.
+    survival_function : ndarray of shape (n_samples, n_times)
+        Estimated survival function for each sample.
+    cumulative_hazard_function : ndarray of shape (n_samples, n_times)
+        Estimated cumulative hazard function for each sample.
+    shap_explainer : shap.Explainer
+        SHAP explainer for model interpretability.
+
+    Notes
+    -----
+    The tree uses the log-rank statistic to select the split that maximizes the
+    separation between the survival distributions of the two child nodes. The
+    terminal nodes store empirical hazard estimates, which are later converted to
+    survival curves.
+
+    Examples
+    --------
+    >>> from bsix.models.metodologies import SurvTree
+    >>> model = SurvTree(max_depth=3, min_samples_leaf=5, seed=0)
+    >>> model.fit(X_train, y_train)
+    >>> risk = model.predict(X_test)
     """
 
     def __init__(self, max_depth=None, min_samples_split=6, min_samples_leaf=3, seed=0):
 
         """
-        Initialise model with specified parameters.
+        Initialize the survival tree model.
+
+        Parameters
+        ----------
+        max_depth : int or None, default=None
+            Maximum depth of the tree.
+        min_samples_split : int, default=6
+            Minimum number of samples required to perform a split.
+        min_samples_leaf : int, default=3
+            Minimum number of samples required in each child node.
+        seed : int, default=0
+            Random seed used to randomize feature selection and tie-breaking.
         """
 
         # Parameters
@@ -176,7 +305,24 @@ class SurvTree(BaseSurvival):
     def _best_split(self, X, events, times, n_features):
 
         """
-        Return (best_feature_idx, best_threshold) maximising log-rank score.
+        Find the optimal split according to the log-rank criterion.
+
+        Parameters
+        ----------
+        X : ndarray of shape (n_samples, n_features)
+            Feature matrix for the current node.
+        events : ndarray of shape (n_samples,)
+            Event indicator for each sample.
+        times : ndarray of shape (n_samples,)
+            Observation time for each sample.
+        n_features : int
+            Total number of features in the current node.
+
+        Returns
+        -------
+        tuple
+            Best feature index and threshold value. If no valid split exists,
+            returns ``(None, None)``.
         """
 
         # Extract unique event times and counts for the parent node
@@ -205,7 +351,19 @@ class SurvTree(BaseSurvival):
     def _create_leaf(self, events, times):
 
         """
-        Instantiate a terminal node and fit the local survival estimators.
+        Create a terminal node with empirical hazard and survival estimates.
+
+        Parameters
+        ----------
+        events : ndarray of shape (n_samples,)
+            Event indicator for the samples in the node.
+        times : ndarray of shape (n_samples,)
+            Observation times for the samples in the node.
+
+        Returns
+        -------
+        TreeNode
+            Leaf node containing the fitted local estimator.
         """
 
         estimator = LeafEstimator()
@@ -219,7 +377,23 @@ class SurvTree(BaseSurvival):
     def _build_tree(self, X, events, times, depth):
 
         """
-        Recursively build the tree.
+        Recursively build the survival tree.
+
+        Parameters
+        ----------
+        X : ndarray of shape (n_samples, n_features)
+            Feature matrix for the node.
+        events : ndarray of shape (n_samples,)
+            Event indicator for the samples in the node.
+        times : ndarray of shape (n_samples,)
+            Observation times for the samples in the node.
+        depth : int
+            Current depth of the node in the tree.
+
+        Returns
+        -------
+        TreeNode
+            Root or child node of the tree.
         """
 
         n_samples, n_features = X.shape
@@ -250,19 +424,19 @@ class SurvTree(BaseSurvival):
     def fit(self, X, y):
 
         """
-        Fit the model to the data.
+        Fit the survival tree model to the training data.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Training data.
-        y : structured array-like, shape (n_samples,)
-            Target training values (events, times).
+        X : array-like of shape (n_samples, n_features)
+            Training feature matrix.
+        y : structured array-like of shape (n_samples,)
+            Target values containing the fields ``event`` and ``time``.
 
         Returns
         -------
-        self : SurvTree
-            Fitted estimator.
+        SurvTree
+            The fitted estimator instance.
         """
         
         X, y = self._sort(X, y)
@@ -280,17 +454,17 @@ class SurvTree(BaseSurvival):
     def predict(self, X):
 
         """
-        Predict risk scores for the given data.
+        Predict risk scores for the given samples.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix used for prediction.
 
         Returns
         -------
-        risk : array-like, shape (n_samples,)
-            Predicted risk scores.
+        ndarray of shape (n_samples,)
+            Predicted risk score for each sample.
         """
     
         leaves = self._get_leaves(X)
@@ -308,7 +482,17 @@ class SurvTree(BaseSurvival):
     def _get_leaves(self, X):
 
         """
-        Finds and returns the leaf node for each sample.
+        Return the terminal node reached by each sample.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix for prediction.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+            Array of terminal ``TreeNode`` objects corresponding to each sample.
         """
         
         leaves = np.empty(X.shape[0], dtype=object)
@@ -331,7 +515,20 @@ class SurvTree(BaseSurvival):
     def _compute_survival_hazard_functions(self, X, survival=True):
         
         """
-        Auxiliary method for computing the cumulative hazard function.
+        Compute the survival or cumulative hazard function for each sample.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix for prediction.
+        survival : bool, default=True
+            If ``True``, return the estimated survival function. Otherwise, return
+            the cumulative hazard function.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+            Array of ``StepFunction`` objects for each sample.
         """
 
         if not self.root:
@@ -351,25 +548,25 @@ class SurvTree(BaseSurvival):
     def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
-        Predict the survival function for the given data.
+        Predict the survival function for the given samples.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix used for prediction.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated plot.
         seed : int
             Random seed for reproducibility.
-        plot : bool, default = ``False``
-            Whether to plot the survival function.
+        plot : bool, default=False
+            If ``True``, display the survival-function plot.
 
         Returns
         -------
-        survival_function : array-like, shape (n_samples, n_times)
-            Predicted survival function.
+        ndarray of shape (n_samples,)
+            Array of ``StepFunction`` objects with the estimated survival curves.
         """
 
         try:
@@ -388,25 +585,26 @@ class SurvTree(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
 
         """
-        Predict the cumulative hazard function for the given data.
+        Predict the cumulative hazard function for the given samples.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix used for prediction.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated plot.
         seed : int
             Random seed for reproducibility.
-        plot : bool, default = ``False``
-            Whether to plot the cumulative hazard function.
+        plot : bool, default=False
+            If ``True``, display the cumulative hazard plot.
 
         Returns
         -------
-        cumulative_hazard_function : array-like, shape (n_samples, n_times)
-            Predicted cumulative hazard function.
+        ndarray of shape (n_samples,)
+            Array of ``StepFunction`` objects with the estimated cumulative hazard
+            curves.
         """
 
         try:
@@ -428,31 +626,31 @@ class SurvTree(BaseSurvival):
     def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
 
         """
-        Calculate XAI values.
+        Compute SHAP-based explainability values for the tree model.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix used for explanation.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting.
         scaler : object
-            Scaler used for the data.
+            Scaler used in the preprocessing pipeline, if any.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated visualization.
         seed : int
             Random seed for reproducibility.
         feature_names : list of str
-            Names of the features.
-        background : bool, default = ``False``
-            Whether to use background data for SHAP.
-        plot : bool, default = ``False``
-            Whether to plot the XAI values.
+            Names of the model features.
+        background : bool, default=False
+            If ``True``, compute the SHAP background using k-means summary data.
+        plot : bool, default=False
+            If ``True``, display the SHAP plot.
 
         Returns
         -------
-        shap_explainer : shap.Explainer
-            SHAP explainer for model interpretability.
+        shap.Explainer
+            SHAP explainer for the fitted tree.
         """
 
         try:

@@ -126,6 +126,17 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Calculate XAI values.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input samples for which to compute XAI explanations.
+
+        Returns
+        -------
+        object
+            XAI explanations for the provided inputs (format depends on the
+            underlying estimator, e.g. arrays, dictionaries or SHAP objects).
         """
 
         raise NotImplementedError
@@ -135,6 +146,20 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Fit the model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training data.
+        y : array-like or DataFrame
+            Target information. For survival models this typically includes
+            event indicators and observed times (or a structured array/DataFrame
+            with `event` and `time` columns).
+
+        Returns
+        -------
+        self
+            Fitted estimator instance.
         """
 
         raise NotImplementedError
@@ -144,6 +169,17 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Predict on X.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input samples for prediction.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,) or (n_samples, n_outputs)
+            Predicted values for each sample (e.g. risk scores, event
+            probabilities or other model-specific outputs).
         """
 
         raise NotImplementedError
@@ -153,6 +189,17 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         H(x,t) = H0(t) * exp(g(x)).
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input samples for which to estimate the cumulative hazard.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+            Array of ``StepFunction`` objects representing the estimated
+            cumulative hazard curves for each sample.
         """
 
         raise NotImplementedError
@@ -162,6 +209,17 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         S(x, t) = exp(-H(x, t)).
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input samples for which to estimate the survival function.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+            Array of ``StepFunction`` objects representing the estimated
+            survival curves for each sample.
         """
 
         raise NotImplementedError
@@ -173,6 +231,25 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Discretise data by piecewise exponential and show in kaplan meier.
+
+        Parameters
+        ----------
+        y : pandas.DataFrame
+            DataFrame containing at least the columns ``time`` and ``event``
+            (observed times and event indicators).
+        dataset : str
+            Name of the dataset (used for plot titles when ``plot=True``).
+        seed : int, default=0
+            Random seed used for the randomized search of breakpoints.
+        plot : bool, default=False
+            If True, display the Kaplan-Meier curve with the selected
+            discretisation breakpoints.
+
+        Returns
+        -------
+        list of float
+            Sequence of breakpoints (including 0 and +inf) defining the
+            discretisation intervals.
         """
 
         rng = np.random.default_rng(seed=seed)
@@ -300,6 +377,20 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Calculate the best features based on p-value.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Covariate matrix.
+        y : array-like or pandas.DataFrame
+            Target array or DataFrame containing the columns ``event`` and
+            ``time`` required for fitting the Cox model.
+
+        Returns
+        -------
+        list of int
+            List of indices corresponding to the selected features (based
+            on iterative p-value elimination).
         """
         
         # Cox model (lifelines)
@@ -337,6 +428,27 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Generate simulated survival data based.
+
+        Parameters
+        ----------
+        number_rows : int, default=1000
+            Number of simulated samples to generate.
+        number_columns : int, default=10
+            Number of covariates (features) to simulate.
+        censored : float, default=0.75
+            Fraction of samples that should be censored.
+        relation : {None, 'cuadratic', 'sin'}, default=None
+            Functional form used to build the log-risk: linear (None),
+            quadratic ('cuadratic') or sinusoidal ('sin').
+        seed : int, default=0
+            Random seed for reproducibility.
+
+        Returns
+        -------
+        pandas.DataFrame
+            DataFrame with simulated feature columns named ``feature_i``,
+            plus ``event`` and ``time`` columns representing observed
+            (possibly censored) survival times.
         """
 
         # Fix the seed
@@ -396,6 +508,21 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Calculate the log-rank test for n groups.
+
+        Parameters
+        ----------
+        y : pandas.DataFrame
+            DataFrame containing at least the columns ``time`` and ``event``.
+        groups : array-like of shape (n_samples,)
+            Group labels for each observation.
+        weights : array-like, optional
+            Optional weights to pass to the log-rank test.
+
+        Returns
+        -------
+        lifelines.StatisticalResult
+            Result object returned by ``statistics.multivariate_logrank_test``
+            containing test statistics and p-values.
         """
 
         result = statistics.multivariate_logrank_test(y["time"], groups, y["event"], weights)
@@ -407,6 +534,26 @@ class BaseSurvival(BaseEstimator, ABC):
     
         """
         Transform a DataFrame with a per-subject measurement into a time-dependent format.
+
+        Parameters
+        ----------
+        dataframe : pandas.DataFrame
+            Input DataFrame containing one row per subject with columns for
+            identifier, time and event (and optional covariates).
+        splits : sequence of float
+            Discretisation breakpoints used to define time intervals.
+        identifier : str, default='identifier'
+            Column name that identifies subjects.
+        time : str, default='time'
+            Column name containing observed times.
+        event : str, default='event'
+            Column name containing event indicators (1=event, 0=censored).
+
+        Returns
+        -------
+        pandas.DataFrame
+            Transformed DataFrame in a time-dependent (discretised) format
+            with repeated rows per subject for each time interval.
         """
 
         # Sort dataframe by identifier
@@ -448,6 +595,25 @@ class BaseSurvival(BaseEstimator, ABC):
     
         """
         Transform a DataFrame with a multiple-subject measurements into a start-stop format.
+
+        Parameters
+        ----------
+        dataframe : pandas.DataFrame
+            Input DataFrame with multiple measurements per subject. Must
+            contain columns for identifier, time and event.
+        identifier : str, default='identifier'
+            Column name that identifies subjects.
+        time : str, default='time'
+            Column name containing observation times (will be used as
+            ``time_stop`` in the start-stop format).
+        event : str, default='event'
+            Column name containing event indicators.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Transformed DataFrame in start-stop format with columns
+            ``time_start``, ``time_stop``, ``event`` and the original covariates.
         """
         
         # Sort dataframe by identifier and date
@@ -486,6 +652,26 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Plot XAI coefficients for the data (lollipop plot).
+
+        Parameters
+        ----------
+        coefficients : dict
+            Mapping from feature names to coefficient values (can be a
+            1D array-like or 2D array-like for multiple seeds).
+        estimator_name : str
+            Name of the estimator (used in the plot title).
+        dataset : str
+            Dataset name (used in the plot title).
+        seed : int or None, optional
+            Optional seed identifier to include in the title.
+        progression : object or None, optional
+            Optional progression identifier to include in the title.
+
+        Returns
+        -------
+        tuple
+            A tuple ``(figure, ax)`` with the created Matplotlib Figure and
+            Axes objects.
         """
 
         # Extract data
@@ -568,6 +754,33 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Plot SHAP values for an individual instance (horizontal bar plot).
+
+        Parameters
+        ----------
+        shap_explainer : object
+            SHAP explainer object containing ``values``, ``data`` and
+            ``feature_names``.
+        identifier_index : int
+            Identifier index of the individual to plot.
+        index : array-like
+            Array mapping sample positions to identifiers (used to locate
+            the individual across seeds).
+        scaler : object or list of objects
+            Scaler(s) used to inverse-transform feature values for display.
+        estimator_name : str
+            Name of the estimator (used in the plot title).
+        dataset : str
+            Dataset name (used in the plot title).
+        seed : int or None, optional
+            Optional seed identifier to include in the title.
+        progression : object or None, optional
+            Optional progression identifier to include in the title.
+
+        Returns
+        -------
+        tuple
+            A tuple ``(figure, ax)`` with the created Matplotlib Figure and
+            Axes objects.
         """
 
         if not isinstance(index, np.ndarray):
@@ -666,6 +879,30 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Plot SHAP values for the data (beeswarm plot).
+
+        Parameters
+        ----------
+        shap_explainer : object
+            SHAP explainer object containing ``values``, ``data`` and
+            ``feature_names``.
+        index : array-like
+            Array mapping sample positions to identifiers.
+        scaler : object or list of objects
+            Scaler(s) used to inverse-transform feature values for display.
+        estimator_name : str
+            Name of the estimator (used in the plot title).
+        dataset : str
+            Dataset name (used in the plot title).
+        seed : int or None, optional
+            Optional seed identifier to include in the title.
+        progression : object or None, optional
+            Optional progression identifier to include in the title.
+
+        Returns
+        -------
+        tuple
+            A tuple ``(figure, ax)`` with the created Matplotlib Figure and
+            Axes objects.
         """
 
         if not isinstance(index, np.ndarray):
@@ -825,6 +1062,31 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Plot survival and cumulative hazard functions for the data.
+
+        Parameters
+        ----------
+        X : iterable
+            Iterable of ``StepFunction`` objects (one per sample) representing
+            either survival or cumulative hazard functions.
+        index : array-like of shape (n_samples,)
+            Identifier indices for each curve in ``X`` (used for interactive
+            annotations).
+        estimator_name : str
+            Name of the estimator (used in the plot title).
+        dataset : str
+            Dataset name (used in the plot title).
+        function_type : {'Survival', 'CumulativeRisk'}, default='Survival'
+            Type of function being plotted; affects axis scaling and labels.
+        seed : int, optional
+            Optional seed identifier to include in the title.
+        progression : object or None, optional
+            Optional progression identifier to include in the title.
+
+        Returns
+        -------
+        tuple
+            A tuple ``(figure, ax)`` with the created Matplotlib Figure and
+            Axes objects.
         """
         
         # Configure style
@@ -917,6 +1179,22 @@ class BaseSurvival(BaseEstimator, ABC):
         
         """
         Sort data by descending time.
+
+        Parameters
+        ----------
+        X : array-like
+            Feature matrix to be sorted along with ``y``.
+        y : array-like or pandas.DataFrame
+            Target information containing a time column indicated by
+            the ``time`` parameter.
+        time : str, default='time'
+            Name of the time column in ``y`` when ``y`` is a DataFrame.
+
+        Returns
+        -------
+        tuple
+            ``(X_sorted, y_sorted)`` where both arrays are ordered by
+            descending observed time.
         """
                 
         sort_idx = np.argsort(y[time])[::-1]
@@ -930,6 +1208,21 @@ class BaseSurvival(BaseEstimator, ABC):
 
         """
         Sort data by descending time (multitask).
+
+        Parameters
+        ----------
+        risk : torch.Tensor
+            Risk predictions or covariates tensor to be sorted.
+        t : torch.Tensor
+            Tensor of event/censoring times.
+        e : torch.Tensor
+            Tensor of event indicators.
+
+        Returns
+        -------
+        tuple
+            Sorted tensors ``(risk_sorted, t_sorted, e_sorted)`` ordered by
+            descending ``t``.
         """
         
         _, idx = torch.sort(t, descending=True)

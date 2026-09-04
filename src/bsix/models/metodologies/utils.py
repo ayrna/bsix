@@ -5,6 +5,23 @@ def impute_censored_times(X, y, n_estimators=100, random_state=0):
 
     """
     Estimate survival times for censored patients using restricted conditional life expectancy.
+
+    Parameters
+    ----------
+    X : array-like of shape (n_samples, n_features)
+        Feature matrix used to train the survival model.
+    y : structured array-like of shape (n_samples,)
+        Survival labels containing the fields ``event`` and ``time``.
+    n_estimators : int, default=100
+        Number of trees used by the random survival forest estimator.
+    random_state : int, default=0
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    ndarray of shape (n_samples,)
+        Imputed event times for censored patients, preserving observed times for
+        uncensored samples.
     """
     
     estimator = RandomSurvivalForest(n_estimators=n_estimators, random_state=random_state)
@@ -41,7 +58,21 @@ def impute_censored_times(X, y, n_estimators=100, random_state=0):
 def compute_jackknife_soft_labels(time, event, t_max):
 
     """
-    Compute the soft labels based on pseudo-Jackknife values at t_max
+    Compute the soft labels based on pseudo-Jackknife values at t_max.
+
+    Parameters
+    ----------
+    time : array-like of shape (n_samples,)
+        Observation time for each sample.
+    event : array-like of shape (n_samples,)
+        Event indicator, where ``1`` denotes event and ``0`` denotes censoring.
+    t_max : float
+        Time threshold used to compute the pseudo-Jackknife approximation.
+
+    Returns
+    -------
+    ndarray of shape (n_samples,)
+        Soft survival labels derived from the pseudo-Jackknife estimator.
     """
 
     n_samples = len(time)
@@ -81,11 +112,43 @@ class StepFunction:
     """
 
     def __init__(self, X, y, is_survival=True):
+        """
+        Initialize a stepwise function representation.
+
+        Parameters
+        ----------
+        X : array-like
+            Abscissa values defining the step positions.
+        y : array-like
+            Ordinate values evaluated at each point in ``X``.
+        is_survival : bool, default=True
+            Whether the stored function represents a survival curve. If ``False``,
+            it is treated as a cumulative hazard or cumulative incidence curve.
+
+        Returns
+        -------
+        None
+            Initializes the internal attributes ``X``, ``y`` and ``is_survival``.
+        """
         self.X = X
         self.y = y
         self.is_survival = is_survival
         
     def __call__(self, t):
+        """
+        Evaluate the step function at one or more query points.
+
+        Parameters
+        ----------
+        t : float or array-like
+            Value or values at which to evaluate the step function.
+
+        Returns
+        -------
+        float or ndarray
+            Evaluated function value(s). If a scalar input is provided, a scalar is
+            returned; otherwise, an array is returned.
+        """
         scalar_input = np.ndim(t) == 0
         t = np.atleast_1d(t)
         
@@ -93,7 +156,7 @@ class StepFunction:
         if len(self.X) == 0:
             res[:] = 1.0 if self.is_survival else 0.0
             return res[0] if scalar_input else res
-            
+        
         indices = np.searchsorted(self.X, t, side='right') - 1
         
         before_start = t < self.X[0]
@@ -106,6 +169,14 @@ class StepFunction:
         return res[0] if scalar_input else res
     
     def __repr__(self):
+        """
+        Return a readable representation of the step function.
+
+        Returns
+        -------
+        str
+            String representation of the function with its x and y arrays.
+        """
         x_str = repr(self.X)
         y_str = repr(self.y)
         
@@ -118,11 +189,38 @@ class BreslowEstimator:
     """
 
     def __init__(self):
+        """
+        Initialize the Breslow baseline hazard estimator.
+
+        Returns
+        -------
+        None
+            Initializes the internal estimation state for times, baseline hazard
+            and baseline survival.
+        """
         self.times_ = None
         self.baseline_hazard_ = None
         self.baseline_survival_ = None
 
     def fit(self, risk_scores, events, times):
+        """
+        Fit the Breslow baseline hazard estimator from risk scores and observed times.
+
+        Parameters
+        ----------
+        risk_scores : array-like of shape (n_samples,)
+            Risk score for each sample.
+        events : array-like of shape (n_samples,)
+            Event indicator, where ``1`` indicates an observed event and ``0`` a
+            censored observation.
+        times : array-like of shape (n_samples,)
+            Observation times for each sample.
+
+        Returns
+        -------
+        BreslowEstimator
+            The fitted estimator instance.
+        """
         log_risk = np.exp(risk_scores)
         
         unique_times = np.unique(times[events])
@@ -147,11 +245,39 @@ class BreslowEstimator:
         return self
 
     def get_survival_function(self, risk_scores):
+        """
+        Compute the survival function for the provided risk scores.
+
+        Parameters
+        ----------
+        risk_scores : array-like of shape (n_samples,)
+            Risk score for each sample.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+            Array of ``StepFunction`` objects representing the estimated survival
+            curves for each sample.
+        """
         log_risk = np.exp(risk_scores)
 
         return np.array([StepFunction(self.times_, np.power(self.baseline_survival_, er), is_survival=True) for er in log_risk])
 
     def get_cumulative_hazard_function(self, risk_scores):
+        """
+        Compute the cumulative hazard function for the provided risk scores.
+
+        Parameters
+        ----------
+        risk_scores : array-like of shape (n_samples,)
+            Risk score for each sample.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+            Array of ``StepFunction`` objects representing the estimated cumulative
+            hazard curves for each sample.
+        """
         log_risk = np.exp(risk_scores)
         cum_baseline_hazard = -np.log(self.baseline_survival_)
         

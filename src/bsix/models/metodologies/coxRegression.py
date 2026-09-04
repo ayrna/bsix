@@ -13,43 +13,65 @@ warnings.filterwarnings("ignore")
 class CoxRegression(BaseSurvival):
 
     """
-    Cox Regression model.
+    Cox proportional hazards model estimated via a Newton-Raphson optimization.
+
+    This implementation fits a Cox proportional hazards model by maximizing the
+    partial log-likelihood over the observed covariates. It supports tied event
+    times through either the Breslow or Efron approximation and reconstructs the
+    baseline survival and cumulative hazard curves from the fitted risk scores.
 
     Parameters
     ----------
-    alpha : float, default =0.0
-        Regularization strength.
-    ties : str, default = ``"breslow"``
-        Method for handling tied event times. ``"breslow"`` or ``"efron"``.
-    n_iter : int, default =100
-        Number of iterations for the Newton-Raphson algorithm.
+    alpha : float, default=0.0
+        L2 regularization strength applied to the coefficients.
+    ties : {"breslow", "efron"}, default="breslow"
+        Method used to handle tied event times.
+    n_iter : int, default=100
+        Maximum number of Newton-Raphson iterations used during optimization.
 
     Attributes
     ----------
-    coef_ : array-like, shape (n_features,)
-        Estimated coefficients for the model.
+    coef_ : ndarray of shape (n_features,)
+        Estimated regression coefficients for each feature.
     breslow : BreslowEstimator
-        Breslow estimator for baseline hazards.
-    survival_function : array-like, shape (n_samples, n_times)
-        Estimated survival function.
-    cumulative_hazard_function : array-like, shape (n_samples, n_times)
-        Estimated cumulative hazard function.
+        Estimator used to compute the baseline hazard and survival functions.
+    survival_function : ndarray of shape (n_samples, n_times)
+        Estimated survival function for each sample.
+    cumulative_hazard_function : ndarray of shape (n_samples, n_times)
+        Estimated cumulative hazard function for each sample.
     shap_explainer : shap.Explainer
-        SHAP explainer for model interpretability.
+        SHAP explainer used to interpret the model output.
+    coefficients : dict
+        Feature coefficients sorted by absolute magnitude for explainability.
+
+    Notes
+    -----
+    The model assumes a proportional hazards structure, i.e. the hazard ratio
+    between two observations is constant over time after conditioning on the
+    covariates. The risk score is computed as ``X @ coef_`` and is later mapped
+    to survival curves through the Breslow estimator.
 
     Examples
     --------
-    .. code:: python
-
-        from bsix.models.metodologies import CoxRegression
-        model = CoxRegression(alpha=0.1, ties="efron", n_iter=200)
-        model.fit(X_train, y_train)
+    >>> from bsix.models.metodologies import CoxRegression
+    >>> model = CoxRegression(alpha=0.1, ties="efron", n_iter=200)
+    >>> model.fit(X_train, y_train)
+    >>> risk = model.predict(X_test)
     """
 
     def __init__(self, alpha=0.0, ties="breslow", n_iter=100):
 
         """
-        Initialise model with specified parameters.
+        Initialize the Cox regression model.
+
+        Parameters
+        ----------
+        alpha : float, default=0.0
+            L2 regularization strength applied to the coefficients.
+        ties : {"breslow", "efron"}, default="breslow"
+            Method used to handle tied event times.
+        n_iter : int, default=100
+            Maximum number of Newton-Raphson iterations used during optimization.
         """
 
         # Parameters
@@ -65,19 +87,19 @@ class CoxRegression(BaseSurvival):
     def fit(self, X, y):
 
         """
-        Fit the model to the data.
+        Fit the Cox proportional hazards model to the training data.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Training data.
-        y : structured array-like, shape (n_samples,)
-            Target training values (events, times).
+        X : array-like of shape (n_samples, n_features)
+            Training feature matrix.
+        y : structured array-like of shape (n_samples,)
+            Survival target with at least the fields ``event`` and ``time``.
 
         Returns
         -------
-        self : CoxRegression
-            Fitted estimator.
+        CoxRegression
+            The fitted estimator instance.
         """
 
         # Sort by time
@@ -172,17 +194,17 @@ class CoxRegression(BaseSurvival):
     def predict(self, X):
 
         """
-        Predict risk scores for the given data.
+        Predict relative risk scores for a set of samples.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix for which to compute the risk score.
 
         Returns
         -------
-        risk : array-like, shape (n_samples,)
-            Predicted risk scores.
+        ndarray of shape (n_samples,)
+            Predicted risk score for each sample.
         """
         
         risk = np.dot(X, self.coef_)
@@ -199,25 +221,25 @@ class CoxRegression(BaseSurvival):
     def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """ 
-        Predict the survival function for the given data.
+        Predict the survival function for the given samples.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix for prediction.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting and identification.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated plot.
         seed : int
-            Random seed for reproducibility.
-        plot : bool, default = ``False``
-            Whether to plot the survival function.
+            Random seed used for reproducibility in plotting.
+        plot : bool, default=False
+            If ``True``, display the survival-function plot.
 
         Returns
         -------
-        survival_function : array-like, shape (n_samples, n_times)
-            Predicted survival function.
+        ndarray of shape (n_samples, n_times)
+            Estimated survival function for each sample.
         """
 
         try:
@@ -238,25 +260,25 @@ class CoxRegression(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
         
         """
-        Predict the cumulative hazard function for the given data.
+        Predict the cumulative hazard function for the given samples.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix for prediction.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting and identification.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated plot.
         seed : int
-            Random seed for reproducibility.
-        plot : bool, default = ``False``
-            Whether to plot the cumulative hazard function.
+            Random seed used for reproducibility in plotting.
+        plot : bool, default=False
+            If ``True``, display the cumulative hazard plot.
 
         Returns
         -------
-        cumulative_hazard_function : array-like, shape (n_samples, n_times)
-            Predicted cumulative hazard function.
+        ndarray of shape (n_samples, n_times)
+            Estimated cumulative hazard function for each sample.
         """
 
         try:
@@ -280,33 +302,33 @@ class CoxRegression(BaseSurvival):
     def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
 
         """
-        Calculate XAI values.
+        Compute SHAP-based explainability values and coefficient ranking.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix used for explanation.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting.
         scaler : object
-            Scaler used for the data.
+            Data scaler used before model fitting, if any.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated visualization.
         seed : int
             Random seed for reproducibility.
         feature_names : list of str
-            Names of the features.
-        background : bool, default = ``False``
-            Whether to use background data for SHAP.
-        plot : bool, default = ``False``
-            Whether to plot the XAI values.
+            Names of the model features.
+        background : bool, default=False
+            If ``True``, compute the SHAP background using k-means summary data.
+        plot : bool, default=False
+            If ``True``, display the coefficient and SHAP plots.
 
         Returns
         -------
-        shap_explainer : shap.Explainer
-            SHAP explainer for model interpretability.
-        coefficients : dict
-            Dictionary of feature coefficients sorted by absolute value.
+        shap.Explainer
+            SHAP explainer for the fitted model.
+        dict
+            Feature coefficients sorted by absolute value.
         """
 
         try:

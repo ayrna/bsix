@@ -24,7 +24,21 @@ warnings.filterwarnings("ignore")
 def _discretize_time_njit(t_ravel, time_grid, number_categories):
 
     """
-    Numba optimized time discretization.
+    Map continuous times to their discrete bin index.
+
+    Parameters
+    ----------
+    t_ravel : ndarray of shape (n_samples,)
+        Array of observed times.
+    time_grid : ndarray of shape (n_bins,)
+        Bin edges used to discretize the original time scale.
+    number_categories : int
+        Total number of discrete time bins.
+
+    Returns
+    -------
+    ndarray of shape (n_samples,)
+        Integer bin index assigned to each time value.
     """
 
     idx = np.searchsorted(time_grid, t_ravel, side="right")
@@ -35,7 +49,24 @@ def _discretize_time_njit(t_ravel, time_grid, number_categories):
 def _get_fc_mask1_njit(e_ravel, t_bin_ravel, number_events, number_categories):
 
     """
-    Numba optimized mask1 (One-hot over event and time-bin).
+    Build the one-hot mask for the event-time likelihood term.
+
+    Parameters
+    ----------
+    e_ravel : ndarray of shape (n_samples,)
+        Event indicator array, where values greater than zero denote observed
+        events.
+    t_bin_ravel : ndarray of shape (n_samples,)
+        Discretized time-bin index for each sample.
+    number_events : int
+        Number of competing event types.
+    number_categories : int
+        Total number of discretized time bins.
+
+    Returns
+    -------
+    ndarray of shape (n_samples, number_events, number_categories)
+        One-hot mask selecting the observed event and time bin.
     """
 
     n = len(e_ravel)
@@ -50,7 +81,20 @@ def _get_fc_mask1_njit(e_ravel, t_bin_ravel, number_events, number_categories):
 def _get_fc_mask2_njit(t_bin_ravel, number_categories):
 
     """
-    Numba optimized mask2 (Risk-set mask).
+    Build the risk-set mask used in the survival ranking terms.
+
+    Parameters
+    ----------
+    t_bin_ravel : ndarray of shape (n_samples,)
+        Discretized time-bin index for each sample.
+    number_categories : int
+        Total number of discretized time bins.
+
+    Returns
+    -------
+    ndarray of shape (n_samples, number_categories)
+        Mask assigning ones to all time bins strictly after the sample's censoring
+        or event time.
     """
 
     n = len(t_bin_ravel)
@@ -63,86 +107,112 @@ def _get_fc_mask2_njit(t_bin_ravel, number_categories):
 class DeepHit(BaseSurvival):
 
     """
-    Deep Survival model with Competing Risks (DeepHit).
+    DeepHit model for discrete-time survival with competing risks.
+
+    This implementation follows the DeepHit architecture: a shared representation
+    is learned from the covariates, and one output head is trained per competing
+    event to approximate the discrete probability mass function over time. The
+    model combines a log-likelihood term, a ranking term and a calibration term
+    in a multi-objective objective, allowing it to model the event-time
+    distribution while accounting for right-censoring and competing risks.
 
     Parameters
     ----------
     number_inputs : int
         Number of input features.
     number_events : int
-        Number of competing events (this does not include the censoring
-        label).
+        Number of competing-event outputs, excluding the censoring class.
     number_categories : int
-        Number of discrete time bins, i.e. the dimension of the time horizon of interest |T| (the output dimension of the network).
-    valid_data : dict, default = ``None``
-        Validation data in the form of a dictionary with keys "x", "e", and "t" for features, events, and times, respectively.
-    h_dim_shared : int, default = 32
-        Number of hidden units per layer in the shared sub-network.
-    num_layers_shared : int, default =1
-        Number of fully-connected layers in the shared sub-network.
-    h_dim_cs : int, default = 32
-        Number of hidden units per layer in each cause-specific sub-network.
-    num_layers_cs : int, default =1
-        Number of fully-connected layers in each cause-specific sub-network.
-    epochs : int, default = 500
+        Number of discrete time bins used to represent the time horizon.
+    time_threshold : int, optional
+        Maximum time-bin index used during prediction and training. If ``None``,
+        the last available category is used.
+    valid_data : dict, optional
+        Validation dataset containing the keys ``x``, ``e`` and ``t``.
+    hidden_layers_shared : list of int, optional
+        Hidden-layer sizes of the shared sub-network.
+    hidden_layers_specific : list of int, optional
+        Hidden-layer sizes of the cause-specific sub-networks.
+    epochs : int, default=50
         Number of training epochs.
-    learn_rate : float, default = 1e-4
+    learn_rate : float, default=1e-4
         Learning rate for the Adam optimizer.
-    lr_decay : float, default = 0.0
-        Learning rate decay factor.
-    alpha : float, default = 1.0
-        Weight of the log-likelihood loss (Loss 1).
-    beta : float, default = 1.0
-        Weight of the ranking loss (Loss 2).
-    gamma : float, default = 1.0
-        Weight of the calibration loss (Loss 3).
-    ranking_sigma : float, default = 0.1
-        Temperature used inside the ranking loss.
-    l2_reg_hidden : float, default = 1e-4
-        L2 regularisation strength applied to the shared and cause-specific hidden layers.
-    l1_reg_output : float, default = 1e-4
-        L1 regularisation strength applied to the output layer.
-    activation : str, default = ``relu``
-        Activation function to use in the hidden layers. ``relu``, ``elu`` or ``tanh``.
-    dropout : float, default = 0.0
-        Dropout rate for regularisation.
-    standardize : bool, default = ``True``
-        Whether to standardize input features.
-    device : torch.device, default = ``None``
-        Device to run the model on (e.g., "cpu" or "cuda").
-    validation_frequency : int, default = 10
-        Frequency (in epochs) to perform validation.
-    patience : int, default = 2000
-        Number of epochs to wait for improvement before early stopping.
-    improvement_threshold : float, default = 0.99999
-        Threshold for considering an improvement in validation loss.
-    patience_increase : int, default = 2
-        Factor by which to increase patience when an improvement is observed.
-    logger : DeepSurvLogger, default = ``None``
-        Logger for tracking training progress.
-    verbose : bool, default = ``True``
+    lr_decay : float, default=0.0
+        Learning-rate decay factor.
+    alpha : float, default=1.0
+        Weight of the log-likelihood loss.
+    beta : float, default=1.0
+        Weight of the ranking loss.
+    gamma : float, default=1.0
+        Weight of the calibration loss.
+    ranking_sigma : float, default=0.1
+        Temperature parameter used inside the ranking loss.
+    l2_reg_hidden : float, default=1e-4
+        L2 regularization strength applied to hidden layers.
+    l1_reg_output : float, default=1e-4
+        L1 regularization strength applied to the output layer.
+    momentum : float, default=0.9
+        Momentum for the optimizer.
+    activation : str, default="relu"
+        Activation function used by the hidden layers.
+    dropout : float, default=0.0
+        Dropout probability applied to the network.
+    standardize : bool, default=True
+        Whether to standardize the input features before training.
+    device : torch.device, optional
+        Device used for training and inference, e.g. ``cpu`` or ``cuda``.
+    validation_frequency : int, default=10
+        Frequency of validation checks during training.
+    patience : int, default=2000
+        Maximum number of epochs to wait for validation improvement before early
+        stopping.
+    improvement_threshold : float, default=0.99999
+        Minimal relative improvement required to count as progress.
+    patience_increase : int, default=2
+        Factor by which patience is increased after improvement.
+    logger : object, optional
+        Logger used to track training metrics.
+    verbose : bool, default=True
         Whether to print training progress.
-    seed : int, default = ``None``
+    seed : int, optional
         Random seed for reproducibility.
+    batch_size : int, default=256
+        Batch size used during training.
 
     Attributes
     ----------
-    time_grid : array-like, shape (number_categories - 1,)
-        Bin edges (in the original time scale) used to discretise continuous event/censoring times into ``number_categories`` bins.
-    survival_function : array-like, shape (n_samples, number_categories)
-        Estimated overall survival function, marginalised over every competing cause.
-    cumulative_hazard_function : array-like, shape (n_samples, number_categories)
-        Estimated cumulative incidence function (overall, or cause-specific when ``event`` is given).
+    time_grid : ndarray or None
+        Discretization points used to map continuous times to bins.
+    network : object
+        Trained neural network model.
+    optimizer : object
+        Optimizer used during training.
+    survival_function : ndarray of shape (n_samples, number_categories)
+        Estimated survival function for each sample.
+    cumulative_hazard_function : ndarray of shape (n_samples, number_categories)
+        Estimated cumulative hazard function for each sample.
     shap_explainer : shap.Explainer
-        SHAP explainer for model interpretability.
+        SHAP explainer used for model interpretability.
+
+    Notes
+    -----
+    DeepHit estimates a discrete distribution over the time axis rather than a
+    single scalar risk score. The final survival curve is obtained by aggregating
+    the event-specific densities over time and applying the standard survival
+    transformation.
 
     Examples
     --------
-    .. code:: python
-
-        from bsix.models.metodologies import DeepHit
-        model = DeepHit(number_inputs=10, number_events=2, number_categories=30, epochs=200, learn_rate=1e-4)
-        model.fit(X_train, y_train)
+    >>> from bsix.models.metodologies import DeepHit
+    >>> model = DeepHit(
+    ...     number_inputs=10,
+    ...     number_events=2,
+    ...     number_categories=30,
+    ...     epochs=200,
+    ...     learn_rate=1e-4,
+    ... )
+    >>> model.fit(X_train, y_train)
+    >>> risk = model.predict(X_test)
     """
 
     def __init__(self, number_inputs, number_events, number_categories, time_threshold=None, valid_data=None, hidden_layers_shared=None, hidden_layers_specific=None,
@@ -151,7 +221,69 @@ class DeepHit(BaseSurvival):
                  patience_increase=2, logger=None, verbose=True, seed=None, batch_size=256):
 
         """
-        Initialise model with specified parameters.
+        Initialize the DeepHit model.
+
+        Parameters
+        ----------
+        number_inputs : int
+            Number of input features.
+        number_events : int
+            Number of competing event types.
+        number_categories : int
+            Number of discrete time bins.
+        time_threshold : int, optional
+            Maximum time-bin index to use in the output. If ``None``, the last
+            category is used.
+        valid_data : dict, optional
+            Validation data with keys ``x``, ``e`` and ``t``.
+        hidden_layers_shared : list of int, optional
+            Hidden-layer widths for the shared network.
+        hidden_layers_specific : list of int, optional
+            Hidden-layer widths for the cause-specific networks.
+        epochs : int, default=50
+            Number of training epochs.
+        learn_rate : float, default=1e-4
+            Learning rate for the optimizer.
+        lr_decay : float, default=0.0
+            Learning-rate decay factor.
+        alpha : float, default=1.0
+            Weight of the log-likelihood loss.
+        beta : float, default=1.0
+            Weight of the ranking loss.
+        gamma : float, default=1.0
+            Weight of the calibration loss.
+        ranking_sigma : float, default=0.1
+            Temperature used in the ranking objective.
+        l2_reg_hidden : float, default=1e-4
+            L2 regularization strength for the hidden layers.
+        l1_reg_output : float, default=1e-4
+            L1 regularization strength for the output layer.
+        momentum : float, default=0.9
+            Momentum used by the optimizer.
+        activation : str, default="relu"
+            Activation function in the hidden layers.
+        dropout : float, default=0.0
+            Dropout probability.
+        standardize : bool, default=True
+            Whether to standardize the input features.
+        device : torch.device, optional
+            Device to use for training and inference.
+        validation_frequency : int, default=10
+            Validation interval in epochs.
+        patience : int, default=2000
+            Maximum number of epochs to wait for improvement.
+        improvement_threshold : float, default=0.99999
+            Relative improvement threshold for early stopping.
+        patience_increase : int, default=2
+            Multiplier applied to patience after improvement.
+        logger : object, optional
+            Logger used to track training metrics.
+        verbose : bool, default=True
+            Whether to print training progress.
+        seed : int, optional
+            Random seed for reproducibility.
+        batch_size : int, default=256
+            Size of each training batch.
         """
 
         # Set device
@@ -211,7 +343,13 @@ class DeepHit(BaseSurvival):
     def _set_seeds(self):
 
         """
-        Initialise random seeds for reproducibility.
+        Initialize random seeds for reproducibility.
+
+        Returns
+        -------
+        None
+            This method updates the global random generators used by Python,
+            NumPy and PyTorch.
         """
 
         if self.seed is not None:
@@ -234,7 +372,17 @@ class DeepHit(BaseSurvival):
     def _build_time_grid(self, t):
 
         """
-        Build the bin edges used to discretise continuous event/censoring times into ``self.number_categories`` discrete bins (quantile-based).
+        Build the quantile-based time grid used for discretization.
+
+        Parameters
+        ----------
+        t : array-like of shape (n_samples,)
+            Observed times used to compute the discrete bins.
+
+        Returns
+        -------
+        None
+            The internal attribute ``self.time_grid`` is updated in-place.
         """
 
         quantiles = np.linspace(0, 1, self.number_categories + 1)[1:-1]
@@ -243,7 +391,17 @@ class DeepHit(BaseSurvival):
     def _discretize_time(self, t):
 
         """
-        Map continuous times to an integer bin index in ``[0, number_categories - 1]``.
+        Map continuous times to integer-based time bins.
+
+        Parameters
+        ----------
+        t : array-like
+            Time values to convert into discrete bins.
+
+        Returns
+        -------
+        ndarray
+            Discretized time indices with the same shape as the input array.
         """
 
         t_ravel = np.ravel(t)
@@ -254,7 +412,20 @@ class DeepHit(BaseSurvival):
     def _get_fc_mask1(self, e, t_bin):
 
         """
-        One-hot mask over (event, time-bin), used to pick out P(T = t, K = k | x) for every *uncensored* subject in the log-likelihood loss (Loss 1).
+        Build the event-time one-hot mask used in the likelihood objective.
+
+        Parameters
+        ----------
+        e : array-like of shape (n_samples,)
+            Event indicator for each sample.
+        t_bin : array-like of shape (n_samples,)
+            Discretized time-bin index for each sample.
+
+        Returns
+        -------
+        ndarray of shape (n_samples, number_events, number_categories)
+            One-hot mask selecting the event and time-bin pairs for uncensored
+            observations.
         """
         e_ravel = np.ravel(e).astype(np.int64)
         t_bin_ravel = np.ravel(t_bin).astype(np.int64)
@@ -264,7 +435,18 @@ class DeepHit(BaseSurvival):
     def _get_fc_mask2(self, t_bin):
 
         """
-        Risk-set mask: ``mask2[i, j] = 1`` for every time-bin ``j`` strictly after subject ``i``'s own time-bin. Used for the censored-survival term of the log-likelihood loss, the ranking loss and the calibration loss.
+        Build the risk-set mask used in the censoring and ranking terms.
+
+        Parameters
+        ----------
+        t_bin : array-like of shape (n_samples,)
+            Discretized time-bin index for each sample.
+
+        Returns
+        -------
+        ndarray of shape (n_samples, number_categories)
+            Mask containing ones for every time bin strictly after the sample's
+            observed time.
         """
         t_bin_ravel = np.ravel(t_bin).astype(np.int64)
 
@@ -273,7 +455,24 @@ class DeepHit(BaseSurvival):
     def _loss_log_likelihood(self, pmf, mask1, mask2, e):
 
         """
-        Loss 1 -- Log-likelihood loss.
+        Compute the log-likelihood loss for the DeepHit model.
+
+        Parameters
+        ----------
+        pmf : torch.Tensor of shape (n_samples, number_events, number_categories)
+            Estimated probability mass function for each competing event and time
+            bin.
+        mask1 : torch.Tensor of shape (n_samples, number_events, number_categories)
+            One-hot mask for observed events.
+        mask2 : torch.Tensor of shape (n_samples, number_categories)
+            Risk-set mask for censored samples.
+        e : torch.Tensor of shape (n_samples,)
+            Event indicator tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Scalar log-likelihood loss contribution.
         """
 
         e_ocurred = (e > 0).float().view(-1, 1)
@@ -298,7 +497,21 @@ class DeepHit(BaseSurvival):
     def _loss_ranking(self, pmf, t_bin, e):
 
         """
-        Loss 2 -- Ranking loss.
+        Compute the ranking loss used to enforce time-ordering consistency.
+
+        Parameters
+        ----------
+        pmf : torch.Tensor of shape (n_samples, number_events, number_categories)
+            Estimated event-time probability mass function.
+        t_bin : torch.Tensor of shape (n_samples,)
+            Discretized time-bin index for each sample.
+        e : torch.Tensor of shape (n_samples,)
+            Event indicator tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Scalar ranking loss term.
         """
         
         t_bin = t_bin.view(-1).long()
@@ -334,7 +547,12 @@ class DeepHit(BaseSurvival):
     def _compute_l2_loss_hidden(self):
 
         """
-        Compute L2 regularization loss over the shared and cause-specific hidden layers.
+        Compute the L2 regularization contribution from hidden layers.
+
+        Returns
+        -------
+        float or torch.Tensor
+            Total L2 penalty over the regularized hidden parameters.
         """
 
         l2_loss = 0.0
@@ -346,7 +564,12 @@ class DeepHit(BaseSurvival):
     def _compute_l1_loss_output(self):
 
         """
-        Compute L1 regularization loss over the output layer.
+        Compute the L1 regularization contribution from the output layer.
+
+        Returns
+        -------
+        torch.Tensor
+            Total L1 penalty for the output weights.
         """
 
         return torch.sum(torch.abs(self.network.output_layer.weight))
@@ -354,7 +577,25 @@ class DeepHit(BaseSurvival):
     def _get_loss(self, x, e, t, mask1, mask2):
 
         """
-        Compute total loss including regularization.
+        Compute the full DeepHit training loss, including regularization.
+
+        Parameters
+        ----------
+        x : torch.Tensor of shape (n_batch, n_features)
+            Batch of input covariates.
+        e : torch.Tensor of shape (n_batch,)
+            Event indicator tensor.
+        t : torch.Tensor of shape (n_batch,)
+            Discretized event or censoring times.
+        mask1 : torch.Tensor of shape (n_batch, number_events, number_categories)
+            Event-time mask used in the likelihood term.
+        mask2 : torch.Tensor of shape (n_batch, number_categories)
+            Risk-set mask used in the censoring and ranking terms.
+
+        Returns
+        -------
+        torch.Tensor
+            Scalar total loss value.
         """
 
         pmf = self.network(x)
@@ -374,21 +615,21 @@ class DeepHit(BaseSurvival):
     def _get_concordance_index(self, x, t, e):
 
         """
-        Calculate the overall concordance index (C-index) for model predictions.
+        Compute the concordance index for a given batch of samples.
 
         Parameters
         ----------
-        x : array-like, shape (n_samples, n_features)
-            Input data.
-        t : array-like, shape (n_samples,)
-            Censoring times.
-        e : array-like, shape (n_samples,)
+        x : array-like or torch.Tensor
+            Feature matrix used to infer the model output.
+        t : array-like of shape (n_samples,)
+            Observation times.
+        e : array-like of shape (n_samples,)
             Event indicators.
 
         Returns
         -------
-        c_index : tensor
-            Concordance index.
+        torch.Tensor
+            Concordance index value as a tensor on the model device.
         """
 
         self.network.eval()
@@ -406,7 +647,17 @@ class DeepHit(BaseSurvival):
     def _standardize_x(self, x):
 
         """
-        Standardize input features.
+        Standardize input features using the training-time offset and scale.
+
+        Parameters
+        ----------
+        x : torch.Tensor of shape (n_samples, n_features)
+            Input feature matrix to standardize.
+
+        Returns
+        -------
+        torch.Tensor
+            Standardized feature matrix.
         """
 
         return (x - self.offset) / (self.scale + 1e-15)
@@ -414,19 +665,22 @@ class DeepHit(BaseSurvival):
     def fit(self, X_train, y_train, **kwargs):
 
         """
-        Fit the model to the data.
+        Fit the DeepHit model to the training data.
 
         Parameters
         ----------
-        X_train : array-like, shape (n_samples, n_features)
-            Training data.
-        y_train : structured array-like, shape (n_samples,)
-            Target training values (events, times).
+        X_train : array-like of shape (n_samples, n_features)
+            Training feature matrix.
+        y_train : structured array-like of shape (n_samples,)
+            Target data containing the fields ``event`` and ``time``.
+        **kwargs
+            Additional keyword arguments accepted for compatibility with the
+            training interface.
 
         Returns
         -------
-        self : DeepHit
-            Fitted estimator.
+        DeepHit
+            The fitted estimator instance.
         """
 
         # Set random seeds
@@ -610,13 +864,13 @@ class DeepHit(BaseSurvival):
 
         Parameters
         ----------
-        x : array-like, shape (n_samples, n_features)
-            Input data.
+        x : array-like of shape (n_samples, n_features)
+            Input feature matrix for prediction.
 
         Returns
         -------
-        risk : array-like, shape (n_samples,)
-            Predicted overall risk for each sample.
+        ndarray of shape (n_samples,)
+            Estimated cumulative risk for each sample.
         """
 
         self.network.eval()
@@ -636,25 +890,26 @@ class DeepHit(BaseSurvival):
     def predict_survival_function(self, X, index, dataset, seed, plot=False):
 
         """
-        Predict the overall survival function (marginalised over every competing cause) for the given data.
+        Predict the overall survival function for the given samples.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated plot.
         seed : int
             Random seed for reproducibility.
-        plot : bool, default = ``False``
-            Whether to plot the survival function.
+        plot : bool, default=False
+            If ``True``, display the survival-function plot.
 
         Returns
         -------
-        survival_function : array-like, shape (n_samples, number_categories)
-            Predicted overall survival function.
+        ndarray of shape (n_samples,)
+            Array of ``StepFunction`` objects with the estimated survival curve
+            for each sample.
         """
 
         try:
@@ -682,27 +937,29 @@ class DeepHit(BaseSurvival):
     def predict_cumulative_hazard_function(self, X, index, dataset, seed, event=None, plot=False):
 
         """
-        Predict the cumulative incidence function for the given data.
+        Predict the cumulative incidence or cumulative hazard function.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated plot.
         seed : int
             Random seed for reproducibility.
-        event : int, default = ``None``
-            Which competing cause (1..number_events) to compute the cumulative incidence function for.
-        plot : bool, default = ``False``
-            Whether to plot the cumulative incidence function.
+        event : int, optional
+            Competing event index to use for cause-specific estimation. If
+            ``None``, the overall cumulative incidence is returned.
+        plot : bool, default=False
+            If ``True``, display the cumulative hazard plot.
 
         Returns
         -------
-        cumulative_hazard_function : array-like, shape (n_samples, number_categories)
-            Predicted (overall or cause-specific) cumulative incidence function.
+        ndarray of shape (n_samples, number_categories)
+            Estimated cumulative incidence function, either overall or cause-
+            specific depending on ``event``.
         """
 
         try:
@@ -734,33 +991,31 @@ class DeepHit(BaseSurvival):
     def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, event=1, background=False, plot=False):
 
         """
-        Calculate XAI values.
+        Compute SHAP-based explainability values for the model.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data.
-        index : array-like, shape (n_samples,)
-            Index for the samples.
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix used for explanation.
+        index : array-like of shape (n_samples,)
+            Sample indices used for plotting.
         scaler : object
-            Scaler used for the data.
+            Scaler used in the preprocessing pipeline, if any.
         dataset : str
-            Name of the dataset.
+            Name of the dataset used in the generated visualization.
         seed : int
             Random seed for reproducibility.
         feature_names : list of str
-            Names of the features.
-        event : int, default =1
-            Which competing cause to explain.
-        background : bool, default = ``False``
-            Whether to use background data for SHAP.
-        plot : bool, default = ``False``
-            Whether to plot the XAI values.
+            Names of the model features.
+        background : bool, default=False
+            If ``True``, compute the SHAP background using k-means summary data.
+        plot : bool, default=False
+            If ``True``, display the SHAP plot.
 
         Returns
         -------
-        shap_explainer : shap.Explainer
-            SHAP explainer for model interpretability.
+        shap.Explainer
+            SHAP explainer for the fitted model.
         """
 
         try:
