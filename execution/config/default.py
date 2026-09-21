@@ -16,7 +16,7 @@ estimators = [
 
                 # "AcceleratedFailureTime",
 
-                "CoxRegression",
+                # "CoxRegression",
                 # "DeepHit",
                 # "DeepSurv",
                 # "RandomSurvForest",
@@ -67,10 +67,10 @@ datasets = [
                 # "veteran.csv",
                 # "wpbc.csv",
 
-                "gbsg.h5",
-                "metabric.h5",
-                "support.h5",
-                "whas.h5",
+                # "gbsg.h5",
+                # "metabric.h5",
+                # "support.h5",
+                # "whas.h5",
             ]
 seeds = 30
 ### n_folds = 3
@@ -119,6 +119,7 @@ max_concurrent_jobs = 500
 #         "*" : 10,  # Override memory to 10GB for estimator1 on all datasets
 #     }
 # }
+
 memory_override = {}
 gpu_type_override = {}
 batch_size_override = {}

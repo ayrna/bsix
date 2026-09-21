@@ -19,8 +19,3 @@ src/bsix/datasets/pre.datasets/
 ___/
 _not_used/
 __pycache__/
-
-# TODAVÍA NO
-survivalTabPFN.py
-tabpfn-v2-classifier.ckpt
-tabpfn-v2-regressor.ckpt

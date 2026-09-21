@@ -147,7 +147,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
             from ..models import SurvivalTabPFN
                
             param_grid = {
-                "n_estimators":[2, 4, 8],
+                "n_estimators":[2, 4],
             }
 
             estimator = SurvivalTabPFN(seed=seed)

@@ -112,6 +112,7 @@ class StepFunction:
     """
 
     def __init__(self, X, y, is_survival=True):
+
         """
         Initialize a stepwise function representation.
 
@@ -130,11 +131,13 @@ class StepFunction:
         None
             Initializes the internal attributes ``X``, ``y`` and ``is_survival``.
         """
+
         self.X = X
         self.y = y
         self.is_survival = is_survival
         
     def __call__(self, t):
+
         """
         Evaluate the step function at one or more query points.
 
@@ -149,6 +152,7 @@ class StepFunction:
             Evaluated function value(s). If a scalar input is provided, a scalar is
             returned; otherwise, an array is returned.
         """
+
         scalar_input = np.ndim(t) == 0
         t = np.atleast_1d(t)
         
@@ -169,6 +173,7 @@ class StepFunction:
         return res[0] if scalar_input else res
     
     def __repr__(self):
+
         """
         Return a readable representation of the step function.
 
@@ -177,6 +182,7 @@ class StepFunction:
         str
             String representation of the function with its x and y arrays.
         """
+
         x_str = repr(self.X)
         y_str = repr(self.y)
         
@@ -189,6 +195,7 @@ class BreslowEstimator:
     """
 
     def __init__(self):
+
         """
         Initialize the Breslow baseline hazard estimator.
 
@@ -198,11 +205,13 @@ class BreslowEstimator:
             Initializes the internal estimation state for times, baseline hazard
             and baseline survival.
         """
+
         self.times_ = None
         self.baseline_hazard_ = None
         self.baseline_survival_ = None
 
     def fit(self, risk_scores, events, times):
+
         """
         Fit the Breslow baseline hazard estimator from risk scores and observed times.
 
@@ -221,6 +230,7 @@ class BreslowEstimator:
         BreslowEstimator
             The fitted estimator instance.
         """
+
         log_risk = np.exp(risk_scores)
         
         unique_times = np.unique(times[events])
@@ -245,6 +255,7 @@ class BreslowEstimator:
         return self
 
     def get_survival_function(self, risk_scores):
+
         """
         Compute the survival function for the provided risk scores.
 
@@ -259,11 +270,13 @@ class BreslowEstimator:
             Array of ``StepFunction`` objects representing the estimated survival
             curves for each sample.
         """
+
         log_risk = np.exp(risk_scores)
 
         return np.array([StepFunction(self.times_, np.power(self.baseline_survival_, er), is_survival=True) for er in log_risk])
 
     def get_cumulative_hazard_function(self, risk_scores):
+
         """
         Compute the cumulative hazard function for the provided risk scores.
 
@@ -278,6 +291,7 @@ class BreslowEstimator:
             Array of ``StepFunction`` objects representing the estimated cumulative
             hazard curves for each sample.
         """
+        
         log_risk = np.exp(risk_scores)
         cum_baseline_hazard = -np.log(self.baseline_survival_)
         
