@@ -13,57 +13,7 @@ from sklearn.utils.validation import check_random_state
 
 warnings.filterwarnings("ignore")
 
-@njit(fastmath=True, cache=True)
-def _calculate_log_rank_njit(times_left, events_left, unique_times, n_j, d_j):
-
-    """
-    Compute the log-rank test statistic for a single split candidate.
-
-    Parameters
-    ----------
-    times_left : ndarray of shape (n_left,)
-        Observation times in the left branch.
-    events_left : ndarray of shape (n_left,)
-        Event indicators in the left branch.
-    unique_times : ndarray of shape (n_unique_times,)
-        Unique event times in the parent node.
-    n_j : ndarray of shape (n_unique_times,)
-        Number at risk in the parent node at each event time.
-    d_j : ndarray of shape (n_unique_times,)
-        Number of observed events in the parent node at each event time.
-
-    Returns
-    -------
-    float
-        Log-rank score for the candidate split.
-    """
-    
-    # At-risk count in the left group (nleft_j) at each unique event time
-    idx_left = np.searchsorted(times_left, unique_times, side="left")
-    nleft_j = (len(times_left) - idx_left).astype(np.float32)
-
-    # Event count in the left group (dleft_j) at each unique event time
-    mask = events_left != 0 
-    tleft_events = times_left[mask]
-    
-    if len(tleft_events) > 0:
-        dleft_j = np.bincount(np.searchsorted(unique_times, tleft_events), minlength=len(unique_times)).astype(np.float32)
-    else:
-        dleft_j = np.zeros(len(unique_times), dtype=np.float32)
-
-    safe_n_j = np.where(n_j > 0, n_j, 1.0)
-    # Calculate U statistic (Observed - Expected events)
-    U = np.sum(np.where(n_j > 0, dleft_j - d_j * (nleft_j / safe_n_j), 0.0))
-
-    # Calculate Variance (V) assuming a hypergeometric distribution
-    valid = n_j > 1.0
-    nv = n_j[valid]
-    V = np.sum(d_j[valid] * nleft_j[valid] * (nv - nleft_j[valid]) * (nv - d_j[valid]) / (nv ** 2 * (nv - 1.0)))
-
-    # Return Log-Rank score
-    return (U ** 2) / V if V > 0.0 else 0.0
-
-@njit(fastmath=True, cache=True)
+@njit(fastmath=True, cache=True, parallel=True, nogil=True)
 def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_samples_leaf):
 
     """
@@ -94,33 +44,77 @@ def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_sam
         Best feature index and the corresponding split threshold.
     """
 
+    n_samples = X.shape[0]
+    n_unique_t = unique_times.shape[0]
+    bucket = np.searchsorted(unique_times, times, side="right") - 1
+ 
+    h = np.zeros(n_unique_t, dtype=np.float64)
+    c = np.zeros(n_unique_t, dtype=np.float64)
+    for j in range(n_unique_t):
+        nj = n_j[j]
+        dj = d_j[j]
+        if nj > 0.0:
+            h[j] = dj / nj
+        if nj > 1.0:
+            c[j] = dj * (nj - dj) / (nj * nj * (nj - 1.0))
+ 
+    H_cum = np.cumsum(h)
+    A_cum = np.cumsum(c * n_j)
+ 
+    H_i = np.zeros(n_samples, dtype=np.float64)
+    A_i = np.zeros(n_samples, dtype=np.float64)
+    for i in range(n_samples):
+        b = bucket[i]
+        if b >= 0:
+            H_i[i] = H_cum[b]
+            A_i[i] = A_cum[b]
+ 
     best_score = -1.0
     best_feature = -1
     best_threshold = np.nan
-
+ 
+    nleft_j = np.empty(n_unique_t, dtype=np.float64)
+ 
     for fi in features:
         col = X[:, fi]
-        uniq = np.unique(col)
-
-        # Skip the very last threshold since it would create an empty right node
-        for i in range(len(uniq) - 1):
-            thresh = uniq[i]
-            left_mask = col <= thresh
-            num_left = int(left_mask.sum())
-            num_right = len(left_mask) - num_left
-            
-            # Check constraints
-            if num_left < min_samples_leaf or num_right < min_samples_leaf:
-                continue
-
-            score = _calculate_log_rank_njit(times[left_mask], events[left_mask], unique_times, n_j, d_j)
-
-            # Update best split
-            if score > best_score:
-                best_score = score
-                best_feature = fi
-                best_threshold = thresh
-
+        order = np.argsort(col)
+ 
+        nleft_j[:] = 0.0
+        num_left = 0
+        D_left = 0.0
+        sumH_left = 0.0
+        sumA_left = 0.0
+ 
+        i = 0
+        while i < n_samples:
+            thresh = col[order[i]]
+            j = i
+            while j < n_samples and col[order[j]] == thresh:
+                idx = order[j]
+                num_left += 1
+                if events[idx] != 0:
+                    D_left += 1.0
+                sumH_left += H_i[idx]
+                sumA_left += A_i[idx]
+                b = bucket[idx]
+                if b >= 0:
+                    nleft_j[0:b + 1] += 1.0
+                j += 1
+ 
+            num_right = n_samples - num_left
+ 
+            if j < n_samples and num_left >= min_samples_leaf and num_right >= min_samples_leaf:
+                U = D_left - sumH_left
+                V = sumA_left - np.sum(c * nleft_j * nleft_j)
+                score = (U * U) / V if V > 0.0 else 0.0
+ 
+                if score > best_score:
+                    best_score = score
+                    best_feature = fi
+                    best_threshold = thresh
+ 
+            i = j
+ 
     return best_feature, best_threshold
 
 class LeafEstimator:
@@ -162,18 +156,13 @@ class LeafEstimator:
         """
                 
         self.times = global_times
-
-        # Sort by time (already sorted?)
-        sort_idx = np.argsort(times)
-        t_sorted = times[sort_idx]
-        e_sorted = events[sort_idx].astype(bool)
  
         # Risk set (n_i) at each global time point
-        risk_set = len(times) - np.searchsorted(t_sorted, self.times, side="left")
+        risk_set = len(times) - np.searchsorted(times, self.times, side="left")
  
         # Count the exact number of events (d_i) at each global time point
         d_events = np.zeros(len(self.times), dtype=np.float32)
-        event_times = t_sorted[e_sorted]
+        event_times = times[events]
 
         if len(event_times) > 0:
             # Map local event times to their corresponding index in the global grid
@@ -231,10 +220,7 @@ class SurvTree(BaseSurvival):
     Survival tree model for time-to-event data.
 
     This implementation builds a tree using log-rank splitting criteria and
-    estimates a leaf-specific survival function from the empirical hazard. The
-    resulting model is a nonparametric alternative to the proportional-hazards
-    estimators and is designed to be easily aggregated into a random survival
-    forest.
+    estimates a leaf-specific survival function from the empirical hazard.
 
     Parameters
     ----------
@@ -340,7 +326,7 @@ class SurvTree(BaseSurvival):
         # Shuffle features to ensure random, reproducible tie-breaking
         features = np.arange(n_features)
         self.rng.shuffle(features)
- 
+        
         best_feature, best_threshold = _best_split_njit(X, events, times, unique_times, n_j, d_j, features, self.min_samples_leaf)
 
         if best_feature == -1:
@@ -439,7 +425,7 @@ class SurvTree(BaseSurvival):
             The fitted estimator instance.
         """
         
-        X, y = self._sort(X, y)
+        X, y = self._sort(X, y, descending=False)
         
         events = y["event"]
         times = y["time"]
@@ -474,10 +460,6 @@ class SurvTree(BaseSurvival):
             risks[i] = node.risk_value
             
         return risks
-
-    def score(self, X, y):
-
-        return None
     
     def _get_leaves(self, X):
 

@@ -13,9 +13,9 @@ estimators = [
                 # "BaseDeepHit",
                 # "BaseSurvivalTree",
                 # "BaseRandomSurvivalForest",
+                # "BaseAcceleratedFailureTime",
 
                 # "AcceleratedFailureTime",
-
                 # "CoxRegression",
                 # "DeepHit",
                 # "DeepSurv",
@@ -81,7 +81,7 @@ test_size = 0.25
 # Number of jobs (used within the experiment)
 # It does not affect the resources requested for each job,
 # which are defined in the Resources section below
-n_jobs = -1
+n_jobs = 5 # -1
 # Whether to perform a dry run (jobs only print the configuration)
 # for testing purposes
 # Can be overriden with the --dry-run argument
@@ -102,7 +102,7 @@ gpu_type = ""
 # gpu_legacy: set to True to use older GPUs too
 gpu_legacy = False
 # Max time for each job in HH:MM:SS
-max_time = "02:00:00"
+max_time = "05:00:00"
 # Max concurrent jobs in Slurm
 max_concurrent_jobs = 500
 

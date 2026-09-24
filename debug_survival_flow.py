@@ -11,12 +11,12 @@ def main():
     config = dict(
         data_dir="bsix.datasets",
         results_dir="./results",
-        dataset="colon.csv",
+        dataset="metabric.h5",
         test_size=0.25,
         validation_size=0.2,
         seed=0,
         estimator_name="CoxRegression",
-        n_iter=1,
+        n_iter=30,
         n_jobs=-1,
         interactive=True,
     )

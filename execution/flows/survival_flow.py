@@ -10,14 +10,15 @@ from remayn.result import make_result
 from remayn.result_set import ResultFolder
 
 ESTIMATOR_TO_BLOCK = {
+    "BaseAcceleratedFailureTime": "standard",
     "BaseCoxRegression": "standard",
     "BaseCoxRegressionWithTimeVarying": "time_varying",
     "BaseDeepHit": "standard",
     "BaseSurvivalTree": "standard",
     "BaseRandomSurvivalForest": "standard",
 
+    
     "AcceleratedFailureTime": "standard",
-
     "CoxRegression": "standard",
     "DeepHit": "standard",
     "DeepSurv": "standard",
@@ -338,3 +339,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

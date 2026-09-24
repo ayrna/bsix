@@ -252,8 +252,9 @@ def submit_aggregator(timestamp, additional_params={}):
         slurm_job_name=f"{CONFIG.experiment_name}_ag",
         slurm_partition="normal",
         cpus_per_task=4,
-        mem_gb=4,
-        slurm_time="02:00:00",
+        mem_gb=16,
+        timeout_min=300,
+        slurm_time="05:00:00",
         slurm_additional_parameters={"nice": CONFIG.nice, **additional_params},
     )
 
@@ -282,8 +283,9 @@ def submit_results_collector(timestamp, external_cv, additional_params={}):
         slurm_job_name=f"{CONFIG.experiment_name}_rc",
         slurm_partition="normal",
         cpus_per_task=CONFIG.collect_n_jobs,
-        mem_gb=4,
-        slurm_time="02:00:00",
+        mem_gb=16,
+        timeout_min=300,
+        slurm_time="05:00:00",
         slurm_additional_parameters={"nice": CONFIG.nice, **additional_params},
     )
 

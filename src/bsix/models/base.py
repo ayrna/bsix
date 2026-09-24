@@ -1175,7 +1175,7 @@ class BaseSurvival(BaseEstimator, ABC):
 
         return figure, ax
 
-    def _sort(self, X, y, time="time"):
+    def _sort(self, X, y, time="time", descending=True):
         
         """
         Sort data by descending time.
@@ -1196,8 +1196,11 @@ class BaseSurvival(BaseEstimator, ABC):
             ``(X_sorted, y_sorted)`` where both arrays are ordered by
             descending observed time.
         """
-                
-        sort_idx = np.argsort(y[time])[::-1]
+
+        if descending == True:        
+            sort_idx = np.argsort(y[time])[::-1]
+        else:
+            sort_idx = np.argsort(y[time])
 
         X = X[sort_idx]
         y = y[sort_idx]

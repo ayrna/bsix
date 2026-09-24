@@ -6,6 +6,7 @@ from scipy import stats
 from sklearn.metrics import make_scorer
 
 CLASSIFIERS = [
+    "BaseAcceleratedFailureTime",
     "BaseCoxRegression",
     "BaseCoxRegressionWithTimeVarying",
     "BaseDeepHit",
@@ -13,7 +14,6 @@ CLASSIFIERS = [
     "BaseRandomSurvivalForest",
 
     "AcceleratedFailureTime",
-
     "CoxRegression",
     "DeepHit",
     "DeepSurv",
@@ -234,6 +234,22 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
             ]
 
             estimator = DeepMultiTask(inputs.shape[1], seed=seed)
+
+    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+
+        elif estimator_name == "BaseAcceleratedFailureTime":
+                    from ..models import BaseAcceleratedFailureTime
+        
+                    param_grid = [
+                        {
+                            "type": ["LogLogisticAFT", "WeibullAFT"],
+                            "penalizer": np.round(np.logspace(-1, 1, 3), 8),
+                            "l1_ratio": np.round(np.linspace(0, 1, 5, endpoint=False), 8),
+                        }
+                    ]
+        
+                    estimator = BaseAcceleratedFailureTime()
 
         elif estimator_name == "BaseCoxRegression":
             from ..models import BaseCoxRegression

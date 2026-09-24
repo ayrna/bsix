@@ -5,52 +5,64 @@ import shap
 import warnings
 
 from ..base import BaseSurvival
-from sksurv.linear_model import CoxPHSurvivalAnalysis
-from sksurv.linear_model.coxph import BreslowEstimator
+from lifelines import LogLogisticAFTFitter, WeibullAFTFitter
 
 warnings.filterwarnings("ignore")
 
-class BaseCoxRegression(BaseSurvival):
+class BaseAcceleratedFailureTime(BaseSurvival):
 
     """
-    Cox Regression model.
+    Weibull Accelerated Failure Time model.
     """
 
-    def __init__(self, alpha=0.0, ties="breslow", n_iter=100):
+    def __init__(self, type="WeibullAFT", penalizer=0.0, l1_ratio=0.0):
 
         """
         Initialise model with specified parameters.
         """
 
-        # Parameters 
-        self.alpha = alpha
-        self.ties = ties
-        self.n_iter = n_iter
+        # Parameters
+        self.penalizer = penalizer
+        self.l1_ratio = l1_ratio
+        self.type = type
 
         # Model (will be initialized in train())
         self.model = None
 
         self.labels_covariables = ["event", "time"]
 
+    def _toDataframe(self, data, columns=None):
+
+        """
+        Convert data to DataFrame format.
+        """
+
+        if columns == None:
+            dataframe = pd.DataFrame(data, columns=[str(l) for l in range(data.shape[1])])
+        else:
+            dataframe = pd.DataFrame(data, columns=columns)
+
+        return dataframe
+    
     def fit(self, X, y):
 
         """
         Fit the model to the data.
         """
-                
-        # Breslow estimator for baseline hazards
-        self.breslow = BreslowEstimator()
 
         # Sort by time
-        X, y = self._sort(X, y)
+        X, y = self._sort(X, y, "time")
 
-        self.model = CoxPHSurvivalAnalysis(alpha=self.alpha, ties=self.ties, n_iter=self.n_iter)
-        self.model.fit(X, y)
+        dataframe = pd.concat([self._toDataframe(X), self._toDataframe(y[["event", "time"]], self.labels_covariables)], axis=1)
 
-        # Compute baseline hazards with training data
-        self.breslow.fit(self.predict(X), y["event"], y["time"])
+        if self.type == "LogLogisticAFT":
+            self.model = LogLogisticAFTFitter(penalizer=self.penalizer, l1_ratio=self.l1_ratio)
+        else:
+            self.model = WeibullAFTFitter(penalizer=self.penalizer, l1_ratio=self.l1_ratio)
+
+        self.model.fit(dataframe, duration_col=self.labels_covariables[1], event_col=self.labels_covariables[0], show_progress=False, fit_options={"step_size": 0.15})
         
-        self.coef_ = self.model.coef_
+        self.coef_ = self.model.params_.values[:X.shape[1]]
         
         return self
 
@@ -59,17 +71,17 @@ class BaseCoxRegression(BaseSurvival):
         """
         Predict risk scores for the given data.
         """
-                
-        risk = self.model.predict(X)
+
+        risk = self.model.predict_expectation(self._toDataframe(X)).to_numpy() * -1
 
         return risk
     
     def score(self, X, y):
-        
+
         """
         Calculate the score for the model.
         """
-                
+        
         return None
     
     # ----------------------
@@ -88,12 +100,12 @@ class BaseCoxRegression(BaseSurvival):
         
         risk = self.predict(X)
 
-        self.survival_function = self.breslow.get_survival_function(risk)
+        self.survival_function = self.model.predict_survival_function(self._toDataframe(X))
 
         if plot:
-            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "BaseCoxRegression", dataset, "Survival", seed)
+            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Accelerated Failure Time", dataset, "Survival", seed)
             plt.show()
-            
+
         return self.survival_function
 
     def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
@@ -109,10 +121,10 @@ class BaseCoxRegression(BaseSurvival):
 
         risk = self.predict(X)
         
-        self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
+        self.cumulative_hazard_function = self.model.predict_cumulative_hazard(self._toDataframe(X))
 
         if plot:
-            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "BaseCoxRegression", dataset, "CumulativeRisk", seed)
+            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Accelerated Failure Time", dataset, "CumulativeRisk", seed)
             plt.show()
         
         return self.cumulative_hazard_function
@@ -148,8 +160,8 @@ class BaseCoxRegression(BaseSurvival):
         self.coefficients = {k: v for k, v in sorted(coefficients.items(), key=lambda item: abs(item[1]), reverse=True)}
 
         if plot:
-            figure, ax = BaseSurvival.plot_coefficients(self.coefficients, "BaseCoxRegression", dataset, seed)
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "BaseCoxRegression", dataset, seed)
+            figure, ax = BaseSurvival.plot_coefficients(self.coefficients, "Accelerated Failure Time", dataset, seed)
+            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "Accelerated Failure Time", dataset, seed)
             
             plt.show()
 

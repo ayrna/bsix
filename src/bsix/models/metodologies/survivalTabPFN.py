@@ -119,7 +119,7 @@ class SurvivalTabPFN(BaseSurvival):
         SurvivalTabPFN
             The fitted estimator instance.
         """
- 
+        
         # Sort by time
         X, y = self._sort(X, y)
         
@@ -131,7 +131,7 @@ class SurvivalTabPFN(BaseSurvival):
             self.classifier = TabPFNClassifier(n_estimators=self.n_estimators, random_state=self.seed, ignore_pretraining_limits=True, model_path=ruta_absoluta_clf, show_progress_bar=True, n_preprocessing_jobs=self.n_jobs)
 
         self.classifier.fit(X, event)
-
+        
         X_event = X[event]
         y_time_event = time[event]
         reversed_y_time_event = - y_time_event

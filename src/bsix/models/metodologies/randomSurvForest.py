@@ -21,9 +21,7 @@ class RandomSurvForest(BaseSurvival):
 
     This model builds an ensemble of survival trees from bootstrap samples and
     aggregates their predictions to estimate both survival and cumulative hazard
-    functions. It follows the same public interface as the other survival models
-    in the package, while leveraging the flexibility of tree ensembles to capture
-    nonlinear covariate effects and nonproportional risk patterns.
+    functions.
 
     Parameters
     ----------

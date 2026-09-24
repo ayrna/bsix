@@ -719,8 +719,8 @@ class DeepHit(BaseSurvival):
             )
 
         # Events and Times
-        e_train = np.array([item[0] for item in y_train], dtype=np.int64)
-        t_train = np.array([item[1] for item in y_train], dtype=np.float32)
+        e_train = np.array([evento for evento, _ in y_train], np.bool_)
+        t_train = np.array([tiempo for _, tiempo in y_train], np.float32)
 
         # Discretise time
         self._build_time_grid(t_train)
