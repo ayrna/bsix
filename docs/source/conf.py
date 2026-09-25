@@ -35,7 +35,7 @@ autodoc_mock_imports = [
     "pycox",
     "remayn",
     "sacred",
-    "scikit_learn",
+    "scikit-learn",
     "scikit-survival",
     "scipy",
     "shap",
