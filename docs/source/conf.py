@@ -21,6 +21,31 @@ extensions = [
     'sphinx.ext.intersphinx',
 ]
 
+autodoc_mock_imports = [
+    "config",
+    "h5py",
+    "joblib",
+    "lifelines",
+    "matplotlib",
+    "memory_profiler",
+    "mplcursors",
+    "numba",
+    "numpy",
+    "pandas",
+    "pycox",
+    "remayn",
+    "sacred",
+    "scikit_learn",
+    "scikit-survival",
+    "scipy",
+    "shap",
+    "statsmodels",
+    "submitit",
+    "tabpfn",
+    "torch",
+    "torchtuples",
+]
+
 autodoc_default_options = {
     'exclude-members': 'set_fit_request, set_score_request, set_predict_request',
 }
