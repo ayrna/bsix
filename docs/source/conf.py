@@ -22,6 +22,7 @@ extensions = [
 ]
 
 autodoc_mock_imports = [
+    "bsix",
     "config",
     "h5py",
     "joblib",
@@ -35,8 +36,8 @@ autodoc_mock_imports = [
     "pycox",
     "remayn",
     "sacred",
-    "scikit-learn",
-    "scikit-survival",
+    "sklearn",
+    "sksurv",
     "scipy",
     "shap",
     "statsmodels",
