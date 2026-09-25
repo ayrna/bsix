@@ -47,6 +47,9 @@ autodoc_mock_imports = [
 ]
 
 autodoc_default_options = {
+    'members': True,
+    'undoc-members': True,
+    'show-inheritance': True,
     'exclude-members': 'set_fit_request, set_score_request, set_predict_request',
 }
 
@@ -79,4 +82,5 @@ intersphinx_mapping = {
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('../../src/')) # Local path to bsix/src
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(current_dir, '../../src/'))) # Local path to bsix/src
