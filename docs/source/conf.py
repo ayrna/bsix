@@ -22,7 +22,6 @@ extensions = [
 ]
 
 autodoc_mock_imports = [
-    "bsix",
     "config",
     "h5py",
     "joblib",
