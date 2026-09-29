@@ -282,7 +282,7 @@ class DeepMultiTask(BaseSurvival):
         t_j = t.view(1, -1)
 
         if self.ties == "cox":
-            log_risk = torch.logsumexp(risk, dim=0)
+            log_risk = torch.logcumsumexp(risk, dim=0)
         elif self.ties == "breslow":
             mask = t_i <= t_j
             risk_mask = torch.where(mask, risk.view(1, -1), torch.tensor(-float('inf'), device=risk.device))
@@ -537,7 +537,9 @@ class DeepMultiTask(BaseSurvival):
             
             loss = self._get_loss(x_train_tensor, e_train_tensor, t_train_tensor)
             loss.backward()
-            ###torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
+
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
+            
             self.optimizer.step()
             
             logger.logValue("loss", loss.item(), epoch)

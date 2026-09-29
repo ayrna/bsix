@@ -168,9 +168,51 @@ class RandomSurvForest(BaseSurvival):
             delayed(self._fit_single_tree)(X, y, n_samples, tree_seed) 
             for tree_seed in tree_seeds
         )
+
+        self.grid = np.unique(np.concatenate([t.unique_times for t in self.model]))
         
         return self
 
+    @staticmethod
+    def _predict_tree(tree, X, grid):
+
+        """
+        Predict the cumulative hazard for a single tree.
+        
+        Parameters
+        ----------
+        tree : SurvTree
+            Individual survival tree used for prediction.
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix used for prediction.
+        grid : ndarray
+            Shared evaluation grid, built once per call via
+            ``_combined_time_grid``.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+            Predicted cumulative hazard for each sample.
+        """
+
+        leaves = tree._get_leaves(X)
+        G = grid.shape[0]
+        leaf_cache = {}
+        tree_risk = np.empty(X.shape[0], dtype=np.float64)
+
+        for i, leaf in enumerate(leaves):
+            key = id(leaf)
+            val = leaf_cache.get(key)
+            if val is None:
+                est = leaf.estimator
+                idx = np.searchsorted(grid, est.times, side="left")
+                counts = np.diff(idx, append=G)
+                val = float(np.dot(est.cumulative_hazard, counts))
+                leaf_cache[key] = val
+            tree_risk[i] = val
+
+        return tree_risk
+    
     def predict(self, X):
 
         """
@@ -186,19 +228,15 @@ class RandomSurvForest(BaseSurvival):
         ndarray of shape (n_samples,)
             Aggregated risk score for each sample.
         """
-
+        
         if not self.model:
             raise ValueError("When calling `predict` with a model, first fit the model.")
 
-        all_preds = [tree._compute_survival_hazard_functions(X, survival=False) for tree in self.model]
-        n_samples = X.shape[0]
-        grid = self._combined_time_grid(all_preds)
-
-        risk = np.array(
-            Parallel(n_jobs=self.n_jobs, prefer="threads")(
-                delayed(self._aggregate_sample_risk)(all_preds, i, grid) for i in range(n_samples)
-            )
+        tree_risks = Parallel(n_jobs=self.n_jobs)(
+            delayed(self._predict_tree)(tree, X, self.grid) for tree in self.model
         )
+
+        risk = np.mean(tree_risks, axis=0)
 
         return risk
       
@@ -206,98 +244,50 @@ class RandomSurvForest(BaseSurvival):
     # Base Survival methods
     # ----------------------
     @staticmethod
-    def _combined_time_grid(all_preds):
+    def _accumulate_trees(trees, X, grid, survival):
 
         """
-        Build the evaluation grid shared by every sample in the batch.
-
+        Accumulate the predictions of multiple trees for a given dataset.
+        
         Parameters
         ----------
-        all_preds : list of ndarray of StepFunction
-            Per-tree predictions, one array of ``StepFunction`` per tree,
-            indexed by sample.
-
-        Returns
-        -------
-        ndarray
-            Sorted, unique time points shared by every sample in the batch.
-        """
-
-        seen = set()
-        leaf_grids = []
-        for tree_preds in all_preds:
-            for step_fn in tree_preds:
-                key = step_fn.X.tobytes()
-                if key not in seen:
-                    seen.add(key)
-                    leaf_grids.append(step_fn.X)
-
-        return np.unique(np.concatenate(leaf_grids))
-
-    @staticmethod
-    def _aggregate_sample_risk(all_preds, i, grid):
-
-        """
-        Compute the aggregated risk score (sum of the mean cumulative hazard)
-        for a single sample, without building a ``StepFunction``.
-
-        Parameters
-        ----------
-        all_preds : list of ndarray of StepFunction
-            Per-tree predictions, one array of ``StepFunction`` per tree,
-            indexed by sample.
-        i : int
-            Index of the sample to aggregate.
-        grid : ndarray
-            Shared evaluation grid, built once per call via
-            ``_combined_time_grid``.
-
-        Returns
-        -------
-        float
-            Aggregated risk score for sample ``i``.
-        """
-
-        acc = np.zeros(grid.shape[0], dtype=np.float64)
-        for tree_preds in all_preds:
-            acc += tree_preds[i](grid)
-        acc /= len(all_preds)
-
-        return acc.sum()
-
-    @staticmethod
-    def _aggregate_sample_function(all_preds, i, grid, survival):
-
-        """
-        Compute the aggregated ``StepFunction`` for a single sample, using
-        the evaluation grid shared by the whole batch.
-
-        Parameters
-        ----------
-        all_preds : list of ndarray of StepFunction
-            Per-tree predictions, one array of ``StepFunction`` per tree,
-            indexed by sample.
-        i : int
-            Index of the sample to aggregate.
+        trees : list of SurvTree
+            List of individual survival trees used for prediction.
+        X : array-like of shape (n_samples, n_features)
+            Feature matrix used for prediction.
         grid : ndarray
             Shared evaluation grid, built once per call via
             ``_combined_time_grid``.
         survival : bool
-            Whether the resulting ``StepFunction`` represents a survival
-            function (``True``) or a cumulative hazard function (``False``).
+            If ``True``, return the estimated survival function. Otherwise, return
+            the cumulative hazard function.
 
         Returns
         -------
-        StepFunction
-            Aggregated step function for sample ``i``.
+        ndarray of shape (n_samples, n_times)
+            Array of accumulated predictions for each sample and time point.
         """
+        
+        acc = np.zeros((X.shape[0], grid.shape[0]), dtype=np.float64)
 
-        acc = np.zeros(grid.shape[0], dtype=np.float64)
-        for tree_preds in all_preds:
-            acc += tree_preds[i](grid)
-        acc /= len(all_preds)
+        for tree in trees:
+            preds = tree._compute_survival_hazard_functions(X, survival)
 
-        return StepFunction(X=grid, y=acc, is_survival=survival)
+            pos_of = {}
+            funcs = []
+            inverse = np.empty(len(preds), dtype=np.intp)
+            for i, fn in enumerate(preds):
+                k = pos_of.get(id(fn))
+                if k is None:
+                    k = len(funcs)
+                    pos_of[id(fn)] = k
+                    funcs.append(fn)
+                inverse[i] = k
+
+            table = np.vstack([fn(grid) for fn in funcs])
+            acc += table[inverse]
+
+        return acc
 
     def _compute_cumulative_hazard_function(self, X, survival=False):
         
@@ -321,20 +311,22 @@ class RandomSurvForest(BaseSurvival):
         """
 
         if not self.model:
-            raise ValueError(f"When computing `cumulative_hazard_function` with a model, first fit the model.")
-
-        all_preds = [tree._compute_survival_hazard_functions(X, survival) for tree in self.model]
+            raise ValueError("When computing `cumulative_hazard_function` with a model, first fit the model.")
 
         n_samples = X.shape[0]
-        grid = self._combined_time_grid(all_preds)
-        results = Parallel(n_jobs=self.n_jobs, prefer="threads")(
-            delayed(self._aggregate_sample_function)(all_preds, i, grid, survival)
-            for i in range(n_samples)
+        n_chunks = min(len(self.model), max(1, abs(self.n_jobs) if self.n_jobs != -1 else 8))
+        chunks = np.array_split(np.arange(len(self.model)), n_chunks)
+
+        partials = Parallel(n_jobs=self.n_jobs)(
+            delayed(self._accumulate_trees)([self.model[j] for j in c], X, self.grid, survival)
+            for c in chunks if len(c)
         )
 
-        functions = np.empty(n_samples, dtype=object)
-        functions[:] = results
+        mean_curves = np.sum(partials, axis=0) / len(self.model)
 
+        functions = np.empty(n_samples, dtype=object)
+        for i in range(n_samples):
+            functions[i] = StepFunction(X=self.grid, y=mean_curves[i], is_survival=survival)
         return functions
     
     def predict_survival_function(self, X, index, dataset, seed, plot=False):

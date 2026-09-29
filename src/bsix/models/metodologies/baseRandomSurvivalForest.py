@@ -42,7 +42,7 @@ class BaseRandomSurvivalForest(BaseSurvival):
         # Sort by time
         X, y = self._sort(X, y)
 
-        self.model = RandomSurvivalForest(n_estimators=self.n_estimators, max_depth=self.max_depth, min_samples_leaf=self.min_samples_leaf, min_samples_split=self.min_samples_split, n_jobs=self.n_jobs, random_state=self.seed)
+        self.model = RandomSurvivalForest(max_features=None, n_estimators=self.n_estimators, max_depth=self.max_depth, min_samples_leaf=self.min_samples_leaf, min_samples_split=self.min_samples_split, n_jobs=self.n_jobs, random_state=self.seed)
         self.model.fit(X, y)
         
         return self

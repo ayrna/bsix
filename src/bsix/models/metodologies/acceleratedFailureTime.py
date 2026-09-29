@@ -391,7 +391,7 @@ class AcceleratedFailureTime(BaseSurvival):
         
         Xb = X @ self.coef_ + self.intercept_
 
-        survival = np.stack([self._survival_function(t, Xb) for t in self.time_grid])
+        survival = np.stack([self._survival_function(t, Xb) for t in self.time_grid]).T
         self.survival_function = np.array([StepFunction(X=self.time_grid, y=individual_survival, is_survival=True) for individual_survival in survival])
         if plot:
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Accelerated Failure Time", dataset, "Survival", seed)
@@ -430,7 +430,7 @@ class AcceleratedFailureTime(BaseSurvival):
 
         Xb = X @ self.coef_ + self.intercept_
 
-        cumulative_hazard = np.stack([self._cumulative_hazard(t, Xb) for t in self.time_grid])
+        cumulative_hazard = np.stack([self._cumulative_hazard(t, Xb) for t in self.time_grid]).T
         self.cumulative_hazard_function = np.array([StepFunction(X=self.time_grid, y=individual_survival, is_survival=True) for individual_survival in cumulative_hazard])
         if plot:
             figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Accelerated Failure Time", dataset, "CumulativeRisk", seed)

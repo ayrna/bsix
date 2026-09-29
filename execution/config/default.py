@@ -81,7 +81,7 @@ test_size = 0.25
 # Number of jobs (used within the experiment)
 # It does not affect the resources requested for each job,
 # which are defined in the Resources section below
-n_jobs = 5 # -1
+n_jobs = 5
 # Whether to perform a dry run (jobs only print the configuration)
 # for testing purposes
 # Can be overriden with the --dry-run argument
@@ -120,7 +120,11 @@ max_concurrent_jobs = 500
 #     }
 # }
 
-memory_override = {}
+memory_override = {
+    "RandomSurvForest" : {
+        "*" : 50,
+    }
+}
 gpu_type_override = {}
 batch_size_override = {}
 max_time_override = {}

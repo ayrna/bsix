@@ -1,7 +1,7 @@
 import numpy as np
 
 from .classification_metrics import mae, amae, ms, ccr, recall
-from .survival_metrics import brierScore, concordanceIndexHarrel, concordanceIndexIPCW, cumulativeDinamicAUC
+from .survival_metrics import integratedBrierScore, concordanceIndexHarrel, concordanceIndexIPCW, cumulativeDinamicAUC
 
 def format_predictions(preds):
 
@@ -51,7 +51,7 @@ def compute_survival_metrics(train_targets, evaluation_targets, predictions, sur
             survival_function_p = survival_function[p] if has_progressions else survival_function
 
             metrics.update({
-                f"{prefix}Brier Score": brierScore(targets_survival, survival_function_p),
+                f"{prefix}Brier Score": integratedBrierScore(targets_survival, survival_function_p),
             })
 
     return metrics

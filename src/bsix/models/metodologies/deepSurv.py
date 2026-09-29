@@ -251,7 +251,7 @@ class DeepSurv(BaseSurvival):
         t_j = t.view(1, -1)
 
         if self.ties == "cox":
-            log_risk = torch.logsumexp(risk, dim=0)
+            log_risk = torch.logcumsumexp(risk, dim=0)
         elif self.ties == "breslow":
             mask = t_i <= t_j
             risk_mask = torch.where(mask, risk.view(1, -1), torch.tensor(-float('inf'), device=risk.device))

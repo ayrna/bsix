@@ -13,7 +13,7 @@ from sklearn.utils.validation import check_random_state
 
 warnings.filterwarnings("ignore")
 
-@njit(fastmath=True, cache=True, parallel=True, nogil=True)
+@njit(fastmath=True, cache=True, nogil=True)
 def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_samples_leaf):
 
     """
@@ -47,7 +47,7 @@ def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_sam
     n_samples = X.shape[0]
     n_unique_t = unique_times.shape[0]
     bucket = np.searchsorted(unique_times, times, side="right") - 1
- 
+
     h = np.zeros(n_unique_t, dtype=np.float64)
     c = np.zeros(n_unique_t, dtype=np.float64)
     for j in range(n_unique_t):
@@ -57,10 +57,10 @@ def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_sam
             h[j] = dj / nj
         if nj > 1.0:
             c[j] = dj * (nj - dj) / (nj * nj * (nj - 1.0))
- 
+
     H_cum = np.cumsum(h)
     A_cum = np.cumsum(c * n_j)
- 
+
     H_i = np.zeros(n_samples, dtype=np.float64)
     A_i = np.zeros(n_samples, dtype=np.float64)
     for i in range(n_samples):
@@ -68,23 +68,24 @@ def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_sam
         if b >= 0:
             H_i[i] = H_cum[b]
             A_i[i] = A_cum[b]
- 
+
     best_score = -1.0
     best_feature = -1
     best_threshold = np.nan
- 
-    nleft_j = np.empty(n_unique_t, dtype=np.float64)
- 
+
+    count_left = np.zeros(n_unique_t, dtype=np.float64)
+    nleft_j = np.zeros(n_unique_t, dtype=np.float64)
+
     for fi in features:
         col = X[:, fi]
         order = np.argsort(col)
- 
-        nleft_j[:] = 0.0
+
+        count_left[:] = 0.0
         num_left = 0
         D_left = 0.0
         sumH_left = 0.0
         sumA_left = 0.0
- 
+
         i = 0
         while i < n_samples:
             thresh = col[order[i]]
@@ -98,23 +99,28 @@ def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_sam
                 sumA_left += A_i[idx]
                 b = bucket[idx]
                 if b >= 0:
-                    nleft_j[0:b + 1] += 1.0
+                    count_left[b] += 1.0
                 j += 1
- 
+
             num_right = n_samples - num_left
- 
+
             if j < n_samples and num_left >= min_samples_leaf and num_right >= min_samples_leaf:
+                acc = 0.0
+                for k in range(n_unique_t - 1, -1, -1):
+                    acc += count_left[k]
+                    nleft_j[k] = acc
+
                 U = D_left - sumH_left
                 V = sumA_left - np.sum(c * nleft_j * nleft_j)
                 score = (U * U) / V if V > 0.0 else 0.0
- 
+
                 if score > best_score:
                     best_score = score
                     best_feature = fi
                     best_threshold = thresh
- 
+
             i = j
- 
+
     return best_feature, best_threshold
 
 class LeafEstimator:

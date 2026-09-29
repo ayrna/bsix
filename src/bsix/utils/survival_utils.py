@@ -16,7 +16,7 @@ def getTau(survival_train, survival_test, predictions):
 
     return tau, survival_train, survival_test, predictions
 
-def getTimes(survival_test, num_division=3):
+def getTimes(survival_test, num_division=2):
 
     """
     Get the time points for performing the evaluation.
@@ -25,6 +25,6 @@ def getTimes(survival_test, num_division=3):
     t = np.array([tiempo for _, tiempo in survival_test], np.float32)
     range_t = t.max() - t.min()
     
-    times = np.linspace(t.min() + (0.25 * range_t), t.max() - (0.25 * range_t), num_division)
+    times = np.linspace(t.min() + (0.05 * range_t), t.max() - (0.05 * range_t), num_division)
 
     return times

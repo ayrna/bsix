@@ -2,7 +2,7 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 
 from .survival_utils import getTau, getTimes
-from sksurv.metrics import brier_score, concordance_index_censored, concordance_index_ipcw, cumulative_dynamic_auc
+from sksurv.metrics import integrated_brier_score, concordance_index_censored, concordance_index_ipcw, cumulative_dynamic_auc
 
 def scorerConcordanceIndex(y_true, y_pred):
 
@@ -36,7 +36,7 @@ def scorerConcordanceIndex(y_true, y_pred):
     
     return c_index_censored
 
-def brierScore(y_true, y_pred, times=None):
+def integratedBrierScore(y_true, y_pred, times=None):
 
     """
     Computes the Brier Score (BS).
@@ -60,14 +60,13 @@ def brierScore(y_true, y_pred, times=None):
 
     tau, survival_train, survival_test, survival_function = getTau(survival_train, survival_test, survival_function)
     if times is None:
-        # times = getTimes(survival_test)
-        times = np.array(tau, np.float32)
+        times = getTimes(survival_test)
+        # times = np.array(tau, np.float32)
 
     times = np.atleast_1d(times).tolist()
     survival_function_times = np.array([sf(times) for sf in survival_function]) # Al calcular survival_function en modelos que no dependen de breslow, falla sf()
 
-    b_score = brier_score(survival_train, survival_test, survival_function_times, times)[1]
-    b_score = b_score[0] if len(b_score) == 1 else (b_score).tolist()
+    b_score = integrated_brier_score(survival_train, survival_test, survival_function_times, times)
 
     return b_score
 

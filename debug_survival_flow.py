@@ -17,7 +17,7 @@ def main():
         seed=0,
         estimator_name="CoxRegression",
         n_iter=30,
-        n_jobs=-1,
+        n_jobs=5,
         interactive=True,
     )
 

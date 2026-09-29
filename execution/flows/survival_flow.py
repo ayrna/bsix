@@ -258,12 +258,12 @@ def run_survival_flow(
     estimator.best_estimator_.val_idx_ = val_idx
     estimator.best_estimator_.test_idx_ = test_idx
 
-    # survival_function_train_val = estimator.best_estimator_.predict_survival_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
-    # cumulative_hazard_function_train_val = estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
+    survival_function_train_val = estimator.best_estimator_.predict_survival_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
+    cumulative_hazard_function_train_val = estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
     # xai_train_val = estimator.best_estimator_.calculate_xai(X_train_val, np.concatenate([train_idx, val_idx]), scaler, dataset, seed, feature_names, background=25)
 
-    # survival_function_test = estimator.best_estimator_.predict_survival_function(X_test, test_idx, dataset, seed)
-    # cumulative_hazard_function_test = estimator.best_estimator_.predict_cumulative_hazard_function(X_test, test_idx, dataset, seed)
+    survival_function_test = estimator.best_estimator_.predict_survival_function(X_test, test_idx, dataset, seed)
+    cumulative_hazard_function_test = estimator.best_estimator_.predict_cumulative_hazard_function(X_test, test_idx, dataset, seed)
     # xai_test = estimator.best_estimator_.calculate_xai(X_test, test_idx, scaler, dataset, seed, feature_names, background=25)
 
     y_train_val = np.squeeze(y_train_val)
@@ -272,8 +272,8 @@ def run_survival_flow(
     train_pred = estimator.predict(X_train_val)
     test_pred = estimator.predict(X_test)
 
-    train_metrics = compute_metrics(y_train_val, y_train_val, format_predictions(train_pred))#, survival_function_train_val)
-    test_metrics = compute_metrics(y_train_val, y_test, format_predictions(test_pred))#, survival_function_test)
+    train_metrics = compute_metrics(y_train_val, y_train_val, format_predictions(train_pred), survival_function_train_val)
+    test_metrics = compute_metrics(y_train_val, y_test, format_predictions(test_pred), survival_function_test)
 
     config = _get_config(estimator, estimator_name, dataset, seed)
     best_params = estimator.best_params_ if hasattr(estimator, "best_params_") else {}
