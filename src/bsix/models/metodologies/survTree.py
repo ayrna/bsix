@@ -413,6 +413,45 @@ class SurvTree(BaseSurvival):
         # Recursively construct left and right branches
         return TreeNode(feature=best_feature, threshold=best_threshold, left=self._build_tree(X[left_mask], events[left_mask], times[left_mask], depth + 1), right=self._build_tree(X[~left_mask], events[~left_mask], times[~left_mask], depth + 1))
 
+    def _validate_input(self, X, y):
+
+        """
+        Validate the input data for fitting the SurvTree model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix.
+        y : structured array-like of shape (n_samples,)
+            Survival target with fields ``event`` and ``time``.
+
+        Raises
+        ------
+        ValueError
+            If any validation check fails.
+        """
+
+        if X is None or y is None:
+            raise ValueError("Input data X and y cannot be None.")
+
+        if len(X) == 0 or len(y) == 0:
+            raise ValueError("Input data X and y cannot be empty.")
+
+        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
+                    raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
+
+        if np.any(y["time"] <= 0):
+            raise ValueError("Survival times must be greater than zero.")
+
+        if np.all(y["event"] == 0):
+            raise ValueError("All samples are censored.")
+
+        if len(X) <= 1:
+            raise ValueError("At least two samples are required to fit the model.")
+        
     def fit(self, X, y):
 
         """
@@ -430,12 +469,17 @@ class SurvTree(BaseSurvival):
         SurvTree
             The fitted estimator instance.
         """
+
+        self._validate_input(X, y)
         
         X, y = self._sort(X, y, descending=False)
         
         events = y["event"]
         times = y["time"]
 
+        if isinstance(self.seed, int) or isinstance(self.seed, float):
+            self.seed = int(self.seed % np.iinfo(np.int32).max)
+        
         self.rng = check_random_state(self.seed)
 
         self.unique_times = np.unique(times)
@@ -458,6 +502,9 @@ class SurvTree(BaseSurvival):
         ndarray of shape (n_samples,)
             Predicted risk score for each sample.
         """
+
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
     
         leaves = self._get_leaves(X)
         

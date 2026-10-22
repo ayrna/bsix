@@ -195,6 +195,45 @@ class AcceleratedFailureTime(BaseSurvival):
 
         return -log_likelihood + penalty
 
+    def _validate_input(self, X, y):
+
+        """
+        Validate the input data for fitting the AcceleratedFailureTime model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix.
+        y : structured array-like of shape (n_samples,)
+            Survival target with fields ``event`` and ``time``.
+
+        Raises
+        ------
+        ValueError
+            If any validation check fails.
+        """
+
+        if X is None or y is None:
+            raise ValueError("Input data X and y cannot be None.")
+
+        if len(X) == 0 or len(y) == 0:
+            raise ValueError("Input data X and y cannot be empty.")
+
+        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
+            raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
+
+        if np.any(y["time"] <= 0):
+            raise ValueError("Survival times must be greater than zero.")
+
+        if np.all(y["event"] == 0):
+            raise ValueError("All samples are censored.")
+
+        if len(X) <= 1:
+            raise ValueError("At least two samples are required to fit the model.")
+        
     def fit(self, X, y):
 
         """
@@ -212,6 +251,8 @@ class AcceleratedFailureTime(BaseSurvival):
         AcceleratedFailureTime
             The fitted estimator instance.
         """
+
+        self._validate_input(X, y)
 
         # Sort by time
         X, y = self._sort(X, y)
@@ -294,6 +335,9 @@ class AcceleratedFailureTime(BaseSurvival):
             Predicted risk values, defined as the negative expected survival time.
         """
 
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
+    
         Xb = X @ self.coef_ + self.intercept_
 
         risk = self._predict_expectation(Xb) * -1

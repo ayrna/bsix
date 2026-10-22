@@ -137,6 +137,45 @@ class RandomSurvForest(BaseSurvival):
         tree.fit(X_boot, y_boot)
         return tree
 
+    def _validate_input(self, X, y):
+
+        """
+        Validate the input data for fitting the RandomSurvForest model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix.
+        y : structured array-like of shape (n_samples,)
+            Survival target with fields ``event`` and ``time``.
+
+        Raises
+        ------
+        ValueError
+            If any validation check fails.
+        """
+
+        if X is None or y is None:
+            raise ValueError("Input data X and y cannot be None.")
+
+        if len(X) == 0 or len(y) == 0:
+            raise ValueError("Input data X and y cannot be empty.")
+
+        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
+                    raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
+
+        if np.any(y["time"] <= 0):
+            raise ValueError("Survival times must be greater than zero.")
+
+        if np.all(y["event"] == 0):
+            raise ValueError("All samples are censored.")
+
+        if len(X) <= 1:
+            raise ValueError("At least two samples are required to fit the model.")
+        
     def fit(self, X, y):
 
         """
@@ -154,12 +193,17 @@ class RandomSurvForest(BaseSurvival):
         RandomSurvForest
             The fitted estimator instance.
         """
-                
+
+        self._validate_input(X, y)
+        
         # Sort by time
         X, y = self._sort(X, y)
         n_samples = X.shape[0]
 
         # Generate random state object
+        if isinstance(self.seed, int) or isinstance(self.seed, float):
+            self.seed = int(self.seed % np.iinfo(np.int32).max)
+            
         random_state_obj = check_random_state(self.seed)
         tree_seeds = random_state_obj.randint(0, np.iinfo(np.int32).max, size=self.n_estimators)
             
@@ -231,6 +275,9 @@ class RandomSurvForest(BaseSurvival):
         
         if not self.model:
             raise ValueError("When calling `predict` with a model, first fit the model.")
+
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
 
         tree_risks = Parallel(n_jobs=self.n_jobs)(
             delayed(self._predict_tree)(tree, X, self.grid) for tree in self.model

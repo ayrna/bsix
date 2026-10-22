@@ -352,22 +352,29 @@ class DeepHit(BaseSurvival):
             NumPy and PyTorch.
         """
 
-        if self.seed is not None:
-            seed = self.seed
+        from sklearn.utils import check_random_state
 
-            # Python
-            random.seed(seed)
+        if isinstance(self.seed, int) or isinstance(self.seed, float):
+            self.seed = int(self.seed % np.iinfo(np.int32).max)
 
-            # NumPy
-            np.random.seed(seed)
+        random_state_obj = check_random_state(self.seed)
+        self.seed = random_state_obj.randint(0, np.iinfo(np.int32).max)
 
-            # PyTorch
-            torch.manual_seed(seed)
-            torch.cuda.manual_seed(seed)
-            torch.cuda.manual_seed_all(seed)
+        seed = self.seed
 
-            torch.backends.cudnn.deterministic = True
-            torch.backends.cudnn.benchmark = False
+        # Python
+        random.seed(seed)
+
+        # NumPy
+        np.random.seed(seed)
+
+        # PyTorch
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     def _build_time_grid(self, t):
 
@@ -662,6 +669,45 @@ class DeepHit(BaseSurvival):
 
         return (x - self.offset) / (self.scale + 1e-15)
 
+    def _validate_input(self, X, y):
+
+        """
+        Validate the input data for fitting the DeepHit model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix.
+        y : structured array-like of shape (n_samples,)
+            Survival target with fields ``event`` and ``time``.
+
+        Raises
+        ------
+        ValueError
+            If any validation check fails.
+        """
+
+        if X is None or y is None:
+            raise ValueError("Input data X and y cannot be None.")
+
+        if len(X) == 0 or len(y) == 0:
+            raise ValueError("Input data X and y cannot be empty.")
+
+        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
+                    raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
+
+        if np.any(y["time"] <= 0):
+            raise ValueError("Survival times must be greater than zero.")
+
+        if np.all(y["event"] == 0):
+            raise ValueError("All samples are censored.")
+
+        if len(X) <= 1:
+            raise ValueError("At least two samples are required to fit the model.")
+        
     def fit(self, X_train, y_train, **kwargs):
 
         """
@@ -682,6 +728,8 @@ class DeepHit(BaseSurvival):
         DeepHit
             The fitted estimator instance.
         """
+
+        self._validate_input(X_train, y_train)
 
         # Set random seeds
         self._set_seeds()
@@ -873,6 +921,9 @@ class DeepHit(BaseSurvival):
             Estimated cumulative risk for each sample.
         """
 
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
+    
         self.network.eval()
         with torch.no_grad():
             x_tensor = torch.tensor(x, dtype=torch.float32, device=self.device)

@@ -236,25 +236,33 @@ class DeepMultiTask(BaseSurvival):
         Returns
         -------
         None
-            This method updates the Python, NumPy and PyTorch random generators.
+            This method updates the global random generators used by Python,
+            NumPy and PyTorch.
         """
 
-        if self.seed is not None:
-            seed = self.seed
-            
-            # Python
-            random.seed(seed)
-            
-            # NumPy
-            np.random.seed(seed)
-            
-            # PyTorch
-            torch.manual_seed(seed)
-            torch.cuda.manual_seed(seed)
-            torch.cuda.manual_seed_all(seed)
-            
-            torch.backends.cudnn.deterministic = True
-            torch.backends.cudnn.benchmark = False
+        from sklearn.utils import check_random_state
+
+        if isinstance(self.seed, int) or isinstance(self.seed, float):
+            self.seed = int(self.seed % np.iinfo(np.int32).max)
+
+        random_state_obj = check_random_state(self.seed)
+        self.seed = random_state_obj.randint(0, np.iinfo(np.int32).max)
+
+        seed = self.seed
+
+        # Python
+        random.seed(seed)
+
+        # NumPy
+        np.random.seed(seed)
+
+        # PyTorch
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
     
     def _negative_log_likelihood(self, risk, t, e):
 
@@ -420,7 +428,46 @@ class DeepMultiTask(BaseSurvival):
         """
 
         return (x - self.offset) / (self.scale + 1e-15)
-    
+
+    def _validate_input(self, X, y):
+
+        """
+        Validate the input data for fitting the DeepMultiTask model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix.
+        y : structured array-like of shape (n_samples,)
+            Survival target with fields ``event`` and ``time``.
+
+        Raises
+        ------
+        ValueError
+            If any validation check fails.
+        """
+
+        if X is None or y is None:
+            raise ValueError("Input data X and y cannot be None.")
+
+        if len(X) == 0 or len(y) == 0:
+            raise ValueError("Input data X and y cannot be empty.")
+
+        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
+            raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
+
+        if np.any(y["time"] <= 0):
+            raise ValueError("Survival times must be greater than zero.")
+
+        if np.all(y["event"] == 0):
+            raise ValueError("All samples are censored.")
+
+        if len(X) <= 1:
+            raise ValueError("At least two samples are required to fit the model.")
+        
     def fit(self, X_train, y_train, **kwargs):
         
         """
@@ -439,6 +486,8 @@ class DeepMultiTask(BaseSurvival):
         DeepMultiTask
             The fitted estimator instance.
         """
+
+        self._validate_input(X_train, y_train)
         
         # Set random seeds
         self._set_seeds()
@@ -614,6 +663,9 @@ class DeepMultiTask(BaseSurvival):
             Predicted relative risk for each event channel.
         """
 
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
+    
         self.network.eval()
         with torch.no_grad():
             x_tensor = torch.tensor(x, dtype=torch.float32, device=self.device)

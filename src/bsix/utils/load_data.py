@@ -15,6 +15,8 @@ def _prepare_data(df, test_size, validation_size, seed):
 
     from sklearn.model_selection import StratifiedGroupKFold
 
+    validation_size = validation_size / (1 - test_size)
+
     # Remove rows with 0.0 or less in time columns
     if all(name in df.columns for name in ["time_start", "time_stop"]):
         event_labels = ["event"]
@@ -143,10 +145,13 @@ def load_data_hdf(data_dir, dataset_name):
     import h5py
 
     # Load dataset
-    path = resources.files(data_dir) / dataset_name
-    f = h5py.File(path, "r")
-    data = [f["x"][()], f["e"][()], f["t"][()]]
-    f.close()
+    try:
+        path = resources.files(data_dir) / dataset_name
+        f = h5py.File(path, "r")
+        data = [f["x"][()], f["e"][()], f["t"][()]]
+        f.close()
+    except Exception:
+        raise ValueError(f"Dataset not found.")
 
     df = _toDataframe(data)
 
@@ -163,8 +168,11 @@ def load_data_arff(data_dir, dataset_name):
     from scipy.io import arff
 
     # Load dataset
-    path = resources.files(data_dir) / dataset_name
-    data, meta = arff.loadarff(path)
+    try:
+        path = resources.files(data_dir) / dataset_name
+        data, meta = arff.loadarff(path)
+    except Exception:
+        raise ValueError(f"Dataset not found.")
     
     df = pd.DataFrame(data)
 
@@ -183,8 +191,11 @@ def load_data_csv(data_dir, dataset_name):
     """
 
     # Load dataset
-    path = resources.files(data_dir) / dataset_name
-    df = pd.read_csv(path)
+    try:
+        path = resources.files(data_dir) / dataset_name
+        df = pd.read_csv(path)
+    except Exception:
+        raise ValueError(f"Dataset not found.")
 
     print(f"\n- - - - {dataset_name} (csv) - - - -\n")
     
@@ -276,7 +287,7 @@ def _filter_high_vif(X, threshold=5.0):
     
     return mask
 
-def get_data(df=None, data_dir="bsix.datasets", dataset_name="colon.csv", test_size=0.2, validation_size=0.2, scaler_name="standard", scaler=None, preprocess=True, to_multitask=False, seed=0):
+def get_data(df=None, data_dir="bsix.datasets", dataset_name="colon.csv", test_size=0.25, validation_size=0.2, scaler_name="standard", scaler=None, preprocess=True, to_multitask=False, seed=0):
 
     """
     Load and preprocess the dataset.
@@ -291,8 +302,7 @@ def get_data(df=None, data_dir="bsix.datasets", dataset_name="colon.csv", test_s
     elif ".csv" in dataset_name:
         X_train, y_train, X_validation, y_validation, X_test, y_test, train_idx, val_idx, test_idx, feature_names = _prepare_data(load_data_csv(data_dir, dataset_name), test_size, validation_size, seed)
     else:
-        print("ERROR : Wrong format of dataset.")
-        return -1
+        raise ValueError(f"Wrong format of dataset.")
     
     # Filter out low variance, high correlation and high VIF features
     if preprocess:

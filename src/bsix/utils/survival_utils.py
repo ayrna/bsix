@@ -1,30 +1,21 @@
 import numpy as np
 
-def getTau(survival_train, survival_test, predictions):
+def getTau(survival_train, survival_test):
 
     """
     Get the time point up to which the evaluation is performed.
     """
     
-    tau = min(survival_train["time"].max() - 1, survival_test["time"].max() - 1)
-    mask = survival_test["time"] <= tau
+    tau = min(np.percentile(survival_train["time"], 90), np.percentile(survival_test["time"], 90))
 
-    survival_test = survival_test[mask]
-    predictions = predictions[mask]
+    return tau
 
-    tau = min(survival_train["time"].max() - 1, survival_test["time"].max() - 1)
-
-    return tau, survival_train, survival_test, predictions
-
-def getTimes(survival_test, num_division=2):
+def getTimes(survival_test, num_division=10):
 
     """
     Get the time points for performing the evaluation.
     """
-
-    t = np.array([tiempo for _, tiempo in survival_test], np.float32)
-    range_t = t.max() - t.min()
     
-    times = np.linspace(t.min() + (0.05 * range_t), t.max() - (0.05 * range_t), num_division)
+    times = np.linspace(np.percentile(survival_test["time"], 10), np.percentile(survival_test["time"], 90), num_division)
 
     return times

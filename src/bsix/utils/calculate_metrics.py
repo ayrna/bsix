@@ -3,6 +3,80 @@ import numpy as np
 from .classification_metrics import mae, amae, ms, ccr, recall
 from .survival_metrics import integratedBrierScore, concordanceIndexHarrel, concordanceIndexIPCW, cumulativeDinamicAUC
 
+
+def _validate_structured_target(target, name):
+    """
+    Validate that the target is a structured NumPy array with required fields.
+    """
+    if target is None:
+        raise ValueError(f"{name} cannot be None.")
+    if not hasattr(target, "dtype") or target.dtype.names is None:
+        raise ValueError(f"{name} must be a NumPy structured array.")
+
+    required_fields = {"event", "time", "time_stop"}
+    missing_fields = required_fields - set(target.dtype.names)
+    if len(missing_fields) >= 2:
+        raise ValueError(f"{name} is missing required fields: {missing_fields}.")
+
+    if len(target) <= 1:
+        raise ValueError(f"{name} must contain at least two samples.")
+
+    if np.all(target["event"] == 0):
+        raise ValueError(f"All samples in {name} are censored.")
+
+
+def _validate_input(train_targets, evaluation_targets, predictions, survival_function = None):
+    """
+    Validate input data for compute_metrics in survival analysis.
+
+    Parameters
+    ----------
+    train_targets : np.ndarray
+        Structured array with 'event' and 'time' fields.
+    evaluation_targets : np.ndarray
+        Structured array with 'event' and 'time' fields.
+    predictions : dict
+        Dictionary containing 'survival' predictions and optional 'binary' predictions.
+    survival_function : array-like of StepFunction, optional
+        Baseline survival step function objects.
+
+    Raises
+    ------
+    ValueError or TypeError
+        If any validation check fails.
+    """
+    
+    if not isinstance(predictions, dict):
+        raise TypeError("Predictions must be a dictionary-like object.")
+
+    if "survival" not in predictions or predictions["survival"] is None:
+        raise ValueError("Predictions must contain a non-None 'survival' key.")
+
+    _validate_structured_target(train_targets, "train_targets")
+    _validate_structured_target(evaluation_targets, "evaluation_targets")
+
+    for key in ("survival", "binary"):
+        if key not in predictions or predictions[key] is None:
+            continue
+
+        pred_array = np.asarray(predictions[key])
+
+        if len(pred_array) != len(evaluation_targets):
+            raise ValueError(f"Length of predictions['{key}'] ({len(pred_array)}) does not match evaluation_targets ({len(evaluation_targets)}).")
+
+        if not np.all(np.isfinite(pred_array)):
+            raise ValueError(f"Predictions['{key}'] contains infinite or NaN values.")
+
+    if survival_function is not None:
+        from bsix.models.metodologies.utils import StepFunction
+
+        sf_array = np.asarray(survival_function)
+        if sf_array.size == 0:
+            raise ValueError("Survival_function cannot be empty.")
+
+        if not all(isinstance(s, StepFunction) for s in sf_array.flat):
+            raise ValueError("All elements in survival_function must be StepFunction instances.")
+        
 def format_predictions(preds):
 
     """
@@ -93,7 +167,7 @@ def compute_metrics(train_targets, evaluation_targets, predictions, survival_fun
     Compute metrics for given targets and predictions (experiments).
     If survival_function is provided, additional metrics are computed.
     """
-    
+
     try:
         # If ndarray.dtype = object, extract the element (dict)
         predictions = predictions.item()
@@ -103,6 +177,8 @@ def compute_metrics(train_targets, evaluation_targets, predictions, survival_fun
 
     if not isinstance(predictions, dict):
         predictions = format_predictions(predictions)
+
+    _validate_input(train_targets, evaluation_targets, predictions, survival_function)
     
     metrics = {}
 

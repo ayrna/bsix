@@ -8,12 +8,12 @@ flow = "survival_flow"
 
 ############ Experiment settings ############
 estimators = [
-                # "BaseCoxRegression",
-                # "BaseCoxRegressionWithTimeVarying",
-                # "BaseDeepHit",
+                ## "BaseCoxRegression",
+                ## "BaseCoxRegressionWithTimeVarying",
+                ## "BaseDeepHit",
                 # "BaseSurvivalTree",
                 # "BaseRandomSurvivalForest",
-                # "BaseAcceleratedFailureTime",
+                ## "BaseAcceleratedFailureTime",
 
                 # "AcceleratedFailureTime",
                 # "CoxRegression",
@@ -121,6 +121,9 @@ max_concurrent_jobs = 500
 # }
 
 memory_override = {
+    "DeepTimeVarying" : {
+            "*" : 100,
+    },
     "RandomSurvForest" : {
         "*" : 50,
     }

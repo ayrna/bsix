@@ -84,6 +84,45 @@ class CoxRegression(BaseSurvival):
 
         self.labels_covariables = ["event", "time"]
 
+    def _validate_input(self, X, y):
+
+        """
+        Validate the input data for fitting the CoxRegression model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input feature matrix.
+        y : structured array-like of shape (n_samples,)
+            Survival target with fields ``event`` and ``time``.
+
+        Raises
+        ------
+        ValueError
+            If any validation check fails.
+        """
+
+        if X is None or y is None:
+            raise ValueError("Input data X and y cannot be None.")
+
+        if len(X) == 0 or len(y) == 0:
+            raise ValueError("Input data X and y cannot be empty.")
+
+        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
+            raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
+
+        if np.any(y["time"] <= 0):
+            raise ValueError("Survival times must be greater than zero.")
+
+        if np.all(y["event"] == 0):
+            raise ValueError("All samples are censored.")
+
+        if len(X) <= 1:
+            raise ValueError("At least two samples are required to fit the model.")
+        
     def fit(self, X, y):
 
         """
@@ -102,6 +141,8 @@ class CoxRegression(BaseSurvival):
             The fitted estimator instance.
         """
 
+        self._validate_input(X, y)
+        
         # Sort by time
         X, y = self._sort(X, y)
         events = y["event"]
@@ -206,7 +247,10 @@ class CoxRegression(BaseSurvival):
         ndarray of shape (n_samples,)
             Predicted risk score for each sample.
         """
-        
+
+        if not np.all(np.isfinite(X)):
+            raise ValueError("Input data X contains infinite or NaN values.")
+    
         risk = np.dot(X, self.coef_)
 
         return risk
