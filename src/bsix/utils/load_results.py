@@ -242,7 +242,7 @@ def _from_dictionaries_to_xai(dictionary_coefficients, dictionary_shap, dictiona
 
     plt.show()
 
-def save_results(result_folder="./results", estimator_name=None, dataset=None, seed=None):
+def save_results(result_folder="./results", destination_path="./report.xlsx", estimator_name=None, dataset=None, seed=None):
 
     """
     Save the results for the given estimator name, dataset and seed.
@@ -270,4 +270,4 @@ def save_results(result_folder="./results", estimator_name=None, dataset=None, s
     # Columns that will be used to group the results and compute means
     groups_columns = ["dataset", "estimator_name"]
 
-    create_excel_summary_report(df, 'report.xlsx', group_columns=groups_columns)
+    create_excel_summary_report(df, destination_path, group_columns=groups_columns)

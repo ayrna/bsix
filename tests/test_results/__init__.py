@@ -1,0 +1,1 @@
+"""Result function tests."""

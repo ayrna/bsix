@@ -1,0 +1,72 @@
+{
+    "config": {
+        "aggressive_elimination": false,
+        "error_score": "raise",
+        "estimator__activation": "relu",
+        "estimator__dropout": 0.0,
+        "estimator__epochs": 500,
+        "estimator__hidden_layers": null,
+        "estimator__improvement_threshold": 0.99999,
+        "estimator__l1_reg": 0.0,
+        "estimator__l2_reg": 0.0,
+        "estimator__learn_rate": 0.0,
+        "estimator__logger": null,
+        "estimator__lr_decay": 0.0,
+        "estimator__momentum": 0.9,
+        "estimator__number_inputs": 29,
+        "estimator__patience": 2000,
+        "estimator__patience_increase": 2,
+        "estimator__seed": 3,
+        "estimator__standardize": true,
+        "estimator__ties": "cox",
+        "estimator__valid_data": null,
+        "estimator__validation_frequency": 10,
+        "factor": 2,
+        "max_resources": 1000,
+        "min_resources": "exhaust",
+        "n_candidates": 30,
+        "param_distributions": [
+            {
+                "hidden_layers": [
+                    [
+                        8
+                    ],
+                    [
+                        16
+                    ],
+                    [
+                        32
+                    ],
+                    [
+                        16,
+                        16
+                    ],
+                    [
+                        32,
+                        32
+                    ]
+                ],
+                "learn_rate": "loguniform(a=1e-05, b=0.1)",
+                "lr_decay": "loguniform(a=1e-06, b=0.001)",
+                "l1_reg": "loguniform(a=1e-05, b=0.1)",
+                "l2_reg": "loguniform(a=1e-05, b=0.1)",
+                "dropout": "uniform(loc=0.0, scale=1.0)",
+                "activation": [
+                    "relu",
+                    "selu",
+                    "tanh",
+                    "sigmoid"
+                ]
+            }
+        ],
+        "random_state": 3,
+        "refit": true,
+        "resource": "epochs",
+        "return_train_score": true,
+        "estimator_name": "DeepSurv",
+        "dataset": "breastcancer.arff"
+    },
+    "data_md5sum": "2dc7b1093516e2ee9ec5718512447552",
+    "created_at": 1790686677.183506,
+    "updated_at": 1790686677.183506
+}

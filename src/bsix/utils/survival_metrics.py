@@ -4,17 +4,20 @@ import numpy.lib.recfunctions as rfn
 from .survival_utils import getTau, getTimes
 from sksurv.metrics import integrated_brier_score, concordance_index_censored, concordance_index_ipcw, cumulative_dynamic_auc
 
-def _filter_times(survival_train, survival_test, predictions):
+def _filter_times(survival_train, survival_test):
     """
     Filter test to remove event times that exceed the maximum time observed in training.
     """
-     
-    mask = survival_test["time"] < survival_train["time"].max()
 
-    survival_test_filtered = survival_test[mask]
-    predictions_filtered = predictions[mask]
+    survival_test_filtered = survival_test.copy()
 
-    return survival_test_filtered, predictions_filtered
+    max_time = min(survival_train["time"].max(), survival_test["time"].max()) - 1e-5
+    mask = survival_test["time"] > max_time
+
+    survival_test_filtered["event"][mask] = False
+    survival_test_filtered["time"][mask] = max_time
+
+    return survival_test_filtered
 
 def _validate_input(y_true, y_pred):
     """
@@ -84,7 +87,7 @@ def integratedBrierScore(y_true, y_pred, times=None):
             survival_test = rfn.drop_fields(survival_test, ["time_start", "time"])
             survival_test = rfn.rename_fields(survival_test, {"time_stop": "time"})
 
-    survival_test, survival_function = _filter_times(survival_train, survival_test, survival_function)
+    survival_test = _filter_times(survival_train, survival_test)
 
     if times is None:
         times = getTimes(survival_test)
@@ -143,7 +146,7 @@ def concordanceIndexIPCW(y_true, y_pred):
             survival_test = rfn.drop_fields(survival_test, ["time_start", "time"])
             survival_test = rfn.rename_fields(survival_test, {"time_stop": "time"})
 
-    survival_test, risk = _filter_times(survival_train, survival_test, risk)
+    survival_test = _filter_times(survival_train, survival_test)
     tau = getTau(survival_train, survival_test)
     
     return concordance_index_ipcw(survival_train, survival_test, risk, tau)[0]
@@ -172,7 +175,7 @@ def cumulativeDinamicAUC(y_true, y_pred, times=None):
             survival_test = rfn.drop_fields(survival_test, ["time_start", "time"])
             survival_test = rfn.rename_fields(survival_test, {"time_stop": "time"})
 
-    survival_test, risk = _filter_times(survival_train, survival_test, risk)
+    survival_test = _filter_times(survival_train, survival_test)
     tau = getTau(survival_train, survival_test)
     
     if times is None:
