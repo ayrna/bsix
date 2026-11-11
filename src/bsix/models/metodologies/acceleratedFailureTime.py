@@ -404,7 +404,7 @@ class AcceleratedFailureTime(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
 
         """
         Predict the survival function for the given samples.
@@ -428,22 +428,21 @@ class AcceleratedFailureTime(BaseSurvival):
             Estimated survival function for each sample.
         """
 
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_survival_function` with a model, the seed must be an integer. Value received: {seed}")
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
         
         Xb = X @ self.coef_ + self.intercept_
 
         survival = np.stack([self._survival_function(t, Xb) for t in self.time_grid]).T
         self.survival_function = np.array([StepFunction(X=self.time_grid, y=individual_survival, is_survival=True) for individual_survival in survival])
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Accelerated Failure Time", dataset, "Survival", seed)
             plt.show()
 
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
+    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
         
         """
         Predict the cumulative hazard function for the given samples.
@@ -467,16 +466,15 @@ class AcceleratedFailureTime(BaseSurvival):
             Estimated cumulative hazard function for each sample.
         """
 
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_cumulative_hazard_function` with a model, the seed must be an integer. Value received: {seed}")
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
 
         Xb = X @ self.coef_ + self.intercept_
 
         cumulative_hazard = np.stack([self._cumulative_hazard(t, Xb) for t in self.time_grid]).T
         self.cumulative_hazard_function = np.array([StepFunction(X=self.time_grid, y=individual_survival, is_survival=True) for individual_survival in cumulative_hazard])
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Accelerated Failure Time", dataset, "CumulativeRisk", seed)
             plt.show()
         

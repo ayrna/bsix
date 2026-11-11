@@ -29,18 +29,24 @@ class TestEndToEndAcceleratedFailureTime:
         # 4. Predict
         predictions_validation = model.predict(X_validation)
         predictions_test = model.predict(X_test)
+        survival_function_validation = model.predict_survival_function(X_validation)
+        survival_function_test = model.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = model.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -48,6 +54,10 @@ class TestEndToEndAcceleratedFailureTime:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -107,18 +117,24 @@ class TestEndToEndAcceleratedFailureTime:
         # 4. Predict
         predictions_validation = estimator.predict(X_validation)
         predictions_test = estimator.predict(X_test)
+        survival_function_validation = estimator.best_estimator_.predict_survival_function(X_validation)
+        survival_function_test = estimator.best_estimator_.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -126,6 +142,10 @@ class TestEndToEndAcceleratedFailureTime:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -154,18 +174,24 @@ class TestEndToEndCoxRegression:
         # 4. Predict
         predictions_validation = model.predict(X_validation)
         predictions_test = model.predict(X_test)
+        survival_function_validation = model.predict_survival_function(X_validation)
+        survival_function_test = model.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = model.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -173,6 +199,10 @@ class TestEndToEndCoxRegression:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -232,18 +262,24 @@ class TestEndToEndCoxRegression:
         # 4. Predict
         predictions_validation = estimator.predict(X_validation)
         predictions_test = estimator.predict(X_test)
+        survival_function_validation = estimator.best_estimator_.predict_survival_function(X_validation)
+        survival_function_test = estimator.best_estimator_.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -251,6 +287,10 @@ class TestEndToEndCoxRegression:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -279,18 +319,24 @@ class TestEndToEndCoxRegressionWithTimeVarying:
         # 4. Predict
         predictions_validation = model.predict(X_validation)
         predictions_test = model.predict(X_test)
+        survival_function_validation = model.predict_survival_function(X_validation)
+        survival_function_test = model.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = model.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -298,6 +344,10 @@ class TestEndToEndCoxRegressionWithTimeVarying:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -357,18 +407,24 @@ class TestEndToEndCoxRegressionWithTimeVarying:
         # 4. Predict
         predictions_validation = estimator.predict(X_validation)
         predictions_test = estimator.predict(X_test)
+        survival_function_validation = estimator.best_estimator_.predict_survival_function(X_validation)
+        survival_function_test = estimator.best_estimator_.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -376,6 +432,10 @@ class TestEndToEndCoxRegressionWithTimeVarying:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -403,18 +463,24 @@ class TestEndToEndDeepHit:
         # 4. Predict
         predictions_validation = model.predict(X_validation)
         predictions_test = model.predict(X_test)
+        survival_function_validation = model.predict_survival_function(X_validation)
+        survival_function_test = model.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = model.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -422,6 +488,10 @@ class TestEndToEndDeepHit:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -481,18 +551,24 @@ class TestEndToEndDeepHit:
         # 4. Predict
         predictions_validation = estimator.predict(X_validation)
         predictions_test = estimator.predict(X_test)
+        survival_function_validation = estimator.best_estimator_.predict_survival_function(X_validation)
+        survival_function_test = estimator.best_estimator_.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -500,6 +576,10 @@ class TestEndToEndDeepHit:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -530,18 +610,24 @@ class TestEndToEndDeepMultiTask:
         # 4. Predict
         predictions_validation = model.predict(X_validation)
         predictions_test = model.predict(X_test)
+        survival_function_validation = model.predict_survival_function(X_validation)
+        survival_function_test = model.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = model.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -549,6 +635,14 @@ class TestEndToEndDeepMultiTask:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation), y_train.shape[1])
         assert predictions_test.shape == (len(X_test), y_train.shape[1])
+        assert isinstance(survival_function_validation[0], np.ndarray)
+        assert survival_function_validation[0].shape == (len(X_validation),)
+        assert isinstance(survival_function_validation[1], np.ndarray)
+        assert survival_function_validation[1].shape == (len(X_validation),)
+        assert isinstance(survival_function_test[0], np.ndarray)
+        assert survival_function_test[0].shape == (len(X_test),)
+        assert isinstance(survival_function_test[1], np.ndarray)
+        assert survival_function_test[1].shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -608,18 +702,24 @@ class TestEndToEndDeepMultiTask:
         # 4. Predict
         predictions_validation = estimator.predict(X_validation)
         predictions_test = estimator.predict(X_test)
+        survival_function_validation = estimator.best_estimator_.predict_survival_function(X_validation)
+        survival_function_test = estimator.best_estimator_.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -627,6 +727,14 @@ class TestEndToEndDeepMultiTask:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation), y_train.shape[1])
         assert predictions_test.shape == (len(X_test), y_train.shape[1])
+        assert isinstance(survival_function_validation[0], np.ndarray)
+        assert survival_function_validation[0].shape == (len(X_validation),)
+        assert isinstance(survival_function_validation[1], np.ndarray)
+        assert survival_function_validation[1].shape == (len(X_validation),)
+        assert isinstance(survival_function_test[0], np.ndarray)
+        assert survival_function_test[0].shape == (len(X_test),)
+        assert isinstance(survival_function_test[1], np.ndarray)
+        assert survival_function_test[1].shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -655,18 +763,24 @@ class TestEndToEndDeepSurv:
         # 4. Predict
         predictions_validation = model.predict(X_validation)
         predictions_test = model.predict(X_test)
+        survival_function_validation = model.predict_survival_function(X_validation)
+        survival_function_test = model.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = model.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -674,6 +788,10 @@ class TestEndToEndDeepSurv:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -733,18 +851,24 @@ class TestEndToEndDeepSurv:
         # 4. Predict
         predictions_validation = estimator.predict(X_validation)
         predictions_test = estimator.predict(X_test)
+        survival_function_validation = estimator.best_estimator_.predict_survival_function(X_validation)
+        survival_function_test = estimator.best_estimator_.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -752,6 +876,10 @@ class TestEndToEndDeepSurv:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -780,18 +908,24 @@ class TestEndToEndDeepTimeVarying:
         # 4. Predict
         predictions_validation = model.predict(X_validation)
         predictions_test = model.predict(X_test)
+        survival_function_validation = model.predict_survival_function(X_validation)
+        survival_function_test = model.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = model.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -799,6 +933,10 @@ class TestEndToEndDeepTimeVarying:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -858,18 +996,24 @@ class TestEndToEndDeepTimeVarying:
         # 4. Predict
         predictions_validation = estimator.predict(X_validation)
         predictions_test = estimator.predict(X_test)
+        survival_function_validation = estimator.best_estimator_.predict_survival_function(X_validation)
+        survival_function_test = estimator.best_estimator_.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -877,6 +1021,10 @@ class TestEndToEndDeepTimeVarying:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -905,18 +1053,24 @@ class TestEndToEndRandomSurvForest:
         # 4. Predict
         predictions_validation = model.predict(X_validation)
         predictions_test = model.predict(X_test)
+        survival_function_validation = model.predict_survival_function(X_validation)
+        survival_function_test = model.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = model.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -924,6 +1078,10 @@ class TestEndToEndRandomSurvForest:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -983,18 +1141,24 @@ class TestEndToEndRandomSurvForest:
         # 4. Predict
         predictions_validation = estimator.predict(X_validation)
         predictions_test = estimator.predict(X_test)
+        survival_function_validation = estimator.best_estimator_.predict_survival_function(X_validation)
+        survival_function_test = estimator.best_estimator_.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -1002,6 +1166,10 @@ class TestEndToEndRandomSurvForest:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -1029,18 +1197,24 @@ class TestEndToEndSurvivalTabPFN:
         # 4. Predict
         predictions_validation = model.predict(X_validation)
         predictions_test = model.predict(X_test)
+        survival_function_validation = model.predict_survival_function(X_validation)
+        survival_function_test = model.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = model.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -1048,6 +1222,10 @@ class TestEndToEndSurvivalTabPFN:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -1107,18 +1285,24 @@ class TestEndToEndSurvivalTabPFN:
         # 4. Predict
         predictions_validation = estimator.predict(X_validation)
         predictions_test = estimator.predict(X_test)
+        survival_function_validation = estimator.best_estimator_.predict_survival_function(X_validation)
+        survival_function_test = estimator.best_estimator_.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -1126,6 +1310,10 @@ class TestEndToEndSurvivalTabPFN:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -1153,18 +1341,24 @@ class TestEndToEndSurvTree:
         # 4. Predict
         predictions_validation = model.predict(X_validation)
         predictions_test = model.predict(X_test)
+        survival_function_validation = model.predict_survival_function(X_validation)
+        survival_function_test = model.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = model.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -1172,6 +1366,10 @@ class TestEndToEndSurvTree:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
@@ -1231,18 +1429,24 @@ class TestEndToEndSurvTree:
         # 4. Predict
         predictions_validation = estimator.predict(X_validation)
         predictions_test = estimator.predict(X_test)
+        survival_function_validation = estimator.best_estimator_.predict_survival_function(X_validation)
+        survival_function_test = estimator.best_estimator_.predict_survival_function(X_test)
+
+        predict_cumulative_hazard_function = estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
         
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_validation,
-            predictions=predictions_validation
+            predictions=predictions_validation,
+            survival_function=survival_function_validation
         )
         
         metrics_test = compute_metrics(
             train_targets=y_train,
             evaluation_targets=y_test,
-            predictions=predictions_test
+            predictions=predictions_test,
+            survival_function=survival_function_test
         )
         
         # Validations
@@ -1250,6 +1454,10 @@ class TestEndToEndSurvTree:
         assert len(X_test) > 0
         assert predictions_validation.shape == (len(X_validation),)
         assert predictions_test.shape == (len(X_test),)
+        assert isinstance(survival_function_validation, np.ndarray)
+        assert survival_function_validation.shape == (len(X_validation),)
+        assert isinstance(survival_function_test, np.ndarray)
+        assert survival_function_test.shape == (len(X_test),)
         assert isinstance(metrics_validation, dict)
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)

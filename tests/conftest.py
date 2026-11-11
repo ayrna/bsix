@@ -894,9 +894,6 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "edge_case: marks tests as edge case tests"
     )
-    config.addinivalue_line(
-        "markers", "deep_learning: marks tests requiring PyTorch"
-    )
 
 
 # ==================== AUTO-USE CLEANUP ====================

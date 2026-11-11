@@ -58,3 +58,10 @@ tutorial = [
 
 [tool.setuptools.exclude-package-data]
 "bsix.datasets.beatriz" = ["*"]
+
+[tool.coverage.run]
+# Omit Numba, parallel execution, base.py (abstract class), and base models (comparison only)
+omit = [
+    "*/models/base.py",
+    "*/models/metodologies/base*.py"
+]

@@ -14,7 +14,7 @@ from sklearn.utils.validation import check_random_state
 warnings.filterwarnings("ignore")
 
 @njit(fastmath=True, cache=True, nogil=True)
-def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_samples_leaf):
+def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_samples_leaf): # pragma: no cover
 
     """
     Find the best split for a survival-tree node.
@@ -580,7 +580,7 @@ class SurvTree(BaseSurvival):
             
         return np.array(functions, dtype=object)
     
-    def predict_survival_function(self, X, index, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
 
         """ 
         Predict the survival function for the given samples.
@@ -604,20 +604,19 @@ class SurvTree(BaseSurvival):
             Array of ``StepFunction`` objects with the estimated survival curves.
         """
 
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_survival_function`, the seed must be an integer. Value received: {seed}")
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
         
         self.survival_function = self._compute_survival_hazard_functions(X, survival=True)
 
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Survival Tree", dataset, "Survival", seed)
             plt.show()
             
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
+    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
 
         """
         Predict the cumulative hazard function for the given samples.
@@ -642,14 +641,13 @@ class SurvTree(BaseSurvival):
             curves.
         """
 
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_cumulative_hazard_function`, the seed must be an integer. Value received: {seed}")
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
         
         self.cumulative_hazard_function = self._compute_survival_hazard_functions(X, survival=False)
 
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Survival Tree", dataset, "CumulativeRisk", seed)
             plt.show()
         

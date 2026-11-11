@@ -225,7 +225,7 @@ class SurvivalTabPFN(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
  
         """
         Predict the survival function for the given samples.
@@ -249,22 +249,21 @@ class SurvivalTabPFN(BaseSurvival):
             Estimated survival function for each sample.
         """
  
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_survival_function` with a model, the seed must be an integer. Value received: {seed}")
- 
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
+        
         risk = self.predict(X)
  
         self.survival_function = self.breslow.get_survival_function(risk)
  
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "SurvivalTabPFN", dataset, "Survival", seed)
             plt.show()
  
         return self.survival_function
  
-    def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
+    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
  
         """
         Predict the cumulative hazard function for the given samples.
@@ -288,16 +287,15 @@ class SurvivalTabPFN(BaseSurvival):
             Estimated cumulative hazard function for each sample.
         """
  
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_cumulative_hazard_function` with a model, the seed must be an integer. Value received: {seed}")
- 
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
+        
         risk = self.predict(X)
  
         self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
  
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "SurvivalTabPFN", dataset, "CumulativeRisk", seed)
             plt.show()
  

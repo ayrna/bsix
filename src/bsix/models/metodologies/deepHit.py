@@ -21,7 +21,7 @@ from .utils import StepFunction
 warnings.filterwarnings("ignore")
 
 @njit(fastmath=True, cache=True)
-def _discretize_time_njit(t_ravel, time_grid, number_categories):
+def _discretize_time_njit(t_ravel, time_grid, number_categories): # pragma: no cover
 
     """
     Map continuous times to their discrete bin index.
@@ -46,7 +46,7 @@ def _discretize_time_njit(t_ravel, time_grid, number_categories):
     return np.minimum(idx, number_categories - 1)
 
 @njit(fastmath=True, cache=True)
-def _get_fc_mask1_njit(e_ravel, t_bin_ravel, number_events, number_categories):
+def _get_fc_mask1_njit(e_ravel, t_bin_ravel, number_events, number_categories): # pragma: no cover
 
     """
     Build the one-hot mask for the event-time likelihood term.
@@ -78,7 +78,7 @@ def _get_fc_mask1_njit(e_ravel, t_bin_ravel, number_events, number_categories):
     return mask
 
 @njit(fastmath=True, cache=True)
-def _get_fc_mask2_njit(t_bin_ravel, number_categories):
+def _get_fc_mask2_njit(t_bin_ravel, number_categories): # pragma: no cover
 
     """
     Build the risk-set mask used in the survival ranking terms.
@@ -905,7 +905,7 @@ class DeepHit(BaseSurvival):
 
         return self
 
-    def predict(self, x):
+    def predict(self, X):
 
         """
         Predict the overall risk for the given data.
@@ -926,7 +926,7 @@ class DeepHit(BaseSurvival):
     
         self.network.eval()
         with torch.no_grad():
-            x_tensor = torch.tensor(x, dtype=torch.float32, device=self.device)
+            x_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
             if self.standardize:
                 x_tensor = self._standardize_x(x_tensor)
             pmf = self.network(x_tensor).cpu().numpy()
@@ -938,7 +938,7 @@ class DeepHit(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
 
         """
         Predict the overall survival function for the given samples.
@@ -963,11 +963,9 @@ class DeepHit(BaseSurvival):
             for each sample.
         """
 
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_survival_function` with a model, the seed must be an integer. Value received: {seed}")
-
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
+        
         self.network.eval()
         with torch.no_grad():
             x_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
@@ -980,12 +978,13 @@ class DeepHit(BaseSurvival):
         survival_function = 1.0 - cumulative_incidence
         self.survival_function = np.array([StepFunction(X=self.time_grid, y=individual_survival, is_survival=True) for individual_survival in survival_function])
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "DeepHit", dataset, "Survival", seed)
             plt.show()
 
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index, dataset, seed, event=None, plot=False):
+    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, event=None, plot=False):
 
         """
         Predict the cumulative incidence or cumulative hazard function.
@@ -1013,11 +1012,9 @@ class DeepHit(BaseSurvival):
             specific depending on ``event``.
         """
 
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_cumulative_hazard_function` with a model, the seed must be an integer. Value received: {seed}")
-
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
+        
         self.network.eval()
         with torch.no_grad():
             x_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
@@ -1031,6 +1028,7 @@ class DeepHit(BaseSurvival):
         self.cumulative_hazard_function = cumulative_incidence
 
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "DeepHit", dataset, "CumulativeRisk", seed)
             plt.show()
 

@@ -610,7 +610,7 @@ class DeepTimeVarying(BaseSurvival):
         
         return self
     
-    def predict(self, x):
+    def predict(self, X):
 
         """
         Predict risk scores for the given data.
@@ -631,7 +631,7 @@ class DeepTimeVarying(BaseSurvival):
     
         self.network.eval()
         with torch.no_grad():
-            x_tensor = torch.tensor(x, dtype=torch.float32, device=self.device)
+            x_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
             if self.standardize:
                 x_tensor = self._standardize_x(x_tensor)
             risk = self.network(x_tensor).cpu().numpy().flatten()
@@ -641,7 +641,7 @@ class DeepTimeVarying(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
 
         """ 
         Predict the survival function for the given samples.
@@ -665,22 +665,21 @@ class DeepTimeVarying(BaseSurvival):
             Estimated survival function for each sample.
         """
 
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_survival_function` with a model, the seed must be an integer. Value received: {seed}")
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
         
         risk = self.predict(X)
 
         self.survival_function = self.breslow.get_survival_function(risk)
 
         if plot:
+            çseed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "DeepSurv Time-Varying", dataset, "Survival", seed)
             plt.show()
 
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
+    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
         
         """
         Predict the cumulative hazard function for the given samples.
@@ -704,16 +703,15 @@ class DeepTimeVarying(BaseSurvival):
             Estimated cumulative hazard function for each sample.
         """
 
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_cumulative_hazard_function` with a model, the seed must be an integer. Value received: {seed}")
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
         
         risk = self.predict(X)
         
         self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
 
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "DeepSurv Time-Varying", dataset, "CumulativeRisk", seed)
             plt.show()
             

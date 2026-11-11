@@ -96,7 +96,7 @@ class RandomSurvForest(BaseSurvival):
         # Model (will be initialized in train())
         self.model = None
 
-    def _fit_single_tree(self, X, y, n_samples, tree_seed):
+    def _fit_single_tree(self, X, y, n_samples, tree_seed):  # pragma: no cover
 
         """
         Train a single survival tree on a bootstrap sample.
@@ -218,7 +218,7 @@ class RandomSurvForest(BaseSurvival):
         return self
 
     @staticmethod
-    def _predict_tree(tree, X, grid):
+    def _predict_tree(tree, X, grid):  # pragma: no cover
 
         """
         Predict the cumulative hazard for a single tree.
@@ -291,7 +291,7 @@ class RandomSurvForest(BaseSurvival):
     # Base Survival methods
     # ----------------------
     @staticmethod
-    def _accumulate_trees(trees, X, grid, survival):
+    def _accumulate_trees(trees, X, grid, survival):  # pragma: no cover
 
         """
         Accumulate the predictions of multiple trees for a given dataset.
@@ -376,7 +376,7 @@ class RandomSurvForest(BaseSurvival):
             functions[i] = StepFunction(X=self.grid, y=mean_curves[i], is_survival=survival)
         return functions
     
-    def predict_survival_function(self, X, index, dataset, seed, plot=False):
+    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
 
         """ 
         Predict the survival function for the given samples.
@@ -400,20 +400,19 @@ class RandomSurvForest(BaseSurvival):
             Array of ``StepFunction`` objects with the estimated survival curves.
         """
 
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_survival_function` with a model, the seed must be an integer. Value received: {seed}")
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
         
         self.survival_function = self._compute_cumulative_hazard_function(X, survival=True)
 
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Random Survival Forest", dataset, "Survival", seed)
             plt.show()
 
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index, dataset, seed, plot=False):
+    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
         
         """
         Predict the cumulative hazard function for the given samples.
@@ -438,14 +437,13 @@ class RandomSurvForest(BaseSurvival):
             curves.
         """
 
-        try:
-            seed = int(seed)
-        except (TypeError, ValueError):
-            raise ValueError(f"When using `predict_cumulative_hazard_function` with a model, the seed must be an integer. Value received: {seed}")
-    
+        if plot and (index is None or dataset is None or seed is None):
+            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
+        
         self.cumulative_hazard_function = self._compute_cumulative_hazard_function(X, survival=False)
 
         if plot:
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Random Survival Forest", dataset, "CumulativeRisk", seed)
             plt.show()
             

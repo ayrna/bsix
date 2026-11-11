@@ -37,7 +37,7 @@ def _get_activation(activation):
         raise ValueError(f"Unknown activation function: {activation}")
 
 @njit(fastmath=True, cache=True)
-def _discretize_time_njit(t_ravel, time_grid, number_categories):
+def _discretize_time_njit(t_ravel, time_grid, number_categories): # pragma: no cover
 
     """
     Numba optimized time discretization.
