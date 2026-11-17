@@ -207,8 +207,6 @@ def _transformTrainValidationTest(X, y):
     Transform the data format for train, validation and test sets.
     """
 
-    from sksurv.util import Surv
-
     survival_X = X.copy()
     
     # Standard: [event, time]
@@ -216,7 +214,7 @@ def _transformTrainValidationTest(X, y):
         _yE = y[:, 0].astype(np.float32)
         _yT = y[:, 1].astype(np.float32)
 
-        survival_y = Surv.from_arrays(event=_yE, time=_yT)
+        survival_y = np.rec.fromarrays([_yE, _yT], dtype=[('event', np.bool_), ('time', np.float32)]).view(np.ndarray)
     # Time varying: [event, time_start, time_stop]
     elif y.shape[1] == 3: 
         _yE = y[:, 0].astype(np.float32)
@@ -235,7 +233,7 @@ def _transformTrainValidationTest(X, y):
         _yT = y[:, 1::2].astype(np.float32) # (1, 3, 5...)
 
         number_progressions = y.shape[1] // 2
-        surv_list = [Surv.from_arrays(event=_yE[:, i], time=_yT[:, i]) for i in range(number_progressions)]
+        surv_list = [np.rec.fromarrays([_yE[:, i], _yT[:, i]], dtype=[('event', np.bool_), ('time', np.float32)]).view(np.ndarray) for i in range(number_progressions)]
         survival_y = np.array(surv_list).T
     
     survival = {

@@ -1,5 +1,5 @@
 # Ignorar un archivo específico
-depurar.py
+.coverage
 
 # Ignorar una carpeta entera
 logs/
@@ -8,6 +8,7 @@ dist/
 results/
 RESULTS/
 prepared_results/
+htmlcov/
 
 docs/build/
 
@@ -19,3 +20,8 @@ src/bsix/datasets/pre.datasets/
 ___/
 _not_used/
 __pycache__/
+
+# Keep workflows
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml

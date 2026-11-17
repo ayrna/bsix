@@ -1744,8 +1744,8 @@ class TestBoundaryTimes:
 
 class TestEventCensoring:
     """Tests for extreme censoring scenarios (ERR-009)"""
-    
-    @pytest.mark.integration
+
+    @pytest.mark.edge_case
     def test_pipeline_all_censored_accelerated_failure_time(self, survival_data_all_censored):
         """Pipeline with all-censored test set"""
         from bsix.models import AcceleratedFailureTime
@@ -1757,8 +1757,7 @@ class TestEventCensoring:
         with pytest.raises((ValueError)):
             model.fit(X, y)
 
-
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_all_censored_cox_regression(self, survival_data_all_censored):
         """Pipeline with all-censored test set"""
         from bsix.models import CoxRegression
@@ -1770,7 +1769,7 @@ class TestEventCensoring:
         with pytest.raises((ValueError)):
             model.fit(X, y)
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_all_censored_cox_regression_with_time_varying(self, survival_data_timevarying_all_censored):
         """Pipeline with all-censored test set"""
         from bsix.models import CoxRegressionWithTimeVarying
@@ -1782,7 +1781,7 @@ class TestEventCensoring:
         with pytest.raises((ValueError)):
             model.fit(X, y)
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_all_censored_deep_hit(self, survival_data_all_censored):
         """Pipeline with all-censored test set"""
         from bsix.models import DeepHit
@@ -1794,7 +1793,7 @@ class TestEventCensoring:
         with pytest.raises((ValueError)):
             model.fit(X, y)
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_all_censored_deep_multi_task(self, survival_data_multi_event_all_censored):
         """Pipeline with all-censored test set"""
         from bsix.models import DeepMultiTask
@@ -1809,8 +1808,7 @@ class TestEventCensoring:
         with pytest.raises((ValueError)):
             model.fit(X, y)
 
-
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_all_censored_deep_surv(self, survival_data_all_censored):
         """Pipeline with all-censored test set"""
         from bsix.models import DeepSurv
@@ -1823,8 +1821,7 @@ class TestEventCensoring:
         with pytest.raises((ValueError)):
             model.fit(X, y)
 
-
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_all_censored_deep_time_varying(self, survival_data_timevarying_all_censored):
         """Pipeline with all-censored test set"""
         from bsix.models import DeepTimeVarying
@@ -1837,7 +1834,7 @@ class TestEventCensoring:
         with pytest.raises((ValueError)):
             model.fit(X, y)
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_all_censored_random_surv_forest(self, survival_data_all_censored):
         """Pipeline with all-censored test set"""
         from bsix.models import RandomSurvForest
@@ -1850,7 +1847,7 @@ class TestEventCensoring:
         with pytest.raises((ValueError)):
             model.fit(X, y)
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_all_censored_survival_tab_pfn(self, survival_data_all_censored):
         """Pipeline with all-censored test set"""
         from bsix.models import SurvivalTabPFN
@@ -1863,7 +1860,7 @@ class TestEventCensoring:
         with pytest.raises((ValueError)):
             model.fit(X, y)
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_all_censored_surv_tree(self, survival_data_all_censored):
         """Pipeline with all-censored test set"""
         from bsix.models import SurvTree

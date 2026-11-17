@@ -12,11 +12,11 @@ import warnings
 from ..base import BaseSurvival
 from ..loggers.deepMultiTaskLogger import DeepMultiTaskLogger
 from ..nets.deepNets import DeepHitFFNN
+from .utils import StepFunction
+from ...utils.survival_metrics import concordanceIndexHarrel
 
 from numba import njit
-from sksurv.metrics import concordance_index_censored
 from torch.utils.data import TensorDataset, DataLoader
-from .utils import StepFunction
 
 warnings.filterwarnings("ignore")
 
@@ -204,13 +204,7 @@ class DeepHit(BaseSurvival):
     Examples
     --------
     >>> from bsix.models.metodologies import DeepHit
-    >>> model = DeepHit(
-    ...     number_inputs=10,
-    ...     number_events=2,
-    ...     number_categories=30,
-    ...     epochs=200,
-    ...     learn_rate=1e-4,
-    ... )
+    >>> model = DeepHit(number_inputs=10, number_events=2, number_categories=30, epochs=200, learn_rate=1e-4)
     >>> model.fit(X_train, y_train)
     >>> risk = model.predict(X_test)
     """
@@ -647,7 +641,8 @@ class DeepHit(BaseSurvival):
 
         e_occurred = e > 0
 
-        c_index = concordance_index_censored(e_occurred, t, cumulative_risk)[0]
+        y_true = np.rec.fromarrays([e, t], dtype=[('event', np.bool_), ('time', np.float32)]).view(np.ndarray)
+        c_index = concordanceIndexHarrel([y_true, y_true], cumulative_risk)
 
         return torch.tensor(c_index, dtype=torch.float32, device=self.device)
 
@@ -767,8 +762,8 @@ class DeepHit(BaseSurvival):
             )
 
         # Events and Times
-        e_train = np.array([evento for evento, _ in y_train], np.bool_)
-        t_train = np.array([tiempo for _, tiempo in y_train], np.float32)
+        e_train = y_train["event"].astype(np.bool_)
+        t_train = y_train["time"].astype(np.float32)
 
         # Discretise time
         self._build_time_grid(t_train)
@@ -825,10 +820,9 @@ class DeepHit(BaseSurvival):
         best_params = None
         best_params_idx = -1
 
-        patience = self.patience
-
         start = time.time()
-
+        
+        patience = self.patience
         for epoch in range(self.epochs):
             # Learning rate decay
             lr = self.learn_rate / (1 + epoch * self.lr_decay)
@@ -853,7 +847,6 @@ class DeepHit(BaseSurvival):
 
             # Validation
             if epoch % self.validation_frequency == 0:
-                
                 # Calculate training C-index
                 ci_train = self._get_concordance_index(x_train_tensor, t_train, e_train)
                 logger.logValue("c-index", ci_train, epoch)

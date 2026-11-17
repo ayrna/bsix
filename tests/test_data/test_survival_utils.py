@@ -99,7 +99,8 @@ class TestSurvivalUtilsRobustness:
     """
     Tests for robustness and edge cases.
     """
-    
+
+    @pytest.mark.edge_case
     def test_get_tau_with_all_censored(self, survival_data_all_censored):
 
         """
@@ -117,7 +118,7 @@ class TestSurvivalUtilsRobustness:
         tau = getTau(y_train, y_test)
         assert tau > 0
     
-    
+    @pytest.mark.edge_case
     def test_get_times_single_sample(self):
 
         """

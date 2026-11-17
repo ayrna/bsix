@@ -9,8 +9,7 @@ import numpy as np
 
 class TestEndToEndAcceleratedFailureTime:
     """End-to-end tests for AcceleratedFailureTime pipeline"""
-    
-    @pytest.mark.integration
+
     def test_full_pipeline_accelerated_failure_time(self, dataframe_mixed_types):
         """Full pipeline: data loading -> AcceleratedFailureTime -> metrics"""
         from bsix.utils.load_data import get_data
@@ -63,7 +62,6 @@ class TestEndToEndAcceleratedFailureTime:
         assert isinstance(metrics_test, dict)
         assert len(metrics_test) > 0
     
-    @pytest.mark.integration
     def test_accelerated_failure_time_with_cross_validation(self, dataframe_mixed_types):
         """AcceleratedFailureTime with train/validation/test split"""
         from bsix.utils import get_data, get_estimator
@@ -155,7 +153,6 @@ class TestEndToEndAcceleratedFailureTime:
 class TestEndToEndCoxRegression:
     """End-to-end tests for CoxRegression pipeline"""
     
-    @pytest.mark.integration
     def test_full_pipeline_cox_regression(self, dataframe_mixed_types):
         """Full pipeline: data loading -> CoxRegression -> metrics"""
         from bsix.utils.load_data import get_data
@@ -208,7 +205,6 @@ class TestEndToEndCoxRegression:
         assert isinstance(metrics_test, dict)
         assert len(metrics_test) > 0
     
-    @pytest.mark.integration
     def test_cox_regression_with_cross_validation(self, dataframe_mixed_types):
         """CoxRegression with train/validation/test split"""
         from bsix.utils import get_data, get_estimator
@@ -300,7 +296,6 @@ class TestEndToEndCoxRegression:
 class TestEndToEndCoxRegressionWithTimeVarying:
     """End-to-end tests for CoxRegressionWithTimeVarying pipeline"""
     
-    @pytest.mark.integration
     def test_full_pipeline_cox_regression_with_time_varying(self, dataframe_time_varying):
         """Full pipeline: data loading -> CoxRegressionWithTimeVarying -> metrics"""
         from bsix.utils.load_data import get_data
@@ -353,7 +348,6 @@ class TestEndToEndCoxRegressionWithTimeVarying:
         assert isinstance(metrics_test, dict)
         assert len(metrics_test) > 0
     
-    @pytest.mark.integration
     def test_cox_regression_with_time_varying_with_cross_validation(self, dataframe_time_varying):
         """CoxRegressionWithTimeVarying with train/validation/test split"""
         from bsix.utils import get_data, get_estimator
@@ -444,7 +438,6 @@ class TestEndToEndCoxRegressionWithTimeVarying:
 class TestEndToEndDeepHit:
     """End-to-end tests for DeepHit pipeline"""
     
-    @pytest.mark.integration
     def test_full_pipeline_deep_hit(self, dataframe_mixed_types):
         """Full pipeline: data loading -> DeepHit -> metrics"""
         from bsix.utils.load_data import get_data
@@ -496,8 +489,8 @@ class TestEndToEndDeepHit:
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
         assert len(metrics_test) > 0
-    
-    @pytest.mark.integration
+
+    @pytest.mark.slow
     def test_deep_hit_with_cross_validation(self, dataframe_mixed_types):
         """DeepHit with train/validation/test split"""
         from bsix.utils import get_data, get_estimator
@@ -588,7 +581,6 @@ class TestEndToEndDeepHit:
 class TestEndToEndDeepMultiTask:
     """End-to-end tests for DeepMultiTask pipeline"""
     
-    @pytest.mark.integration
     def test_full_pipeline_deep_multi_task(self, dataframe_multi_event):
         """Full pipeline: data loading -> DeepMultiTask -> metrics"""
         from bsix.utils.load_data import get_data
@@ -647,8 +639,8 @@ class TestEndToEndDeepMultiTask:
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
         assert len(metrics_test) > 0
-    
-    @pytest.mark.integration
+
+    @pytest.mark.slow
     def test_deep_multi_task_with_cross_validation(self, dataframe_multi_event):
         """DeepMultiTask with train/validation/test split"""
         from bsix.utils import get_data, get_estimator
@@ -744,7 +736,6 @@ class TestEndToEndDeepMultiTask:
 class TestEndToEndDeepSurv:
     """End-to-end tests for DeepSurv pipeline"""
     
-    @pytest.mark.integration
     def test_full_pipeline_deep_surv(self, dataframe_mixed_types):
         """Full pipeline: data loading -> DeepSurv -> metrics"""
         from bsix.utils.load_data import get_data
@@ -796,8 +787,8 @@ class TestEndToEndDeepSurv:
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
         assert len(metrics_test) > 0
-    
-    @pytest.mark.integration
+
+    @pytest.mark.slow
     def test_deep_surv_with_cross_validation(self, dataframe_mixed_types):
         """DeepSurv with train/validation/test split"""
         from bsix.utils import get_data, get_estimator
@@ -889,7 +880,6 @@ class TestEndToEndDeepSurv:
 class TestEndToEndDeepTimeVarying:
     """End-to-end tests for DeepTimeVarying pipeline"""
     
-    @pytest.mark.integration
     def test_full_pipeline_deep_time_varying(self, dataframe_time_varying):
         """Full pipeline: data loading -> DeepTimeVarying -> metrics"""
         from bsix.utils.load_data import get_data
@@ -941,8 +931,8 @@ class TestEndToEndDeepTimeVarying:
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
         assert len(metrics_test) > 0
-    
-    @pytest.mark.integration
+
+    @pytest.mark.slow
     def test_deep_time_varying_with_cross_validation(self, dataframe_time_varying):
         """DeepTimeVarying with train/validation/test split"""
         from bsix.utils import get_data, get_estimator
@@ -1034,7 +1024,6 @@ class TestEndToEndDeepTimeVarying:
 class TestEndToEndRandomSurvForest:
     """End-to-end tests for RandomSurvForest pipeline"""
     
-    @pytest.mark.integration
     def test_full_pipeline_random_surv_forest(self, dataframe_mixed_types):
         """Full pipeline: data loading -> RandomSurvForest -> metrics"""
         from bsix.utils.load_data import get_data
@@ -1086,8 +1075,8 @@ class TestEndToEndRandomSurvForest:
         assert len(metrics_validation) > 0
         assert isinstance(metrics_test, dict)
         assert len(metrics_test) > 0
-    
-    @pytest.mark.integration
+
+    @pytest.mark.slow
     def test_random_surv_forest_with_cross_validation(self, dataframe_mixed_types):
         """RandomSurvForest with train/validation/test split"""
         from bsix.utils import get_data, get_estimator
@@ -1178,7 +1167,6 @@ class TestEndToEndRandomSurvForest:
 class TestEndToEndSurvivalTabPFN:
     """End-to-end tests for SurvivalTabPFN pipeline"""
     
-    @pytest.mark.integration
     def test_full_pipeline_survival_tab_pfn(self, dataframe_mixed_types):
         """Full pipeline: data loading -> SurvivalTabPFN -> metrics"""
         from bsix.utils.load_data import get_data
@@ -1231,7 +1219,7 @@ class TestEndToEndSurvivalTabPFN:
         assert isinstance(metrics_test, dict)
         assert len(metrics_test) > 0
     
-    @pytest.mark.integration
+    @pytest.mark.slow
     def test_survival_tab_pfn_with_cross_validation(self, dataframe_mixed_types):
         """SurvivalTabPFN with train/validation/test split"""
         from bsix.utils import get_data, get_estimator
@@ -1322,7 +1310,6 @@ class TestEndToEndSurvivalTabPFN:
 class TestEndToEndSurvTree:
     """End-to-end tests for SurvTree pipeline"""
     
-    @pytest.mark.integration
     def test_full_pipeline_surv_tree(self, dataframe_mixed_types):
         """Full pipeline: data loading -> SurvTree -> metrics"""
         from bsix.utils.load_data import get_data
@@ -1375,7 +1362,6 @@ class TestEndToEndSurvTree:
         assert isinstance(metrics_test, dict)
         assert len(metrics_test) > 0
     
-    @pytest.mark.integration
     def test_surv_tree_with_cross_validation(self, dataframe_mixed_types):
         """SurvTree with train/validation/test split"""
         from bsix.utils import get_data, get_estimator
@@ -1467,7 +1453,7 @@ class TestEndToEndSurvTree:
 class TestDataPreprocessingVariations:
     """End-to-end tests with different data preprocessing scenarios"""
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_with_nan_handling_accelerated_failure_time(self, dataframe_with_nans):
         """Full pipeline with NaN handling"""
         from bsix.utils.load_data import get_data
@@ -1483,7 +1469,7 @@ class TestDataPreprocessingVariations:
 
         assert np.all(np.isfinite(pred))
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_with_nan_handling_cox_regression(self, dataframe_with_nans):
         """Full pipeline with NaN handling"""
         from bsix.utils.load_data import get_data
@@ -1499,7 +1485,7 @@ class TestDataPreprocessingVariations:
 
         assert np.all(np.isfinite(pred))
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_with_nan_handling_cox_regression_with_time_varying(self, dataframe_with_nans_time_varying):
         """Full pipeline with NaN handling"""
         from bsix.utils.load_data import get_data
@@ -1515,7 +1501,7 @@ class TestDataPreprocessingVariations:
 
         assert np.all(np.isfinite(pred))
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_with_nan_handling_deep_hit(self, dataframe_with_nans):
         """Full pipeline with NaN handling"""
         from bsix.utils.load_data import get_data
@@ -1531,7 +1517,7 @@ class TestDataPreprocessingVariations:
 
         assert np.all(np.isfinite(pred))
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_with_nan_handling_deep_multi_task(self, dataframe_with_nans_multi_event):
         """Full pipeline with NaN handling"""
         from bsix.utils.load_data import get_data
@@ -1550,7 +1536,7 @@ class TestDataPreprocessingVariations:
 
         assert np.all(np.isfinite(pred))
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_with_nan_handling_deep_surv(self, dataframe_with_nans):
         """Full pipeline with NaN handling"""
         from bsix.utils.load_data import get_data
@@ -1566,7 +1552,7 @@ class TestDataPreprocessingVariations:
 
         assert np.all(np.isfinite(pred))
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_with_nan_handling_deep_time_varying(self, dataframe_with_nans_time_varying):
         """Full pipeline with NaN handling"""
         from bsix.utils.load_data import get_data
@@ -1582,7 +1568,7 @@ class TestDataPreprocessingVariations:
 
         assert np.all(np.isfinite(pred))
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_with_nan_handling_random_surv_forest(self, dataframe_with_nans):
         """Full pipeline with NaN handling"""
         from bsix.utils.load_data import get_data
@@ -1598,7 +1584,7 @@ class TestDataPreprocessingVariations:
 
         assert np.all(np.isfinite(pred))
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_with_nan_handling_survival_tab_pfn(self, dataframe_with_nans):
         """Full pipeline with NaN handling"""
         from bsix.utils.load_data import get_data
@@ -1614,7 +1600,7 @@ class TestDataPreprocessingVariations:
 
         assert np.all(np.isfinite(pred))
 
-    @pytest.mark.integration
+    @pytest.mark.edge_case
     def test_pipeline_with_nan_handling_surv_tree(self, dataframe_with_nans):
         """Full pipeline with NaN handling"""
         from bsix.utils.load_data import get_data
@@ -1634,7 +1620,6 @@ class TestDataPreprocessingVariations:
 class TestReproducibility:
     """End-to-end tests for reproducibility"""
    
-    @pytest.mark.integration
     def test_deterministic_accelerated_failure_time(self, simple_survival_data):
         """AcceleratedFailureTime reproducibility with seed"""
         from bsix.models import AcceleratedFailureTime
@@ -1654,7 +1639,6 @@ class TestReproducibility:
         # Should be close
         assert np.allclose(pred1, pred2, atol=1e-3)
 
-    @pytest.mark.integration
     def test_deterministic_cox_regression(self, simple_survival_data):
         """CoxRegression reproducibility with seed"""
         from bsix.models import CoxRegression
@@ -1674,7 +1658,6 @@ class TestReproducibility:
         # Should be close
         assert np.allclose(pred1, pred2, atol=1e-3)
 
-    @pytest.mark.integration
     def test_deterministic_cox_regression_with_time_varying(self, simple_survival_data_timevarying):
         """CoxRegressionWithTimeVarying reproducibility with seed"""
         from bsix.models import CoxRegressionWithTimeVarying
@@ -1694,7 +1677,6 @@ class TestReproducibility:
         # Should be close
         assert np.allclose(pred1, pred2, atol=1e-3)
 
-    @pytest.mark.integration
     def test_deterministic_deep_hit(self, simple_survival_data):
         """DeepHit reproducibility with seed"""
         from bsix.models import DeepHit
@@ -1714,7 +1696,6 @@ class TestReproducibility:
         # Should be close
         assert np.allclose(pred1, pred2, atol=1e-3)
 
-    @pytest.mark.integration
     def test_deterministic_deep_multi_task(self, simple_survival_data_multi_event):
         """DeepMultiTask reproducibility with seed"""
         from bsix.models import DeepMultiTask
@@ -1736,7 +1717,6 @@ class TestReproducibility:
         # Should be close
         assert np.allclose(pred1, pred2, atol=1e-3)
 
-    @pytest.mark.integration
     def test_deterministic_deep_surv(self, simple_survival_data):
         """DeepSurv reproducibility with seed"""
         from bsix.models import DeepSurv
@@ -1756,7 +1736,6 @@ class TestReproducibility:
         # Should be close
         assert np.allclose(pred1, pred2, atol=1e-3)
 
-    @pytest.mark.integration
     def test_deterministic_deep_time_varying(self, simple_survival_data_timevarying):
         """DeepTimeVarying reproducibility with seed"""
         from bsix.models import DeepTimeVarying
@@ -1776,7 +1755,6 @@ class TestReproducibility:
         # Should be close
         assert np.allclose(pred1, pred2, atol=1e-3)
 
-    @pytest.mark.integration
     def test_deterministic_random_surv_forest(self, simple_survival_data):
         """RandomSurvForest reproducibility with seed"""
         from bsix.models import RandomSurvForest
@@ -1796,7 +1774,6 @@ class TestReproducibility:
         # Should be close
         assert np.allclose(pred1, pred2, atol=1e-3)
 
-    @pytest.mark.integration
     def test_deterministic_survival_tab_pfn(self, simple_survival_data):
         """SurvivalTabPFN reproducibility with seed"""
         from bsix.models import SurvivalTabPFN
@@ -1816,7 +1793,6 @@ class TestReproducibility:
         # Should be close
         assert np.allclose(pred1, pred2, atol=1e-3)
 
-    @pytest.mark.integration
     def test_deterministic_surv_tree(self, simple_survival_data):
         """SurvTree reproducibility with seed"""
         from bsix.models import SurvTree
@@ -1838,8 +1814,8 @@ class TestReproducibility:
 
 class TestFeatureImportance:
     """End-to-end tests for feature importance/SHAP"""
-   
-    @pytest.mark.integration
+
+    @pytest.mark.slow
     def test_shap_explainability_accelerated_failure_time(self, dataframe_mixed_types):
         """Full pipeline with SHAP explanations"""
         from bsix.utils import get_data
@@ -1853,7 +1829,7 @@ class TestFeatureImportance:
         # Compute SHAP values
         model.calculate_xai(X_train, train_idx, scaler, "dataframe_mixed_types", seed=42, feature_names=feature_names)
 
-    @pytest.mark.integration
+    @pytest.mark.slow
     def test_shap_explainability_cox_regression(self, dataframe_mixed_types):
         """Full pipeline with SHAP explanations"""
         from bsix.utils import get_data
@@ -1867,7 +1843,7 @@ class TestFeatureImportance:
         # Compute SHAP values
         model.calculate_xai(X_train, train_idx, scaler, "dataframe_mixed_types", seed=42, feature_names=feature_names)
 
-    @pytest.mark.integration
+    @pytest.mark.slow
     def test_shap_explainability_cox_regression_with_time_varying(self, dataframe_time_varying):
         """Full pipeline with SHAP explanations"""
         from bsix.utils import get_data
@@ -1881,7 +1857,7 @@ class TestFeatureImportance:
         # Compute SHAP values
         model.calculate_xai(X_train, train_idx, scaler, "dataframe_time_varying", seed=42, feature_names=feature_names)
 
-    @pytest.mark.integration
+    @pytest.mark.slow
     def test_shap_explainability_deep_hit(self, dataframe_mixed_types):
         """Full pipeline with SHAP explanations"""
         from bsix.utils import get_data
@@ -1895,7 +1871,7 @@ class TestFeatureImportance:
         # Compute SHAP values
         model.calculate_xai(X_train, train_idx, scaler, "dataframe_mixed_types", seed=42, feature_names=feature_names)
 
-    @pytest.mark.integration
+    @pytest.mark.slow
     def test_shap_explainability_deep_multi_task(self, dataframe_multi_event):
         """Full pipeline with SHAP explanations"""
         from bsix.utils import get_data
@@ -1912,7 +1888,7 @@ class TestFeatureImportance:
         # Compute SHAP values
         model.calculate_xai(X_train, train_idx, scaler, "dataframe_multi_event", seed=42, feature_names=feature_names)
 
-    @pytest.mark.integration
+    @pytest.mark.slow
     def test_shap_explainability_deep_surv(self, dataframe_mixed_types):
         """Full pipeline with SHAP explanations"""
         from bsix.utils import get_data
@@ -1926,7 +1902,7 @@ class TestFeatureImportance:
         # Compute SHAP values
         model.calculate_xai(X_train, train_idx, scaler, "dataframe_mixed_types", seed=42, feature_names=feature_names)
 
-    @pytest.mark.integration
+    @pytest.mark.slow
     def test_shap_explainability_deep_time_varying(self, dataframe_time_varying):
         """Full pipeline with SHAP explanations"""
         from bsix.utils import get_data
@@ -1940,7 +1916,7 @@ class TestFeatureImportance:
         # Compute SHAP values
         model.calculate_xai(X_train, train_idx, scaler, "dataframe_time_varying", seed=42, feature_names=feature_names)
 
-    @pytest.mark.integration
+    @pytest.mark.slow
     def test_shap_explainability_random_surv_forest(self, dataframe_mixed_types):
         """Full pipeline with SHAP explanations"""
         from bsix.utils import get_data
@@ -1954,7 +1930,7 @@ class TestFeatureImportance:
         # Compute SHAP values
         model.calculate_xai(X_train, train_idx, scaler, "dataframe_mixed_types", seed=42, feature_names=feature_names)
 
-    @pytest.mark.integration
+    @pytest.mark.slow
     def test_shap_explainability_survival_tab_pfn(self, dataframe_mixed_types):
         """Full pipeline with SHAP explanations"""
         from bsix.utils import get_data
@@ -1968,7 +1944,7 @@ class TestFeatureImportance:
         # Compute SHAP values
         model.calculate_xai(X_train, train_idx, scaler, "dataframe_mixed_types", seed=42, feature_names=feature_names)
 
-    @pytest.mark.integration
+    @pytest.mark.slow
     def test_shap_explainability_surv_tree(self, dataframe_mixed_types):
         """Full pipeline with SHAP explanations"""
         from bsix.utils import get_data

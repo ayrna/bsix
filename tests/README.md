@@ -107,11 +107,10 @@ pytest tests/test_metrics/test_survival_metrics.py::TestConcordanceIndexHarrel::
 
 ### Markers
 
-The configuration registers `slow`, `integration`, and `edge_case` in `pytest.ini`
+The configuration registers `slow` and `edge_case` in `pytest.ini`
 
 ```bash
 pytest -m slow
-pytest -m integration
 pytest -m edge_case
 pytest -m "not slow"
 ```

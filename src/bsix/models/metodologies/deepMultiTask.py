@@ -20,8 +20,7 @@ from ..base import BaseSurvival
 from ..loggers.deepMultiTaskLogger import DeepMultiTaskLogger
 from ..nets.deepNets import DeepMultiTaskFFNN
 from .utils import BreslowEstimator
-
-from sksurv.metrics import concordance_index_censored
+from ...utils.survival_metrics import concordanceIndexHarrel
 
 warnings.filterwarnings("ignore")
 
@@ -115,12 +114,7 @@ class DeepMultiTask(BaseSurvival):
     Examples
     --------
     >>> from bsix.models.metodologies import DeepMultiTask
-    >>> model = DeepMultiTask(
-    ...     number_inputs=10,
-    ...     hidden_layers=[32, 16],
-    ...     epochs=200,
-    ...     learn_rate=0.01,
-    ... )
+    >>> model = DeepMultiTask(number_inputs=10, hidden_layers=[32, 16], epochs=200, learn_rate=0.01)
     >>> model.fit(X_train, y_train)
     >>> risk = model.predict(X_test)
     """
@@ -399,14 +393,12 @@ class DeepMultiTask(BaseSurvival):
 
         self.network.eval()
         with torch.no_grad():
-            x_tensor = torch.tensor(x, dtype=torch.float32, device=self.device)
-            if self.standardize:
-                x_tensor = self._standardize_x(x_tensor)
-            risk = self.network(x_tensor)[1][:, :self.number_events].cpu().numpy()
+            risk = self.network(x)[1][:, :self.number_events].cpu().numpy()
             
         c_index_censored = []
         for k in range(self.number_events):
-            c_index_censored.append(torch.tensor(concordance_index_censored(e[:, k], t[:, k], risk[:, k])[0], dtype=torch.float32, device=self.device))
+            y_true = np.rec.fromarrays([e[:, k], t[:, k]], dtype=[('event', np.bool_), ('time', np.float32)]).view(np.ndarray)
+            c_index_censored.append(torch.tensor(concordanceIndexHarrel([y_true, y_true], risk[:, k]), dtype=torch.float32, device=self.device))
         c_index_censored = torch.stack(c_index_censored)
         
         return c_index_censored
@@ -527,8 +519,8 @@ class DeepMultiTask(BaseSurvival):
         e_train = []
         t_train = []
         for k in range(self.number_events):
-            e_train.append(np.array([evento for evento, _ in y_train[:, k]], np.bool_))
-            t_train.append(np.array([tiempo for _, tiempo in y_train[:, k]], np.float32))
+            e_train.append(y_train["event"][:, k].astype(np.bool_))
+            t_train.append(y_train["time"][:, k].astype(np.float32))
         e_train = np.array(e_train, np.bool_).T
         t_train = np.array(t_train, np.float32).T
         
@@ -572,6 +564,7 @@ class DeepMultiTask(BaseSurvival):
         
         start = time.time()
 
+        patience = self.patience
         for epoch in range(self.epochs):
             # Learning rate decay
             lr = self.learn_rate / (1 + epoch * self.lr_decay)
@@ -592,33 +585,33 @@ class DeepMultiTask(BaseSurvival):
             self.optimizer.step()
             
             logger.logValue("loss", loss.item(), epoch)
-            
-            # Calculate training C-index
-            ci_train = self._get_concordance_index(X_train, t_train, e_train)
-            logger.logValue("c-index", ci_train, epoch)
-            
-            # Validation
-            patience = self.patience
-            if self.valid_data and (epoch % self.validation_frequency == 0):
-                self.network.eval()
-                with torch.no_grad():
-                    validation_loss = self._get_loss(x_valid_tensor, e_valid_tensor, t_valid_tensor)
-                    logger.logValue("valid_loss", validation_loss.item(), epoch)
+
+            if epoch % self.validation_frequency == 0:
+                # Calculate training C-index
+                ci_train = self._get_concordance_index(x_train_tensor, t_train, e_train)
+                logger.logValue("c-index", ci_train, epoch)
                 
-                ci_valid = self._get_concordance_index(X_valid, t_valid, e_valid)
-                logger.logValue("valid_c-index", ci_valid, epoch)
-                
-                if validation_loss.item() < best_validation_loss:
-                    if validation_loss.item() < best_validation_loss * self.improvement_threshold:
-                        patience = max(patience, epoch * self.patience_increase)
+                # Validation
+                if self.valid_data:
+                    self.network.eval()
+                    with torch.no_grad():
+                        validation_loss = self._get_loss(x_valid_tensor, e_valid_tensor, t_valid_tensor)
+                        logger.logValue("valid_loss", validation_loss.item(), epoch)
                     
-                    # Save best parameters
-                    best_params = {
-                        "model_state_dict": self.network.state_dict(),
-                        "optimizer_state_dict": self.optimizer.state_dict()
-                    }
-                    best_params_idx = epoch
-                    best_validation_loss = validation_loss.item()
+                    ci_valid = self._get_concordance_index(x_valid_tensor, t_valid, e_valid)
+                    logger.logValue("valid_c-index", ci_valid, epoch)
+                    
+                    if validation_loss.item() < best_validation_loss:
+                        if validation_loss.item() < best_validation_loss * self.improvement_threshold:
+                            patience = max(patience, epoch * self.patience_increase)
+                        
+                        # Save best parameters
+                        best_params = {
+                            "model_state_dict": self.network.state_dict(),
+                            "optimizer_state_dict": self.optimizer.state_dict()
+                        }
+                        best_params_idx = epoch
+                        best_validation_loss = validation_loss.item()
             
             if self.verbose and (epoch % self.validation_frequency == 0):
                 if self.valid_data:

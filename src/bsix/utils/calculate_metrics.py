@@ -199,7 +199,7 @@ def compute_metric_confidence_interval(y, prediction, metric_name, n_iterations=
     """
 
     import numpy.lib.recfunctions as rfn
-    from sksurv.metrics import concordance_index_censored
+    from .survival_metrics import concordanceIndexHarrel
     
     rng = np.random.default_rng(seed=seed)
 
@@ -207,8 +207,8 @@ def compute_metric_confidence_interval(y, prediction, metric_name, n_iterations=
         y = rfn.drop_fields(y, ["time_start", "time"])
         y = rfn.rename_fields(y, {'time_stop': 'time'})
         
-    event = np.array([evento for evento, _ in y], np.bool_)
-    time = np.array([tiempo for _, tiempo in y], np.float32)
+    event = y["event"].astype(np.bool_)
+    time = y["time"].astype(np.float32)
     n_samples = len(time)
     
     bootstrapped_c_indices = []
@@ -222,15 +222,12 @@ def compute_metric_confidence_interval(y, prediction, metric_name, n_iterations=
         sample_prediction = prediction[indices]
         
         # Compute metric
-        try:
-            if metric_name == "cindex":
-                value = concordance_index_censored(sample_event, sample_time, sample_prediction)[0]
-            elif metric_name == "amae":
-                value = amae(sample_event, sample_prediction)
-            bootstrapped_c_indices.append(value)
-        except Exception:
-            # Ignore
-            pass
+        if metric_name == "cindex":
+            y_true = np.rec.fromarrays([sample_event, sample_time], dtype=[('event', np.bool_), ('time', np.float32)]).view(np.ndarray)
+            value = concordanceIndexHarrel([y_true, y_true], sample_prediction)
+        elif metric_name == "amae":
+            value = amae(sample_event, sample_prediction)
+        bootstrapped_c_indices.append(value)
                 
     # Extract percentiles
     alpha = (1.0 - confidence_level) / 2.0

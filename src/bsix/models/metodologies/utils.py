@@ -1,5 +1,4 @@
 import numpy as np
-from sksurv.ensemble import RandomSurvivalForest
 
 def impute_censored_times(X, y, n_estimators=100, random_state=0):
 
@@ -24,7 +23,9 @@ def impute_censored_times(X, y, n_estimators=100, random_state=0):
         uncensored samples.
     """
     
-    estimator = RandomSurvivalForest(n_estimators=n_estimators, random_state=random_state)
+    from .randomSurvForest import RandomSurvForest
+
+    estimator = RandomSurvForest(seed=random_state, n_estimators=n_estimators)
     estimator.fit(X, y)
     
     survival_f = estimator.predict_survival_function(X)
@@ -41,8 +42,8 @@ def impute_censored_times(X, y, n_estimators=100, random_state=0):
         if not e_i:
             f = survival_f[i]
             
-            mask_residual = f.x >= t_i
-            t_residual = f.x[mask_residual]
+            mask_residual = f.X >= t_i
+            t_residual = f.X[mask_residual]
             
             if len(t_residual) > 1:
                 survival_t_i = f(t_i)

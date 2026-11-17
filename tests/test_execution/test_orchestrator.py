@@ -210,7 +210,6 @@ class TestExperimentFlow:
     Tests for experiment flow orchestration (Integration-like).
     """
     
-    @pytest.mark.integration
     def test_experiment_flow_basic(self, basic_experiment_config):
 
         """

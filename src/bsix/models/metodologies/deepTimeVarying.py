@@ -13,8 +13,7 @@ from ..base import BaseSurvival
 from ..loggers.deepSurvLogger import DeepSurvLogger
 from ..nets.deepNets import DeepSurvFFNN
 from .utils import BreslowEstimator
-
-from sksurv.metrics import concordance_index_censored
+from ...utils.survival_metrics import concordanceIndexHarrel
 
 warnings.filterwarnings("ignore")
 
@@ -101,12 +100,7 @@ class DeepTimeVarying(BaseSurvival):
     Examples
     --------
     >>> from bsix.models.metodologias import DeepTimeVarying
-    >>> model = DeepTimeVarying(
-    ...     number_inputs=10,
-    ...     hidden_layers=[32, 16],
-    ...     epochs=200,
-    ...     learn_rate=0.01,
-    ... )
+    >>> model = DeepTimeVarying(number_inputs=10, hidden_layers=[32, 16], epochs=200, learn_rate=0.01)
     >>> model.fit(X_train, y_train)
     >>> risk = model.predict(X_test)
     """
@@ -242,47 +236,63 @@ class DeepTimeVarying(BaseSurvival):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
     
-    def _negative_log_likelihood(self, risk, t_start, t_stop, e):
-
+    @staticmethod
+    def _build_risk_set(t_start, t_stop, e):
         """
-        Compute the negative partial log-likelihood for time-varying Cox hazards.
+        Build the risk set for the Cox partial likelihood.
 
         Parameters
         ----------
-        risk : torch.Tensor of shape (n_samples,)
-            Predicted log-risk score for each sample.
         t_start : torch.Tensor of shape (n_samples,)
             Start time of each risk interval.
         t_stop : torch.Tensor of shape (n_samples,)
             End time of each risk interval.
         e : torch.Tensor of shape (n_samples,)
-            Event indicator, where 1 denotes event and 0 denotes censoring.
+            Event indicator vector.
+
+        Returns
+        -------
+        event_idx : torch.Tensor of shape (n_events,)
+            Indices of the events.
+        log_mask : torch.Tensor of shape (n_samples, n_samples)
+            Logarithm of the risk set mask.
+        """
+
+        event_idx = torch.nonzero(e.bool(), as_tuple=True)[0]
+        t_stop_i = t_stop[event_idx].view(-1, 1)
+
+        mask = (t_start.view(1, -1) < t_stop_i) & (t_stop_i <= t_stop.view(1, -1))
+        log_mask = torch.zeros(mask.shape, dtype=t_stop.dtype, device=t_stop.device)
+        log_mask.masked_fill_(~mask, float("-inf"))
+
+        return event_idx, log_mask
+
+    def _negative_log_likelihood(self, risk, event_idx, log_mask):
+        """
+        Compute the negative log-likelihood for the Cox proportional hazards model.
+
+        Parameters
+        ----------
+        risk : torch.Tensor of shape (n_samples,)
+            Risk scores for each sample.
+        event_idx : torch.Tensor of shape (n_events,)
+            Indices of the events.
+        log_mask : torch.Tensor of shape (n_samples, n_samples)
+            Logarithm of the risk set mask.
 
         Returns
         -------
         torch.Tensor
-            Scalar negative partial log-likelihood for the supplied interval data.
+            Scalar negative log-likelihood value.
         """
 
-        # start_j < stop_i <= stop_j (j in risk set of i)
-        t_stop_i = t_stop.view(-1, 1)
-        t_start_j = t_start.view(1, -1)
-        t_stop_j = t_stop.view(1, -1)
-
-        mask = (t_start_j < t_stop_i) & (t_stop_i <= t_stop_j)
-        risk_mask = torch.where(mask, risk.view(1, -1), torch.tensor(-float('inf'), device=risk.device))
-
-        log_risk = torch.logsumexp(risk_mask, dim=1)
+        if event_idx.numel() == 0:
+            return risk.sum() * 0.0
         
-        uncensored_likelihood = risk.view(-1) - log_risk.view(-1)
-        censored_likelihood = uncensored_likelihood * e.view(-1)
-        num_observed_events = torch.sum(e)
-        
-        if num_observed_events == 0:
-            return torch.tensor(0.0, device=risk.device, requires_grad=True)
-        neg_likelihood = - (torch.sum(censored_likelihood) / num_observed_events)
+        risk = risk.view(-1)
+        log_risk = torch.logsumexp(risk.view(1, -1) + log_mask, dim=1)
 
-        return neg_likelihood
+        return -(risk[event_idx] - log_risk).mean()
     
     def _compute_l1_loss(self):
 
@@ -318,7 +328,7 @@ class DeepTimeVarying(BaseSurvival):
 
         return l2_loss
     
-    def _get_loss(self, x, e, t_start, t_stop):
+    def _get_loss(self, x, event_idx, log_mask):
 
         """
         Compute the total training loss for the time-varying survival model.
@@ -341,7 +351,7 @@ class DeepTimeVarying(BaseSurvival):
         """
 
         risk = self.network(x)
-        cox_loss = self._negative_log_likelihood(risk, t_start, t_stop, e)
+        cox_loss = self._negative_log_likelihood(risk, event_idx, log_mask)
 
         l1_loss = self._compute_l1_loss() if self.l1_reg > 0.0 else 0.0
         l2_loss = self._compute_l2_loss() if self.l2_reg > 0.0 else 0.0
@@ -372,12 +382,13 @@ class DeepTimeVarying(BaseSurvival):
 
         self.network.eval()
         with torch.no_grad():
-            x_tensor = torch.tensor(x, dtype=torch.float32, device=self.device)
-            if self.standardize:
-                x_tensor = self._standardize_x(x_tensor)
-            risk = np.ravel(self.network(x_tensor).cpu().numpy())
+            risk = self.network(x).cpu().numpy().ravel()
 
-        return concordance_index_censored(e, t, risk)[0]
+
+        y_true = np.rec.fromarrays([e, t], dtype=[('event', np.bool_), ('time', np.float32)]).view(np.ndarray)
+        c_index = concordanceIndexHarrel([y_true, y_true], risk)
+
+        return torch.tensor(c_index, dtype=torch.float32, device=self.device)
     
     def _standardize_x(self, x):
 
@@ -494,15 +505,21 @@ class DeepTimeVarying(BaseSurvival):
             )
         
         # Events and Times
-        e_train = np.array([event[0] for event in y_train], np.bool_)
-        t_start_train = np.array([time[1] for time in y_train], np.float32)
-        t_stop_train = np.array([time[2] for time in y_train], np.float32)
+        e_train = y_train["event"].astype(np.bool_)
+        t_start_train = y_train["time_start"].astype(np.float32)
+        t_stop_train = y_train["time_stop"].astype(np.float32)
+
+        # Apply y_train supervision
+        t_stop_train = np.where(t_start_train >= t_stop_train, np.nextafter(t_start_train, np.float32(np.inf)), t_stop_train)
 
         if self.valid_data:
             X_valid = np.array(self.valid_data["x"], np.float32)
             e_valid = np.array(self.valid_data["e"], np.bool_)
             t_start_valid = np.array(self.valid_data["t"][0], np.float32)
             t_stop_valid = np.array(self.valid_data["t"][1], np.float32)
+
+            # Apply y_train supervision
+            t_stop_valid = np.where(t_start_valid >= t_stop_valid, np.nextafter(t_start_valid, np.float32(np.inf)), t_stop_valid)
         
         # Convert to tensors
         x_train_tensor = torch.tensor(X_train, dtype=torch.float32, device=self.device)
@@ -533,9 +550,14 @@ class DeepTimeVarying(BaseSurvival):
         best_validation_loss = np.inf
         best_params = None
         best_params_idx = -1
-        
+
+        train_idx, train_log_mask = self._build_risk_set(t_start_train_tensor, t_stop_train_tensor, e_train_tensor)
+        if self.valid_data:
+            valid_idx, valid_log_mask = self._build_risk_set(t_start_valid_tensor, t_stop_valid_tensor, e_valid_tensor)
+
         start = time.time()
-        
+
+        patience = self.patience
         for epoch in range(self.epochs):
             # Learning rate decay
             lr = self.learn_rate / (1 + epoch * self.lr_decay)
@@ -548,7 +570,7 @@ class DeepTimeVarying(BaseSurvival):
             self.network.train()
             self.optimizer.zero_grad()
             
-            loss = self._get_loss(x_train_tensor, e_train_tensor, t_start_train_tensor, t_stop_train_tensor)
+            loss = self._get_loss(x_train_tensor, train_idx, train_log_mask)
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
@@ -556,33 +578,33 @@ class DeepTimeVarying(BaseSurvival):
             self.optimizer.step()
             
             logger.logValue("loss", loss.item(), epoch)
-            
-            # Calculate training C-index
-            ci_train = self._get_concordance_index(X_train, t_stop_train, e_train)
-            logger.logValue("c-index", ci_train, epoch)
-            
-            # Validation
-            patience = self.patience
-            if self.valid_data and (epoch % self.validation_frequency == 0):
-                self.network.eval()
-                with torch.no_grad():
-                    validation_loss = self._get_loss(x_valid_tensor, e_valid_tensor, t_start_valid_tensor, t_stop_valid_tensor)
-                    logger.logValue("valid_loss", validation_loss.item(), epoch)
+
+            if epoch % self.validation_frequency == 0:
+                # Calculate training C-index
+                ci_train = self._get_concordance_index(x_train_tensor, t_stop_train, e_train)
+                logger.logValue("c-index", ci_train, epoch)
                 
-                ci_valid = self._get_concordance_index(X_valid, t_stop_valid, e_valid)
-                logger.logValue("valid_c-index", ci_valid, epoch)
-                
-                if validation_loss.item() < best_validation_loss:
-                    if validation_loss.item() < best_validation_loss * self.improvement_threshold:
-                        patience = max(patience, epoch * self.patience_increase)
+                # Validation
+                if self.valid_data:
+                    self.network.eval()
+                    with torch.no_grad():
+                        validation_loss = self._get_loss(x_valid_tensor, valid_idx, valid_log_mask)
+                        logger.logValue("valid_loss", validation_loss.item(), epoch)
                     
-                    # Save best parameters
-                    best_params = {
-                        "model_state_dict": self.network.state_dict(),
-                        "optimizer_state_dict": self.optimizer.state_dict()
-                    }
-                    best_params_idx = epoch
-                    best_validation_loss = validation_loss.item()
+                    ci_valid = self._get_concordance_index(x_valid_tensor, t_stop_valid, e_valid)
+                    logger.logValue("valid_c-index", ci_valid, epoch)
+                    
+                    if validation_loss.item() < best_validation_loss:
+                        if validation_loss.item() < best_validation_loss * self.improvement_threshold:
+                            patience = max(patience, epoch * self.patience_increase)
+                        
+                        # Save best parameters
+                        best_params = {
+                            "model_state_dict": self.network.state_dict(),
+                            "optimizer_state_dict": self.optimizer.state_dict()
+                        }
+                        best_params_idx = epoch
+                        best_validation_loss = validation_loss.item()
             
             if self.verbose and (epoch % self.validation_frequency == 0):
                 if self.valid_data:
@@ -673,7 +695,7 @@ class DeepTimeVarying(BaseSurvival):
         self.survival_function = self.breslow.get_survival_function(risk)
 
         if plot:
-            çseed = int(seed)
+            seed = int(seed)
             figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "DeepSurv Time-Varying", dataset, "Survival", seed)
             plt.show()
 

@@ -66,7 +66,6 @@ The warnings filter ignores `DeprecationWarning` and `PendingDeprecationWarning`
 The markers declared in `pytest.ini` are:
 
 - `slow`: slow tests;
-- `integration`: integration tests;
 - `edge_case`: edge cases.
 
 ## 4. Shared fixtures
@@ -322,7 +321,7 @@ The `execution` package is tested:
 - `execution.flows.survival_flow.run_survival_flow` is callable and has at least one parameter in its signature;
 - `execution.configs` imports successfully;
 - `execution.config.default` imports successfully;
-- the basic flow with `basic_experiment_config` is marked `integration` and runs without exception;
+- the basic flow with `basic_experiment_config` runs without exception;
 - a nonexistent estimator must raise `KeyError`;
 - a nonexistent dataset must raise `ValueError`.
 
@@ -433,7 +432,7 @@ The `TestBoundaryTimes` class covers zero, negative, very small, and large times
 
 ### 10.6 Complete censoring
 
-The `TestEventCensoring` class runs pipelines with `survival_data_all_censored`, `survival_data_timevarying_all_censored`, or `survival_data_multi_event_all_censored` for the ten estimators. Each case is marked `integration` and checks the behavior defined in the test, usually `ValueError` when the algorithm requires observed events.
+The `TestEventCensoring` class runs pipelines with `survival_data_all_censored`, `survival_data_timevarying_all_censored`, or `survival_data_multi_event_all_censored` for the ten estimators. Each case checks the behavior defined in the test, usually `ValueError` when the algorithm requires observed events.
 
 ### 10.7 Imports
 
@@ -481,7 +480,7 @@ pytest tests/test_metrics/test_survival_metrics.py::TestConcordanceIndexHarrel::
 Selection by marker or name:
 
 ```bash
-pytest -m integration
+pytest -m slow
 pytest -m edge_case
 pytest -m "not slow"
 pytest -k "cox"

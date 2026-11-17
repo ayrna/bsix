@@ -53,8 +53,8 @@ def scorerConcordanceIndex(y_true, y_pred):
     for p in range(_y_true.shape[1]):
         col_y = _y_true[:, p]
         
-        e = np.array([evento for evento, _ in col_y], dtype=np.bool_)
-        t = np.array([tiempo for _, tiempo in col_y], dtype=np.float32)
+        e = col_y["event"].astype(np.bool_)
+        t = col_y["time"].astype(np.float32)
         
         c_index = concordance_index_censored(e, t, risk[:, p])[0]
         c_indices.append(c_index)
@@ -69,6 +69,8 @@ def integratedBrierScore(y_true, y_pred, times=None):
     Computes the Brier Score (BS).
     """
 
+    _validate_input(y_true, y_pred)
+
     survival_function = y_pred.copy()
     survival_train = y_true[0].copy()
     survival_test = y_true[1].copy()
@@ -76,8 +78,6 @@ def integratedBrierScore(y_true, y_pred, times=None):
     survival_function = survival_function.squeeze() if survival_function.ndim > 1 else survival_function
     survival_train = survival_train.squeeze() if survival_train.ndim > 1 else survival_train
     survival_test = survival_test.squeeze() if survival_test.ndim > 1 else survival_test
-
-    _validate_input(y_true, y_pred)
 
     if all(name in survival_train.dtype.names for name in ["time_start", "time_stop"]):
             survival_train = rfn.drop_fields(survival_train, ["time_start", "time"])
@@ -104,21 +104,21 @@ def concordanceIndexHarrel(y_true, y_pred):
     """
     Computes the Harrell's Concordance Index (C-index).
     """
-    
+
+    _validate_input(y_true, y_pred)
+
     risk = y_pred.copy()
     _y_true = y_true[1].copy()
 
     risk = risk.squeeze() if risk.ndim > 1 else risk
     _y_true = _y_true.squeeze() if _y_true.ndim > 1 else _y_true
 
-    _validate_input(y_true, y_pred)
-
     if all(name in _y_true.dtype.names for name in ["time_start", "time_stop"]):
         _y_true = rfn.drop_fields(_y_true, ["time_start", "time"])
         _y_true = rfn.rename_fields(_y_true, {"time_stop": "time"})
     
-    e = np.array([evento for evento, _ in _y_true], np.bool_)
-    t = np.array([tiempo for _, tiempo in _y_true], np.float32)
+    e = _y_true["event"].astype(np.bool_)
+    t = _y_true["time"].astype(np.float32)
 
     return concordance_index_censored(e, t, risk)[0]
 
@@ -128,6 +128,8 @@ def concordanceIndexIPCW(y_true, y_pred):
     Computes the Inverse Probability of Censoring Weighted (IPCW).
     """
 
+    _validate_input(y_true, y_pred)
+
     risk = y_pred.copy()
     survival_train = y_true[0].copy()
     survival_test = y_true[1].copy()
@@ -135,8 +137,6 @@ def concordanceIndexIPCW(y_true, y_pred):
     risk = risk.squeeze() if risk.ndim > 1 else risk
     survival_train = survival_train.squeeze() if survival_train.ndim > 1 else survival_train
     survival_test = survival_test.squeeze() if survival_test.ndim > 1 else survival_test
-
-    _validate_input(y_true, y_pred)
 
     if all(name in survival_train.dtype.names for name in ["time_start", "time_stop"]):
             survival_train = rfn.drop_fields(survival_train, ["time_start", "time"])
@@ -157,6 +157,8 @@ def cumulativeDinamicAUC(y_true, y_pred, times=None):
     Computes the Cumulative Dynamic AUC (AUC).
     """
 
+    _validate_input(y_true, y_pred)
+
     risk = y_pred.copy()
     survival_train = y_true[0].copy()
     survival_test = y_true[1].copy()
@@ -164,8 +166,6 @@ def cumulativeDinamicAUC(y_true, y_pred, times=None):
     risk = risk.squeeze() if risk.ndim > 1 else risk
     survival_train = survival_train.squeeze() if survival_train.ndim > 1 else survival_train
     survival_test = survival_test.squeeze() if survival_test.ndim > 1 else survival_test
-
-    _validate_input(y_true, y_pred)
 
     if all(name in survival_train.dtype.names for name in ["time_start", "time_stop"]):
             survival_train = rfn.drop_fields(survival_train, ["time_start", "time"])

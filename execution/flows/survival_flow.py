@@ -146,7 +146,7 @@ def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_s
             dataset_name=dataset_name,
             test_size=test_size,
             validation_size=validation_size,
-            preprocess=True,
+            preprocess=False,
             to_multitask=True,
             seed=seed,
         )
@@ -157,7 +157,7 @@ def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_s
             df=df_time_varying,
             test_size=test_size,
             validation_size=validation_size,
-            preprocess=True,
+            preprocess=False,
             seed=seed,
         )
 
