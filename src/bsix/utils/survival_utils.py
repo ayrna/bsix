@@ -1,5 +1,13 @@
 import numpy as np
 
+def _upper_bound(survival):
+
+    """
+    Get the upper bound of the time variable in the survival data.
+    """
+
+    return survival["time"][survival["time"] < survival["time"].max()].max()
+
 def getTau(survival_train, survival_test):
 
     """
@@ -7,8 +15,9 @@ def getTau(survival_train, survival_test):
     """
     
     tau = min(np.percentile(survival_train["time"], 90), np.percentile(survival_test["time"], 90))
-
-    return tau
+    upper = min(_upper_bound(survival_train), _upper_bound(survival_test))
+    
+    return min(tau, upper)
 
 def getTimes(survival_test, num_division=10):
 
@@ -16,6 +25,6 @@ def getTimes(survival_test, num_division=10):
     Get the time points for performing the evaluation.
     """
     
-    times = np.linspace(np.percentile(survival_test["time"], 10), np.percentile(survival_test["time"], 90), num_division)
+    times = np.linspace(np.percentile(survival_test["time"], 10), min(np.percentile(survival_test["time"], 90), _upper_bound(survival_test)), num_division)
 
-    return times
+    return times[(times >= survival_test["time"].min()) & (times < survival_test["time"].max())]

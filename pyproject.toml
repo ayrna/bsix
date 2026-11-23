@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "bsix"
-version = "0.0.5"
+version = "0.1.0"
 authors = [
     {name = "Francisco Moreno Cano", email = "francisco.moreno@uco.es"}
 ]
@@ -12,9 +12,11 @@ description = "Benchmarking Survival analysis: Inference and eXplainability."
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 license-files = ["LICENSE"]
@@ -45,6 +47,15 @@ dependencies = [
 Source = "https://github.com/ayrna/bsix"
 
 [project.optional-dependencies]
+dev = [
+    "bsix[test]",
+    "ruff==0.17",
+    "mypy==2.4",
+]
+test = [
+    "pytest>=9.0",
+    "pytest-timeout>=2.4",
+]
 tutorial = [
     "jupyter",
     "ipywidgets",
@@ -56,6 +67,31 @@ tutorial = [
 
 [tool.setuptools.exclude-package-data]
 "bsix.datasets.beatriz" = ["*"]
+
+[tool.pytest.ini_options]
+timeout = 900
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["bsix"]
+files = ["tests"]
+
+[[tool.mypy.overrides]]
+module = [
+    "config.*",
+    "h5py.*",
+    "joblib.*",
+    "lifelines.*",
+    "mplcursors.*",
+    "pycox.*",
+    "remayn.*",
+    "shap.*",
+    "sksurv.*",
+    "statsmodels.*",
+    "tabpfn.*",
+    "torchtuples.*",
+]
+ignore_missing_imports = true
 
 [tool.coverage.run]
 # Omit Numba, parallel execution, base.py (abstract class), and base models (comparison only)

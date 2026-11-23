@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    # Nota: constraints/py312-min.txt (mantenimiento manual)
+    versioning-strategy: increase-if-necessary
+    groups:
+      python-minor-patch:
+        update-types: ["minor", "patch"]

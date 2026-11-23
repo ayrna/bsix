@@ -9,6 +9,7 @@ def _filter_times(survival_train, survival_test):
     Filter test to remove event times that exceed the maximum time observed in training.
     """
 
+    survival_train_filtered = survival_train.copy()
     survival_test_filtered = survival_test.copy()
 
     max_time = min(survival_train["time"].max(), survival_test["time"].max()) - 1e-5
@@ -17,7 +18,12 @@ def _filter_times(survival_train, survival_test):
     survival_test_filtered["event"][mask] = False
     survival_test_filtered["time"][mask] = max_time
 
-    return survival_test_filtered
+    mask = survival_train["time"] > max_time
+
+    survival_train_filtered["event"][mask] = False
+    survival_train_filtered["time"][mask] = max_time
+
+    return survival_train_filtered, survival_test_filtered
 
 def _validate_input(y_true, y_pred):
     """
@@ -87,7 +93,7 @@ def integratedBrierScore(y_true, y_pred, times=None):
             survival_test = rfn.drop_fields(survival_test, ["time_start", "time"])
             survival_test = rfn.rename_fields(survival_test, {"time_stop": "time"})
 
-    survival_test = _filter_times(survival_train, survival_test)
+    survival_train, survival_test = _filter_times(survival_train, survival_test)
 
     if times is None:
         times = getTimes(survival_test)
@@ -146,7 +152,7 @@ def concordanceIndexIPCW(y_true, y_pred):
             survival_test = rfn.drop_fields(survival_test, ["time_start", "time"])
             survival_test = rfn.rename_fields(survival_test, {"time_stop": "time"})
 
-    survival_test = _filter_times(survival_train, survival_test)
+    survival_train, survival_test = _filter_times(survival_train, survival_test)
     tau = getTau(survival_train, survival_test)
     
     return concordance_index_ipcw(survival_train, survival_test, risk, tau)[0]
@@ -175,7 +181,7 @@ def cumulativeDinamicAUC(y_true, y_pred, times=None):
             survival_test = rfn.drop_fields(survival_test, ["time_start", "time"])
             survival_test = rfn.rename_fields(survival_test, {"time_stop": "time"})
 
-    survival_test = _filter_times(survival_train, survival_test)
+    survival_train, survival_test = _filter_times(survival_train, survival_test)
     tau = getTau(survival_train, survival_test)
     
     if times is None:

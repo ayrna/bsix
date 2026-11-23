@@ -1,0 +1,45 @@
+name: Code Quality
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Ruff & mypy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project and linters
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run Ruff linter
+        run: ruff check --output-format=github .
+
+      - name: Check formatting with Ruff
+        run: ruff format --check .
+
+      - name: Run mypy
+        run: mypy

@@ -6,13 +6,6 @@ from scipy import stats
 from sklearn.metrics import make_scorer
 
 CLASSIFIERS = [
-    "BaseAcceleratedFailureTime",
-    "BaseCoxRegression",
-    "BaseCoxRegressionWithTimeVarying",
-    "BaseDeepHit",
-    "BaseSurvivalTree",
-    "BaseRandomSurvivalForest",
-
     "AcceleratedFailureTime",
     "CoxRegression",
     "DeepHit",
@@ -28,7 +21,6 @@ CLASSIFIERS = [
 ]
 
 NETS = [
-    "BaseDeepHit",
     "DeepHit",
     "DeepMultiTask",
     "DeepSurv",
@@ -234,92 +226,6 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
             ]
 
             estimator = DeepMultiTask(inputs.shape[1], seed=seed)
-
-    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
-    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
-
-        elif estimator_name == "BaseAcceleratedFailureTime":
-                    from ..models import BaseAcceleratedFailureTime
-        
-                    param_grid = [
-                        {
-                            "type": ["LogLogisticAFT", "WeibullAFT"],
-                            "penalizer": np.round(np.logspace(-1, 1, 3), 8),
-                            "l1_ratio": np.round(np.linspace(0, 1, 5, endpoint=False), 8),
-                        }
-                    ]
-        
-                    estimator = BaseAcceleratedFailureTime()
-
-        elif estimator_name == "BaseCoxRegression":
-            from ..models import BaseCoxRegression
-
-            param_grid = [
-                {
-                    "alpha": np.round(np.logspace(-3, -1, 3), 8),
-                    "ties": ["efron", "breslow"],
-                    "n_iter": [100, 200, 300, 400, 500],
-                }
-            ]
-
-            estimator = BaseCoxRegression()
-
-        elif estimator_name == "BaseCoxRegressionWithTimeVarying":
-            from ..models import BaseCoxRegressionWithTimeVarying
-
-            param_grid = [
-                {
-                    "penalizer": np.round(np.logspace(-1, 1, 3), 8),
-                    "l1_ratio": np.round(np.linspace(0, 1, 5, endpoint=False), 8),
-                }
-            ]
-
-            estimator = BaseCoxRegressionWithTimeVarying()
-
-        elif estimator_name == "BaseDeepHit":
-            from ..models import BaseDeepHit
-            
-            rng = np.random.default_rng(seed=seed)
-            param_grid = [
-                {   
-                    #"epochs": [50, 100],
-                    "num_nodes": [[8], [16], [32], [16, 16], [32, 32]],
-                    "learning_rate": SerializableLogUniform(1e-5, 1e-1),
-                    "alpha": SerializableUniform(loc=0.0, scale=1.0),
-                    "sigma": SerializableUniform(loc=0.0, scale=1.0),
-                    "dropout": SerializableUniform(loc=0.0, scale=1.0),
-                    "activation": ["relu", "selu", "tanh", "sigmoid"],
-                }
-            ]
-
-            estimator = BaseDeepHit(100, time_threshold=(100 - 20), seed=seed)
-
-        elif estimator_name == "BaseRandomSurvivalForest":
-            from ..models import BaseRandomSurvivalForest
-
-            param_grid = [
-                {
-                    "n_estimators": [100, 300, 500],
-                    "max_depth": [3, 5, 7],
-                    "min_samples_leaf": [2, 3, 5],
-                    "min_samples_split": [2, 6, 10],
-                }
-            ]
-
-            estimator = BaseRandomSurvivalForest(seed=seed)
-            
-        elif estimator_name == "BaseSurvivalTree":
-            from ..models import BaseSurvivalTree
-
-            param_grid = [
-                {
-                    "max_depth": [3, 5, 7],
-                    "min_samples_split": [2, 6, 10],
-                    "min_samples_leaf": [2, 3, 5],
-                }
-            ]
-
-            estimator = BaseSurvivalTree(seed=seed)
 
     #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
