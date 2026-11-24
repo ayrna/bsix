@@ -677,7 +677,6 @@ class DeepHit(BaseSurvival):
 
         cumulative_risk = pmf[:, :, : self.time_threshold].sum(axis=2).sum(axis=1)
 
-
         y_true = np.rec.fromarrays(
             [e, t], dtype=[("event", np.bool_), ("time", np.float32)]
         ).view(np.ndarray)

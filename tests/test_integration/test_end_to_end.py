@@ -33,9 +33,7 @@ class TestEndToEndAcceleratedFailureTime:
         survival_function_validation = model.predict_survival_function(X_validation)
         survival_function_test = model.predict_survival_function(X_test)
 
-        model.predict_cumulative_hazard_function(
-            X_test
-        )
+        model.predict_cumulative_hazard_function(X_test)
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -129,9 +127,7 @@ class TestEndToEndAcceleratedFailureTime:
             X_test
         )
 
-        (
-            estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
-        )
+        (estimator.best_estimator_.predict_cumulative_hazard_function(X_test))
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -189,9 +185,7 @@ class TestEndToEndCoxRegression:
         survival_function_validation = model.predict_survival_function(X_validation)
         survival_function_test = model.predict_survival_function(X_test)
 
-        model.predict_cumulative_hazard_function(
-            X_test
-        )
+        model.predict_cumulative_hazard_function(X_test)
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -283,9 +277,7 @@ class TestEndToEndCoxRegression:
             X_test
         )
 
-        (
-            estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
-        )
+        (estimator.best_estimator_.predict_cumulative_hazard_function(X_test))
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -345,9 +337,7 @@ class TestEndToEndCoxRegressionWithTimeVarying:
         survival_function_validation = model.predict_survival_function(X_validation)
         survival_function_test = model.predict_survival_function(X_test)
 
-        model.predict_cumulative_hazard_function(
-            X_test
-        )
+        model.predict_cumulative_hazard_function(X_test)
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -441,9 +431,7 @@ class TestEndToEndCoxRegressionWithTimeVarying:
             X_test
         )
 
-        (
-            estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
-        )
+        (estimator.best_estimator_.predict_cumulative_hazard_function(X_test))
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -501,9 +489,7 @@ class TestEndToEndDeepHit:
         survival_function_validation = model.predict_survival_function(X_validation)
         survival_function_test = model.predict_survival_function(X_test)
 
-        model.predict_cumulative_hazard_function(
-            X_test
-        )
+        model.predict_cumulative_hazard_function(X_test)
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -596,9 +582,7 @@ class TestEndToEndDeepHit:
             X_test
         )
 
-        (
-            estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
-        )
+        (estimator.best_estimator_.predict_cumulative_hazard_function(X_test))
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -662,9 +646,7 @@ class TestEndToEndDeepMultiTask:
         survival_function_validation = model.predict_survival_function(X_validation)
         survival_function_test = model.predict_survival_function(X_test)
 
-        model.predict_cumulative_hazard_function(
-            X_test
-        )
+        model.predict_cumulative_hazard_function(X_test)
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -761,9 +743,7 @@ class TestEndToEndDeepMultiTask:
             X_test
         )
 
-        (
-            estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
-        )
+        (estimator.best_estimator_.predict_cumulative_hazard_function(X_test))
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -825,9 +805,7 @@ class TestEndToEndDeepSurv:
         survival_function_validation = model.predict_survival_function(X_validation)
         survival_function_test = model.predict_survival_function(X_test)
 
-        model.predict_cumulative_hazard_function(
-            X_test
-        )
+        model.predict_cumulative_hazard_function(X_test)
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -920,9 +898,7 @@ class TestEndToEndDeepSurv:
             X_test
         )
 
-        (
-            estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
-        )
+        (estimator.best_estimator_.predict_cumulative_hazard_function(X_test))
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -980,9 +956,7 @@ class TestEndToEndDeepTimeVarying:
         survival_function_validation = model.predict_survival_function(X_validation)
         survival_function_test = model.predict_survival_function(X_test)
 
-        model.predict_cumulative_hazard_function(
-            X_test
-        )
+        model.predict_cumulative_hazard_function(X_test)
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -1075,9 +1049,7 @@ class TestEndToEndDeepTimeVarying:
             X_test
         )
 
-        (
-            estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
-        )
+        (estimator.best_estimator_.predict_cumulative_hazard_function(X_test))
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -1135,9 +1107,7 @@ class TestEndToEndRandomSurvForest:
         survival_function_validation = model.predict_survival_function(X_validation)
         survival_function_test = model.predict_survival_function(X_test)
 
-        model.predict_cumulative_hazard_function(
-            X_test
-        )
+        model.predict_cumulative_hazard_function(X_test)
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -1230,9 +1200,7 @@ class TestEndToEndRandomSurvForest:
             X_test
         )
 
-        (
-            estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
-        )
+        (estimator.best_estimator_.predict_cumulative_hazard_function(X_test))
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -1290,9 +1258,7 @@ class TestEndToEndSurvivalTabPFN:
         survival_function_validation = model.predict_survival_function(X_validation)
         survival_function_test = model.predict_survival_function(X_test)
 
-        model.predict_cumulative_hazard_function(
-            X_test
-        )
+        model.predict_cumulative_hazard_function(X_test)
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -1385,9 +1351,7 @@ class TestEndToEndSurvivalTabPFN:
             X_test
         )
 
-        (
-            estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
-        )
+        (estimator.best_estimator_.predict_cumulative_hazard_function(X_test))
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -1445,9 +1409,7 @@ class TestEndToEndSurvTree:
         survival_function_validation = model.predict_survival_function(X_validation)
         survival_function_test = model.predict_survival_function(X_test)
 
-        model.predict_cumulative_hazard_function(
-            X_test
-        )
+        model.predict_cumulative_hazard_function(X_test)
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(
@@ -1539,9 +1501,7 @@ class TestEndToEndSurvTree:
             X_test
         )
 
-        (
-            estimator.best_estimator_.predict_cumulative_hazard_function(X_test)
-        )
+        (estimator.best_estimator_.predict_cumulative_hazard_function(X_test))
 
         # 5. Evaluate metrics
         metrics_validation = compute_metrics(

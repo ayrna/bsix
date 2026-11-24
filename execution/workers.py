@@ -20,7 +20,13 @@ def find_best_estimator_configs(
         if not result.config["estimator_name"] in estimators:
             return False
 
-        return not ((result.config["n_folds"] is None or result.config["n_folds"] <= 1) and (result.config["validation_size"] is None or result.config["validation_size"] <= 0))
+        return not (
+            (result.config["n_folds"] is None or result.config["n_folds"] <= 1)
+            and (
+                result.config["validation_size"] is None
+                or result.config["validation_size"] <= 0
+            )
+        )
 
     results = ResultFolder(results_dir)
 

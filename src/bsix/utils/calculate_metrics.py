@@ -119,9 +119,7 @@ def compute_survival_metrics(
     metrics = {}
 
     number_progressions = predictions.shape[1] if predictions.ndim > 1 else 1
-    progressions = [
-        f"P{k} " for k in range(number_progressions)
-    ]
+    progressions = [f"P{k} " for k in range(number_progressions)]
     has_progressions = number_progressions > 1
 
     for p in range(number_progressions):
@@ -172,9 +170,7 @@ def compute_binary_metrics(evaluation_targets, predictions):
     metrics = {}
 
     number_progressions = predictions.shape[1] if predictions.ndim > 1 else 1
-    progressions = [
-        f"P{k} " for k in range(number_progressions)
-    ]
+    progressions = [f"P{k} " for k in range(number_progressions)]
     has_progressions = number_progressions > 1
 
     for p in range(number_progressions):

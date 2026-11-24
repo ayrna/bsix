@@ -13,6 +13,7 @@ warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
+
 class CoxRegressionWithTimeVarying(BaseSurvival):
     """
     Cox proportional hazards model for time-varying covariates.

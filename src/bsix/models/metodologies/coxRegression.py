@@ -13,6 +13,7 @@ warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
+
 class CoxRegression(BaseSurvival):
     """
     Cox proportional hazards model estimated via a Newton-Raphson optimization.

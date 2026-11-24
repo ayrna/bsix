@@ -803,7 +803,12 @@ class BaseSurvival(BaseEstimator, ABC):
                 fontsize=6,
                 ha=ha_pos,
                 va="center",
-                bbox={"facecolor": "white", "edgecolor": "none", "pad": 1, "alpha": 0.5},
+                bbox={
+                    "facecolor": "white",
+                    "edgecolor": "none",
+                    "pad": 1,
+                    "alpha": 0.5,
+                },
                 zorder=4,
             )
 

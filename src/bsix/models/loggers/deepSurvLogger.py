@@ -34,8 +34,7 @@ class DeepSurvLogger:
             space_padding -= int(math.log10(step))
         space_padding = "".join([" "] * space_padding)
         message = (
-            f"Training step {step}/{max_steps} {space_padding}"
-            f"|{''.join(progress_bar)}|"
+            f"Training step {step}/{max_steps} {space_padding}|{''.join(progress_bar)}|"
         )
         if loss:
             message += f" - loss: {loss:.4f}"
