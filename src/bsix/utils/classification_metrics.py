@@ -1,8 +1,9 @@
-import numpy as np
-import scipy.stats
 import warnings
 
+import numpy as np
+import scipy.stats
 from sklearn.metrics import confusion_matrix
+
 
 def _validate_input(y_true, y_pred):
     """
@@ -11,13 +12,13 @@ def _validate_input(y_true, y_pred):
 
     if y_true is None or y_pred is None:
         raise ValueError("Input data cannot be None.")
-    if len(y_true) == 0 or  len(y_pred) == 0:
+    if len(y_true) == 0 or len(y_pred) == 0:
         raise ValueError("Input data X and y cannot be empty.")
     if len(y_true) != len(y_pred):
         raise ValueError("The number of samples in y_true and y_pred must be equal.")
-    
-def scorerAmae(y, y_pred):
 
+
+def scorerAmae(y, y_pred):
     """
     Scorer for Average Mean Absolute Error (AMAE).
     """
@@ -29,8 +30,8 @@ def scorerAmae(y, y_pred):
 
         return amae(e, ePred)
 
-def ccr(y_true, y_pred):
 
+def ccr(y_true, y_pred):
     """
     Computes the Correct Classification Rate (CCR).
     """
@@ -42,8 +43,8 @@ def ccr(y_true, y_pred):
 
     return float(np.count_nonzero(y_true == y_pred) / float(len(y_true)))
 
-def amae(y_true, y_pred):
 
+def amae(y_true, y_pred):
     """
     Computes the Average Mean Absolute Error (AMAE).
     """
@@ -62,7 +63,7 @@ def amae(y_true, y_pred):
         errores = costs * cm
 
         sum_rows = np.sum(cm, axis=1).astype("float")
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             amaes = np.sum(errores, axis=1) / sum_rows
 
         amaes = amaes[~np.isnan(amaes)]
@@ -70,8 +71,8 @@ def amae(y_true, y_pred):
             return 0.0
         return float(np.mean(amaes))
 
-def gm(y_true, y_pred):
 
+def gm(y_true, y_pred):
     """
     Computes the Geometric Mean (GM).
     """
@@ -86,7 +87,7 @@ def gm(y_true, y_pred):
         cm = confusion_matrix(y_true, y_pred)
         sum_byclass = np.sum(cm, axis=1)
 
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             sensitivities = np.diag(cm) / sum_byclass.astype("float")
 
         sensitivities[sum_byclass == 0] = 1
@@ -95,7 +96,6 @@ def gm(y_true, y_pred):
 
 
 def mae(y_true, y_pred):
-    
     """
     Computes the Mean Absolute Error (MAE).
     """
@@ -107,10 +107,12 @@ def mae(y_true, y_pred):
 
         _validate_input(y_true, y_pred)
 
-        return float(np.abs(y_true.astype(float) - y_pred.astype(float)).sum() / len(y_true))
+        return float(
+            np.abs(y_true.astype(float) - y_pred.astype(float)).sum() / len(y_true)
+        )
+
 
 def mmae(y_true, y_pred):
-    
     """
     Computes the Maximum Mean Absolute Error (MMAE).
     """
@@ -129,18 +131,17 @@ def mmae(y_true, y_pred):
         errores = costes * cm
 
         sum_rows = np.sum(cm, axis=1).astype("float")
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             amaes = np.sum(errores, axis=1) / sum_rows
 
         amaes = amaes[~np.isnan(amaes)]
         if len(amaes) == 0:
             return 0.0
-        
+
         return float(amaes.max())
 
 
-def recall(y_true, y_pred, average='macro'):
-
+def recall(y_true, y_pred, average="macro"):
     """
     Computes the Recall (Sensitivity).
     """
@@ -155,7 +156,7 @@ def recall(y_true, y_pred, average='macro'):
         cm = confusion_matrix(y_true, y_pred)
         sum_byclass = np.sum(cm, axis=1).astype("float")
 
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             sensitivities = np.diag(cm) / sum_byclass
 
         sensitivities = np.nan_to_num(sensitivities)
@@ -165,8 +166,8 @@ def recall(y_true, y_pred, average='macro'):
         else:
             return float(np.mean(sensitivities))
 
-def ms(y_true, y_pred):
 
+def ms(y_true, y_pred):
     """
     Computes the Minimum Sensitivity (MS).
     """
@@ -180,8 +181,8 @@ def ms(y_true, y_pred):
 
     return float(np.min(sensitivities))
 
-def mze(y_true, y_pred):
 
+def mze(y_true, y_pred):
     """
     Computes the Mean Zero Error (MZE).
     """
@@ -196,8 +197,8 @@ def mze(y_true, y_pred):
         confusion = confusion_matrix(y_true, y_pred)
         return float(1 - np.diagonal(confusion).sum() / confusion.sum())
 
+
 def tkendall(y_true, y_pred):
-    
     """
     Computes the Kendall's Tau (TKendall).
     """
@@ -209,13 +210,13 @@ def tkendall(y_true, y_pred):
 
         _validate_input(y_true, y_pred)
 
-        corr, pvalue = scipy.stats.kendalltau(y_true, y_pred)
+        corr, _pvalue = scipy.stats.kendalltau(y_true, y_pred)
         if np.isnan(corr):
             return 0.0
         return float(corr)
 
-def wkappa(y_true, y_pred):
 
+def wkappa(y_true, y_pred):
     """
     Computes the Weighted Kappa (WKappa).
     """
@@ -243,8 +244,8 @@ def wkappa(y_true, y_pred):
             return 1.0
         return float((po - pe) / (1 - pe))
 
-def spearman(y_true, y_pred):
 
+def spearman(y_true, y_pred):
     """
     Computes the Spearman's Rank Correlation Coefficient (Spearman).
     """
@@ -256,7 +257,7 @@ def spearman(y_true, y_pred):
 
         _validate_input(y_true, y_pred)
 
-        corr, pvalue = scipy.stats.spearmanr(y_true, y_pred)
+        corr, _pvalue = scipy.stats.spearmanr(y_true, y_pred)
         if np.isnan(corr):
             return 0.0
         return float(corr)

@@ -8,47 +8,45 @@ flow = "survival_flow"
 
 ############ Experiment settings ############
 estimators = [
-                "AcceleratedFailureTime",
-                "CoxRegression",
-                "DeepHit",
-                "DeepSurv",
-                "RandomSurvForest",
-                "SurvTree",
-                "SurvivalTabPFN",
-
-                "CoxRegressionWithTimeVarying",
-                "DeepTimeVarying",
-                
-                "DeepMultiTask",
-            ]
+    "AcceleratedFailureTime",
+    "CoxRegression",
+    "DeepHit",
+    "DeepSurv",
+    "RandomSurvForest",
+    "SurvTree",
+    "SurvivalTabPFN",
+    "CoxRegressionWithTimeVarying",
+    "DeepTimeVarying",
+    "DeepMultiTask",
+]
 data_dir = "bsix.datasets"
 datasets = [
-                "acath.csv",
-                "aids2.csv",
-                "breastcancer.arff",
-                "cgd.csv",
-                "colon.csv",
-                "cost.csv",
-                "diabetes.arff",
-                "diabetesretinopathy.csv",
-                "divat2.csv",
-                "flchain.csv",
-                "pbc.csv",
-                "phpl04K8a.csv",
-                "prostate.csv",
-                "retinopathy.csv",
-                "rhc.csv",
-                "rott2.csv",
-                "smarto.csv",
-                "stagec.csv",
-                "trace.csv",
-                "veteran.csv",
-                "wpbc.csv",
-                "gbsg.h5",
-                "metabric.h5",
-                "support.h5",
-                "whas.h5",
-            ]
+    "acath.csv",
+    "aids2.csv",
+    "breastcancer.arff",
+    "cgd.csv",
+    "colon.csv",
+    "cost.csv",
+    "diabetes.arff",
+    "diabetesretinopathy.csv",
+    "divat2.csv",
+    "flchain.csv",
+    "pbc.csv",
+    "phpl04K8a.csv",
+    "prostate.csv",
+    "retinopathy.csv",
+    "rhc.csv",
+    "rott2.csv",
+    "smarto.csv",
+    "stagec.csv",
+    "trace.csv",
+    "veteran.csv",
+    "wpbc.csv",
+    "gbsg.h5",
+    "metabric.h5",
+    "support.h5",
+    "whas.h5",
+]
 seeds = 30
 ### n_folds = 3
 validation_size = 0.2
@@ -98,12 +96,12 @@ max_concurrent_jobs = 500
 # }
 
 memory_override = {
-    "DeepTimeVarying" : {
-            "*" : 100,
+    "DeepTimeVarying": {
+        "*": 100,
     },
-    "RandomSurvForest" : {
-        "*" : 50,
-    }
+    "RandomSurvForest": {
+        "*": 50,
+    },
 }
 gpu_type_override = {}
 batch_size_override = {}
@@ -136,7 +134,11 @@ collect_datasets = None
 collect_seeds = None
 # Config fields from the experiment config that will be included in
 # the collected results dataframe as columns (None for default)
-config_columns_to_include = ["dataset","estimator_name","random_state",]
+config_columns_to_include = [
+    "dataset",
+    "estimator_name",
+    "random_state",
+]
 # Best params fields from the experiment config that will be included in
 # the collected results dataframe as columns (None for default)
 best_params_columns_to_include = None

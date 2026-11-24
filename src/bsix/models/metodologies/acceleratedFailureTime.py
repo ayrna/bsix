@@ -1,20 +1,20 @@
 import logging
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import shap
-import warnings
+from scipy.optimize import minimize
+from scipy.special import gamma
 
 from ..base import BaseSurvival
 from .utils import StepFunction
 
-from scipy.optimize import minimize
-from scipy.special import gamma
-
 warnings.filterwarnings("ignore")
 
-class AcceleratedFailureTime(BaseSurvival):
 
+class AcceleratedFailureTime(BaseSurvival):
     """
     Accelerated failure time (AFT) survival model for Weibull and log-logistic distributions.
 
@@ -61,7 +61,6 @@ class AcceleratedFailureTime(BaseSurvival):
     """
 
     def __init__(self, type="LogLogisticAFT", penalizer=0.0, l1_ratio=0.0):
-
         """
         Initialize the accelerated failure time model.
 
@@ -91,7 +90,6 @@ class AcceleratedFailureTime(BaseSurvival):
         self.labels_covariables = ["event", "time"]
 
     def _linear_predictor(self, params, X):
-
         """
         Compute the linear predictor for the AFT scale parameter.
 
@@ -115,7 +113,6 @@ class AcceleratedFailureTime(BaseSurvival):
         return X @ beta + intercept
 
     def _neg_log_likelihood_weibull(self, params, X, time, event):
-
         """
         Compute the negative log-likelihood for a Weibull AFT model.
 
@@ -149,13 +146,13 @@ class AcceleratedFailureTime(BaseSurvival):
         log_likelihood = np.sum(event * log_hazard - cumulative_hazard)
 
         penalty = self.penalizer * (
-            (1.0 - self.l1_ratio) * 0.5 * np.sum(beta ** 2) + self.l1_ratio * np.sum(np.abs(beta))
+            (1.0 - self.l1_ratio) * 0.5 * np.sum(beta**2)
+            + self.l1_ratio * np.sum(np.abs(beta))
         )
 
         return -log_likelihood + penalty
 
     def _neg_log_likelihood_loglogistic(self, params, X, time, event):
-
         """
         Compute the negative log-likelihood for a log-logistic AFT model.
 
@@ -184,19 +181,21 @@ class AcceleratedFailureTime(BaseSurvival):
         log_t = np.log(time)
         z = shape * (log_t - Xb)
 
-        log_hazard = np.log(shape) + (shape - 1.0) * log_t - shape * Xb - np.logaddexp(0.0, z)
+        log_hazard = (
+            np.log(shape) + (shape - 1.0) * log_t - shape * Xb - np.logaddexp(0.0, z)
+        )
         cumulative_hazard = np.logaddexp(0.0, z)
 
         log_likelihood = np.sum(event * log_hazard - cumulative_hazard)
 
         penalty = self.penalizer * (
-            (1.0 - self.l1_ratio) * 0.5 * np.sum(beta ** 2) + self.l1_ratio * np.sum(np.abs(beta))
+            (1.0 - self.l1_ratio) * 0.5 * np.sum(beta**2)
+            + self.l1_ratio * np.sum(np.abs(beta))
         )
 
         return -log_likelihood + penalty
 
     def _validate_input(self, X, y):
-
         """
         Validate the input data for fitting the AcceleratedFailureTime model.
 
@@ -219,8 +218,14 @@ class AcceleratedFailureTime(BaseSurvival):
         if len(X) == 0 or len(y) == 0:
             raise ValueError("Input data X and y cannot be empty.")
 
-        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
-            raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+        if (
+            y.dtype.names is None
+            or "event" not in y.dtype.names
+            or "time" not in y.dtype.names
+        ):
+            raise ValueError(
+                "y must be a structured array with 'event' and 'time' fields."
+            )
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
@@ -233,9 +238,8 @@ class AcceleratedFailureTime(BaseSurvival):
 
         if len(X) <= 1:
             raise ValueError("At least two samples are required to fit the model.")
-        
-    def fit(self, X, y):
 
+    def fit(self, X, y):
         """
         Fit the AFT model to the training data.
 
@@ -289,7 +293,6 @@ class AcceleratedFailureTime(BaseSurvival):
         return self
 
     def _predict_expectation(self, Xb):
-
         """
         Compute the conditional expected survival time under the fitted AFT distribution.
 
@@ -320,7 +323,6 @@ class AcceleratedFailureTime(BaseSurvival):
         return expectation
 
     def predict(self, X):
-
         """
         Predict risk scores for the given data.
 
@@ -337,7 +339,7 @@ class AcceleratedFailureTime(BaseSurvival):
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
-    
+
         Xb = X @ self.coef_ + self.intercept_
 
         risk = self._predict_expectation(Xb) * -1
@@ -348,7 +350,6 @@ class AcceleratedFailureTime(BaseSurvival):
     # Distribution functions
     # ----------------------
     def _survival_function(self, t, Xb):
-
         """
         Evaluate the survival function for a set of times under the fitted AFT model.
 
@@ -375,7 +376,6 @@ class AcceleratedFailureTime(BaseSurvival):
             return np.exp(-((t / lambda_) ** rho))
 
     def _cumulative_hazard(self, t, Xb):
-
         """
         Evaluate the cumulative hazard function for a set of times under the fitted AFT model.
 
@@ -404,8 +404,9 @@ class AcceleratedFailureTime(BaseSurvival):
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
-
+    def predict_survival_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
         """
         Predict the survival function for the given samples.
 
@@ -429,21 +430,36 @@ class AcceleratedFailureTime(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
         Xb = X @ self.coef_ + self.intercept_
 
         survival = np.stack([self._survival_function(t, Xb) for t in self.time_grid]).T
-        self.survival_function = np.array([StepFunction(X=self.time_grid, y=individual_survival, is_survival=True) for individual_survival in survival])
+        self.survival_function = np.array(
+            [
+                StepFunction(X=self.time_grid, y=individual_survival, is_survival=True)
+                for individual_survival in survival
+            ]
+        )
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Accelerated Failure Time", dataset, "Survival", seed)
+            self._plot_survival_hazard_functions(
+                self.survival_function,
+                index,
+                "Accelerated Failure Time",
+                dataset,
+                "Survival",
+                seed,
+            )
             plt.show()
 
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
-        
+    def predict_cumulative_hazard_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
         """
         Predict the cumulative hazard function for the given samples.
 
@@ -467,24 +483,49 @@ class AcceleratedFailureTime(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
 
         Xb = X @ self.coef_ + self.intercept_
 
-        cumulative_hazard = np.stack([self._cumulative_hazard(t, Xb) for t in self.time_grid]).T
-        self.cumulative_hazard_function = np.array([StepFunction(X=self.time_grid, y=individual_survival, is_survival=True) for individual_survival in cumulative_hazard])
+        cumulative_hazard = np.stack(
+            [self._cumulative_hazard(t, Xb) for t in self.time_grid]
+        ).T
+        self.cumulative_hazard_function = np.array(
+            [
+                StepFunction(X=self.time_grid, y=individual_survival, is_survival=True)
+                for individual_survival in cumulative_hazard
+            ]
+        )
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Accelerated Failure Time", dataset, "CumulativeRisk", seed)
+            self._plot_survival_hazard_functions(
+                self.cumulative_hazard_function,
+                index,
+                "Accelerated Failure Time",
+                dataset,
+                "CumulativeRisk",
+                seed,
+            )
             plt.show()
-        
+
         return self.cumulative_hazard_function
-    
+
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
-
+    def calculate_xai(
+        self,
+        X,
+        index,
+        scaler,
+        dataset,
+        seed,
+        feature_names,
+        background=False,
+        plot=False,
+    ):
         """
         Compute SHAP-based explanations and coefficient rankings for the fitted model.
 
@@ -518,28 +559,50 @@ class AcceleratedFailureTime(BaseSurvival):
         try:
             seed = int(seed)
         except (TypeError, ValueError):
-            raise ValueError(f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}")
-        
+            raise ValueError(
+                f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}"
+            )
+
         logging.getLogger("xai").setLevel(logging.WARNING)
 
         # Applying Explainer (model type)
         masker = shap.maskers.Independent(X, max_samples=X.shape[0])
-        explainer_risk = shap.Explainer(self.predict, masker, feature_names=feature_names, seed=seed)
-        
+        explainer_risk = shap.Explainer(
+            self.predict, masker, feature_names=feature_names, seed=seed
+        )
+
         # Background (faster)
         X_background = X.copy()
         if background:
-            X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
+            X_background = pd.DataFrame(
+                shap.kmeans(X, background).data, columns=feature_names
+            )
 
         self.shap_explainer = explainer_risk(X_background)
 
-        coefficients = {feature_names[i]: round(coef, 8) for i, coef in enumerate(self.coef_)}
-        self.coefficients = {k: v for k, v in sorted(coefficients.items(), key=lambda item: abs(item[1]), reverse=True)}
+        coefficients = {
+            feature_names[i]: round(coef, 8) for i, coef in enumerate(self.coef_)
+        }
+        self.coefficients = {
+            k: v
+            for k, v in sorted(
+                coefficients.items(), key=lambda item: abs(item[1]), reverse=True
+            )
+        }
 
         if plot:
-            figure, ax = BaseSurvival.plot_coefficients(self.coefficients, "Accelerated Failure Time", dataset, seed)
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "Accelerated Failure Time", dataset, seed)
-            
+            BaseSurvival.plot_coefficients(
+                self.coefficients, "Accelerated Failure Time", dataset, seed
+            )
+            BaseSurvival.plot_shap(
+                self.shap_explainer,
+                index,
+                scaler,
+                "Accelerated Failure Time",
+                dataset,
+                seed,
+            )
+
             plt.show()
 
         return self.shap_explainer, self.coefficients

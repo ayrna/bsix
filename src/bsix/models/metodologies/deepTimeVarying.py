@@ -1,24 +1,25 @@
 import logging
+import random
+import time
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import shap
-import torchtuples as tt
-import time
 import torch
-import random
-import warnings
+import torchtuples as tt
 
+from ...utils.survival_metrics import concordanceIndexHarrel
 from ..base import BaseSurvival
 from ..loggers.deepSurvLogger import DeepSurvLogger
 from ..nets.deepNets import DeepSurvFFNN
 from .utils import BreslowEstimator
-from ...utils.survival_metrics import concordanceIndexHarrel
 
 warnings.filterwarnings("ignore")
 
-class DeepTimeVarying(BaseSurvival):
 
+class DeepTimeVarying(BaseSurvival):
     """
     Deep survival model for time-varying covariates.
 
@@ -105,10 +106,30 @@ class DeepTimeVarying(BaseSurvival):
     >>> risk = model.predict(X_test)
     """
 
-    def __init__(self, number_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, momentum=0.9, 
-                 activation="relu", dropout=0.0, standardize=True, ties="cox", device=None, validation_frequency=10, patience=2000, 
-                 improvement_threshold=0.99999, patience_increase=2, logger=None, verbose=True, seed=None):
-          
+    def __init__(
+        self,
+        number_inputs,
+        valid_data=None,
+        hidden_layers=None,
+        epochs=500,
+        learn_rate=0.0,
+        lr_decay=0.0,
+        l1_reg=0.0,
+        l2_reg=0.0,
+        momentum=0.9,
+        activation="relu",
+        dropout=0.0,
+        standardize=True,
+        ties="cox",
+        device=None,
+        validation_frequency=10,
+        patience=2000,
+        improvement_threshold=0.99999,
+        patience_increase=2,
+        logger=None,
+        verbose=True,
+        seed=None,
+    ):
         """
         Initialize the time-varying DeepSurv model.
 
@@ -157,18 +178,20 @@ class DeepTimeVarying(BaseSurvival):
         seed : int, optional
             Random seed for reproducibility.
         """
-                
+
         # Set device
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = device
-        
+
         # Standardization parameters
-        self.offset = torch.zeros(number_inputs, dtype=torch.float32, device=self.device)
+        self.offset = torch.zeros(
+            number_inputs, dtype=torch.float32, device=self.device
+        )
         self.scale = torch.ones(number_inputs, dtype=torch.float32, device=self.device)
         self.standardize = standardize
-    
+
         # Parameters
         self.number_inputs = number_inputs
         self.learn_rate = learn_rate
@@ -189,7 +212,7 @@ class DeepTimeVarying(BaseSurvival):
         self.improvement_threshold = improvement_threshold
 
         self.logger = logger
-        
+
         self.verbose = verbose
 
         self.seed = seed
@@ -199,9 +222,8 @@ class DeepTimeVarying(BaseSurvival):
 
         # Optimizer (will be initialized in train())
         self.optimizer = None
-    
-    def _set_seeds(self):
 
+    def _set_seeds(self):
         """
         Initialize random seeds for reproducibility.
 
@@ -214,7 +236,7 @@ class DeepTimeVarying(BaseSurvival):
 
         from sklearn.utils import check_random_state
 
-        if isinstance(self.seed, int) or isinstance(self.seed, float):
+        if isinstance(self.seed, (int, float)):
             self.seed = int(self.seed % np.iinfo(np.int32).max)
 
         random_state_obj = check_random_state(self.seed)
@@ -235,7 +257,7 @@ class DeepTimeVarying(BaseSurvival):
 
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-    
+
     @staticmethod
     def _build_risk_set(t_start, t_stop, e):
         """
@@ -288,14 +310,13 @@ class DeepTimeVarying(BaseSurvival):
 
         if event_idx.numel() == 0:
             return risk.sum() * 0.0
-        
+
         risk = risk.view(-1)
         log_risk = torch.logsumexp(risk.view(1, -1) + log_mask, dim=1)
 
         return -(risk[event_idx] - log_risk).mean()
-    
-    def _compute_l1_loss(self):
 
+    def _compute_l1_loss(self):
         """
         Compute the L1 regularization penalty over the network weights.
 
@@ -310,9 +331,8 @@ class DeepTimeVarying(BaseSurvival):
             l1_loss += torch.sum(torch.abs(param))
 
         return l1_loss
-    
-    def _compute_l2_loss(self):
 
+    def _compute_l2_loss(self):
         """
         Compute the L2 regularization penalty over the network weights.
 
@@ -324,12 +344,11 @@ class DeepTimeVarying(BaseSurvival):
 
         l2_loss = 0.0
         for param in self.network.parameters():
-            l2_loss += torch.sum(param ** 2)
+            l2_loss += torch.sum(param**2)
 
         return l2_loss
-    
-    def _get_loss(self, x, event_idx, log_mask):
 
+    def _get_loss(self, x, event_idx, log_mask):
         """
         Compute the total training loss for the time-varying survival model.
 
@@ -355,13 +374,12 @@ class DeepTimeVarying(BaseSurvival):
 
         l1_loss = self._compute_l1_loss() if self.l1_reg > 0.0 else 0.0
         l2_loss = self._compute_l2_loss() if self.l2_reg > 0.0 else 0.0
-        
+
         total_loss = cox_loss + (self.l1_reg * l1_loss) + (self.l2_reg * l2_loss)
 
         return total_loss
-    
-    def _get_concordance_index(self, x, t, e, **kwargs):
 
+    def _get_concordance_index(self, x, t, e, **kwargs):
         """
         Compute the concordance index for the trained model.
 
@@ -384,14 +402,14 @@ class DeepTimeVarying(BaseSurvival):
         with torch.no_grad():
             risk = self.network(x).cpu().numpy().ravel()
 
-
-        y_true = np.rec.fromarrays([e, t], dtype=[('event', np.bool_), ('time', np.float32)]).view(np.ndarray)
+        y_true = np.rec.fromarrays(
+            [e, t], dtype=[("event", np.bool_), ("time", np.float32)]
+        ).view(np.ndarray)
         c_index = concordanceIndexHarrel([y_true, y_true], risk)
 
         return torch.tensor(c_index, dtype=torch.float32, device=self.device)
-    
-    def _standardize_x(self, x):
 
+    def _standardize_x(self, x):
         """
         Standardize input features using the training-time offset and scale.
 
@@ -409,7 +427,6 @@ class DeepTimeVarying(BaseSurvival):
         return (x - self.offset) / (self.scale + 1e-15)
 
     def _validate_input(self, X, y):
-
         """
         Validate the input data for fitting the DeepTimeVarying model.
 
@@ -432,8 +449,15 @@ class DeepTimeVarying(BaseSurvival):
         if len(X) == 0 or len(y) == 0:
             raise ValueError("Input data X and y cannot be empty.")
 
-        if y.dtype.names is None or "event" not in y.dtype.names or "time_start" not in y.dtype.names or "time_stop" not in y.dtype.names:
-            raise ValueError("y must be a structured array with 'event', 'time_start', and 'time_stop' fields.")
+        if (
+            y.dtype.names is None
+            or "event" not in y.dtype.names
+            or "time_start" not in y.dtype.names
+            or "time_stop" not in y.dtype.names
+        ):
+            raise ValueError(
+                "y must be a structured array with 'event', 'time_start', and 'time_stop' fields."
+            )
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
@@ -446,9 +470,8 @@ class DeepTimeVarying(BaseSurvival):
 
         if len(X) <= 1:
             raise ValueError("At least two samples are required to fit the model.")
-        
+
     def fit(self, X_train, y_train, **kwargs):
-        
         """
         Fit the time-varying DeepSurv model to the training data.
 
@@ -467,7 +490,7 @@ class DeepTimeVarying(BaseSurvival):
         """
 
         self._validate_input(X_train, y_train)
-        
+
         # Set random seeds
         self._set_seeds()
 
@@ -478,11 +501,15 @@ class DeepTimeVarying(BaseSurvival):
         X_train, y_train = self._sort(X_train, y_train, "time_stop")
 
         # Apply y_train supervision
-        y_train["time_stop"] = np.where(y_train["time_start"] == y_train["time_stop"], y_train["time_stop"] + 1e-15, y_train["time_stop"])
+        y_train["time_stop"] = np.where(
+            y_train["time_start"] == y_train["time_stop"],
+            y_train["time_stop"] + 1e-15,
+            y_train["time_stop"],
+        )
 
         if self.logger is None:
             logger = DeepSurvLogger("DeepTimeVarying")
-        
+
         # Build network
         self.network = DeepSurvFFNN(
             number_inputs=self.number_inputs,
@@ -494,23 +521,23 @@ class DeepTimeVarying(BaseSurvival):
         # Set standardization parameters
         if self.standardize:
             self.offset = torch.tensor(
-                X_train.mean(axis=0), 
-                dtype=torch.float32, 
-                device=self.device
+                X_train.mean(axis=0), dtype=torch.float32, device=self.device
             )
             self.scale = torch.tensor(
-                X_train.std(axis=0),
-                dtype=torch.float32,
-                device=self.device
+                X_train.std(axis=0), dtype=torch.float32, device=self.device
             )
-        
+
         # Events and Times
         e_train = y_train["event"].astype(np.bool_)
         t_start_train = y_train["time_start"].astype(np.float32)
         t_stop_train = y_train["time_stop"].astype(np.float32)
 
         # Apply y_train supervision
-        t_stop_train = np.where(t_start_train >= t_stop_train, np.nextafter(t_start_train, np.float32(np.inf)), t_stop_train)
+        t_stop_train = np.where(
+            t_start_train >= t_stop_train,
+            np.nextafter(t_start_train, np.float32(np.inf)),
+            t_stop_train,
+        )
 
         if self.valid_data:
             X_valid = np.array(self.valid_data["x"], np.float32)
@@ -519,41 +546,59 @@ class DeepTimeVarying(BaseSurvival):
             t_stop_valid = np.array(self.valid_data["t"][1], np.float32)
 
             # Apply y_train supervision
-            t_stop_valid = np.where(t_start_valid >= t_stop_valid, np.nextafter(t_start_valid, np.float32(np.inf)), t_stop_valid)
-        
+            t_stop_valid = np.where(
+                t_start_valid >= t_stop_valid,
+                np.nextafter(t_start_valid, np.float32(np.inf)),
+                t_stop_valid,
+            )
+
         # Convert to tensors
         x_train_tensor = torch.tensor(X_train, dtype=torch.float32, device=self.device)
         e_train_tensor = torch.tensor(e_train, dtype=torch.long, device=self.device)
-        t_start_train_tensor = torch.tensor(t_start_train, dtype=torch.float32, device=self.device)
-        t_stop_train_tensor = torch.tensor(t_stop_train, dtype=torch.float32, device=self.device)
+        t_start_train_tensor = torch.tensor(
+            t_start_train, dtype=torch.float32, device=self.device
+        )
+        t_stop_train_tensor = torch.tensor(
+            t_stop_train, dtype=torch.float32, device=self.device
+        )
 
         if self.valid_data:
-            x_valid_tensor = torch.tensor(X_valid, dtype=torch.float32, device=self.device)
+            x_valid_tensor = torch.tensor(
+                X_valid, dtype=torch.float32, device=self.device
+            )
             e_valid_tensor = torch.tensor(e_valid, dtype=torch.long, device=self.device)
-            t_start_valid_tensor = torch.tensor(t_start_valid, dtype=torch.float32, device=self.device)
-            t_stop_valid_tensor = torch.tensor(t_stop_valid, dtype=torch.float32, device=self.device)
-        
+            t_start_valid_tensor = torch.tensor(
+                t_start_valid, dtype=torch.float32, device=self.device
+            )
+            t_stop_valid_tensor = torch.tensor(
+                t_stop_valid, dtype=torch.float32, device=self.device
+            )
+
         if self.standardize:
             x_train_tensor = self._standardize_x(x_train_tensor)
 
             if self.valid_data:
                 x_valid_tensor = self._standardize_x(x_valid_tensor)
-        
+
         # Initialize optimizer with weight decay for L2 regularization
         self.optimizer = tt.optim.SGD(
             params=self.network.parameters(),
             lr=self.learn_rate,
             momentum=self.momentum,
         )
-        
+
         # Training metrics
         best_validation_loss = np.inf
         best_params = None
         best_params_idx = -1
 
-        train_idx, train_log_mask = self._build_risk_set(t_start_train_tensor, t_stop_train_tensor, e_train_tensor)
+        train_idx, train_log_mask = self._build_risk_set(
+            t_start_train_tensor, t_stop_train_tensor, e_train_tensor
+        )
         if self.valid_data:
-            valid_idx, valid_log_mask = self._build_risk_set(t_start_valid_tensor, t_stop_valid_tensor, e_valid_tensor)
+            valid_idx, valid_log_mask = self._build_risk_set(
+                t_start_valid_tensor, t_stop_valid_tensor, e_valid_tensor
+            )
 
         start = time.time()
 
@@ -563,77 +608,96 @@ class DeepTimeVarying(BaseSurvival):
             lr = self.learn_rate / (1 + epoch * self.lr_decay)
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr
-            
+
             logger.logValue("lr", lr, epoch)
-            
+
             # Training step
             self.network.train()
             self.optimizer.zero_grad()
-            
+
             loss = self._get_loss(x_train_tensor, train_idx, train_log_mask)
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
-            
+
             self.optimizer.step()
-            
+
             logger.logValue("loss", loss.item(), epoch)
 
             if epoch % self.validation_frequency == 0:
                 # Calculate training C-index
-                ci_train = self._get_concordance_index(x_train_tensor, t_stop_train, e_train)
+                ci_train = self._get_concordance_index(
+                    x_train_tensor, t_stop_train, e_train
+                )
                 logger.logValue("c-index", ci_train, epoch)
-                
+
                 # Validation
                 if self.valid_data:
                     self.network.eval()
                     with torch.no_grad():
-                        validation_loss = self._get_loss(x_valid_tensor, valid_idx, valid_log_mask)
+                        validation_loss = self._get_loss(
+                            x_valid_tensor, valid_idx, valid_log_mask
+                        )
                         logger.logValue("valid_loss", validation_loss.item(), epoch)
-                    
-                    ci_valid = self._get_concordance_index(x_valid_tensor, t_stop_valid, e_valid)
+
+                    ci_valid = self._get_concordance_index(
+                        x_valid_tensor, t_stop_valid, e_valid
+                    )
                     logger.logValue("valid_c-index", ci_valid, epoch)
-                    
+
                     if validation_loss.item() < best_validation_loss:
-                        if validation_loss.item() < best_validation_loss * self.improvement_threshold:
+                        if (
+                            validation_loss.item()
+                            < best_validation_loss * self.improvement_threshold
+                        ):
                             patience = max(patience, epoch * self.patience_increase)
-                        
+
                         # Save best parameters
                         best_params = {
                             "model_state_dict": self.network.state_dict(),
-                            "optimizer_state_dict": self.optimizer.state_dict()
+                            "optimizer_state_dict": self.optimizer.state_dict(),
                         }
                         best_params_idx = epoch
                         best_validation_loss = validation_loss.item()
-            
+
             if self.verbose and (epoch % self.validation_frequency == 0):
                 if self.valid_data:
-                    logger.print_progress_bar(epoch, self.epochs, loss.item(), validation_loss.item(), ci_train, ci_valid)
+                    logger.print_progress_bar(
+                        epoch,
+                        self.epochs,
+                        loss.item(),
+                        validation_loss.item(),
+                        ci_train,
+                        ci_valid,
+                    )
                 else:
-                    logger.print_progress_bar(epoch, self.epochs, loss=loss.item(), ci=ci_train)
-            
+                    logger.print_progress_bar(
+                        epoch, self.epochs, loss=loss.item(), ci=ci_train
+                    )
+
             if patience <= epoch:
-                print("Early stopping at epoch %d" % epoch)
+                print(f"Early stopping at epoch {epoch}")
                 break
-        
+
         if self.verbose:
-            logger.logMessage(f"Finished Training with {epoch + 1} iterations in {time.time() - start:.2f}s")
-        
+            logger.logMessage(
+                f"Finished Training with {epoch + 1} iterations in {time.time() - start:.2f}s"
+            )
+
         # Compute baseline hazards with training data
         self.breslow.fit(self.predict(X_train), e_train, t_stop_train)
 
         logger.shutdown()
-        
+
         logger.history["best_valid_loss"] = best_validation_loss
         logger.history["best_params"] = best_params
         logger.history["best_params_idx"] = best_params_idx
-        
-        self.history = logger.history
-        
-        return self
-    
-    def predict(self, X):
 
+        self.history = logger.history
+
+        return self
+
+    def predict(self, X):
         """
         Predict risk scores for the given data.
 
@@ -650,22 +714,23 @@ class DeepTimeVarying(BaseSurvival):
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
-    
+
         self.network.eval()
         with torch.no_grad():
             x_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
             if self.standardize:
                 x_tensor = self._standardize_x(x_tensor)
             risk = self.network(x_tensor).cpu().numpy().flatten()
-            
+
         return risk
 
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
-
-        """ 
+    def predict_survival_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
+        """
         Predict the survival function for the given samples.
 
         Parameters
@@ -688,21 +753,31 @@ class DeepTimeVarying(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
         risk = self.predict(X)
 
         self.survival_function = self.breslow.get_survival_function(risk)
 
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "DeepSurv Time-Varying", dataset, "Survival", seed)
+            self._plot_survival_hazard_functions(
+                self.survival_function,
+                index,
+                "DeepSurv Time-Varying",
+                dataset,
+                "Survival",
+                seed,
+            )
             plt.show()
 
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
-        
+    def predict_cumulative_hazard_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
         """
         Predict the cumulative hazard function for the given samples.
 
@@ -726,24 +801,44 @@ class DeepTimeVarying(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
         risk = self.predict(X)
-        
-        self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
+
+        self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(
+            risk
+        )
 
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "DeepSurv Time-Varying", dataset, "CumulativeRisk", seed)
+            self._plot_survival_hazard_functions(
+                self.cumulative_hazard_function,
+                index,
+                "DeepSurv Time-Varying",
+                dataset,
+                "CumulativeRisk",
+                seed,
+            )
             plt.show()
-            
+
         return self.cumulative_hazard_function
-    
+
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
-
+    def calculate_xai(
+        self,
+        X,
+        index,
+        scaler,
+        dataset,
+        seed,
+        feature_names,
+        background=False,
+        plot=False,
+    ):
         """
         Compute SHAP-based explainability values for the model.
 
@@ -771,27 +866,40 @@ class DeepTimeVarying(BaseSurvival):
         shap.Explainer
             SHAP explainer for the fitted model.
         """
-        
+
         try:
             seed = int(seed)
         except (TypeError, ValueError):
-            raise ValueError(f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}")
-        
+            raise ValueError(
+                f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}"
+            )
+
         logging.getLogger("xai").setLevel(logging.WARNING)
 
         # Applying Explainer (model type)
         masker = shap.maskers.Independent(X, max_samples=X.shape[0])
-        explainer_risk = shap.Explainer(self.predict, masker, feature_names=feature_names, seed=seed)
-        
+        explainer_risk = shap.Explainer(
+            self.predict, masker, feature_names=feature_names, seed=seed
+        )
+
         # Background (faster)
         X_background = X.copy()
         if background:
-            X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
+            X_background = pd.DataFrame(
+                shap.kmeans(X, background).data, columns=feature_names
+            )
 
         self.shap_explainer = explainer_risk(X_background)
 
         if plot:
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "DeepSurv Time-Varying", dataset, seed)
+            BaseSurvival.plot_shap(
+                self.shap_explainer,
+                index,
+                scaler,
+                "DeepSurv Time-Varying",
+                dataset,
+                seed,
+            )
             plt.show()
 
         return self.shap_explainer

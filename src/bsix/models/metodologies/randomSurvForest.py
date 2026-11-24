@@ -1,21 +1,21 @@
 import logging
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import shap
-import warnings
+from joblib import Parallel, delayed
+from sklearn.utils.validation import check_random_state
 
 from ..base import BaseSurvival
 from .survTree import SurvTree
 from .utils import StepFunction
 
-from joblib import Parallel, delayed
-from sklearn.utils.validation import check_random_state
-
 warnings.filterwarnings("ignore")
 
-class RandomSurvForest(BaseSurvival):
 
+class RandomSurvForest(BaseSurvival):
     """
     Random survival forest estimator for nonparametric survival analysis.
 
@@ -64,8 +64,15 @@ class RandomSurvForest(BaseSurvival):
     >>> risk = model.predict(X_test)
     """
 
-    def __init__(self, seed, n_jobs=-1, n_estimators=100, max_depth=None, min_samples_leaf=3, min_samples_split=6):
-
+    def __init__(
+        self,
+        seed,
+        n_jobs=-1,
+        n_estimators=100,
+        max_depth=None,
+        min_samples_leaf=3,
+        min_samples_split=6,
+    ):
         """
         Initialize the random survival forest model.
 
@@ -84,10 +91,10 @@ class RandomSurvForest(BaseSurvival):
         min_samples_split : int, default=6
             Minimum number of samples required to split an internal node.
         """
-        
+
         # Parameters
-        self.n_jobs=n_jobs
-        self.seed=seed
+        self.n_jobs = n_jobs
+        self.seed = seed
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
@@ -97,7 +104,6 @@ class RandomSurvForest(BaseSurvival):
         self.model = None
 
     def _fit_single_tree(self, X, y, n_samples, tree_seed):  # pragma: no cover
-
         """
         Train a single survival tree on a bootstrap sample.
 
@@ -117,28 +123,27 @@ class RandomSurvForest(BaseSurvival):
         SurvTree
             Fitted individual survival tree.
         """
-        
+
         random_state_obj = check_random_state(tree_seed)
 
         # Bagging
         indices = random_state_obj.choice(n_samples, size=n_samples, replace=True)
         X_boot = X[indices]
         y_boot = y[indices]
-        
+
         # Survival tree
         tree = SurvTree(
-            max_depth=self.max_depth, 
-            min_samples_leaf=self.min_samples_leaf, 
-            min_samples_split=self.min_samples_split, 
-            seed=tree_seed
+            max_depth=self.max_depth,
+            min_samples_leaf=self.min_samples_leaf,
+            min_samples_split=self.min_samples_split,
+            seed=tree_seed,
         )
-        
+
         # Train survival tree
         tree.fit(X_boot, y_boot)
         return tree
 
     def _validate_input(self, X, y):
-
         """
         Validate the input data for fitting the RandomSurvForest model.
 
@@ -161,8 +166,14 @@ class RandomSurvForest(BaseSurvival):
         if len(X) == 0 or len(y) == 0:
             raise ValueError("Input data X and y cannot be empty.")
 
-        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
-                    raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+        if (
+            y.dtype.names is None
+            or "event" not in y.dtype.names
+            or "time" not in y.dtype.names
+        ):
+            raise ValueError(
+                "y must be a structured array with 'event' and 'time' fields."
+            )
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
@@ -175,9 +186,8 @@ class RandomSurvForest(BaseSurvival):
 
         if len(X) <= 1:
             raise ValueError("At least two samples are required to fit the model.")
-        
-    def fit(self, X, y):
 
+    def fit(self, X, y):
         """
         Fit the random survival forest to the training data.
 
@@ -195,34 +205,35 @@ class RandomSurvForest(BaseSurvival):
         """
 
         self._validate_input(X, y)
-        
+
         # Sort by time
         X, y = self._sort(X, y)
         n_samples = X.shape[0]
 
         # Generate random state object
-        if isinstance(self.seed, int) or isinstance(self.seed, float):
+        if isinstance(self.seed, (int, float)):
             self.seed = int(self.seed % np.iinfo(np.int32).max)
-            
+
         random_state_obj = check_random_state(self.seed)
-        tree_seeds = random_state_obj.randint(0, np.iinfo(np.int32).max, size=self.n_estimators)
-            
+        tree_seeds = random_state_obj.randint(
+            0, np.iinfo(np.int32).max, size=self.n_estimators
+        )
+
         # Parallelize the training of trees
         self.model = Parallel(n_jobs=self.n_jobs)(
-            delayed(self._fit_single_tree)(X, y, n_samples, tree_seed) 
+            delayed(self._fit_single_tree)(X, y, n_samples, tree_seed)
             for tree_seed in tree_seeds
         )
 
         self.grid = np.unique(np.concatenate([t.unique_times for t in self.model]))
-        
+
         return self
 
     @staticmethod
     def _predict_tree(tree, X, grid):  # pragma: no cover
-
         """
         Predict the cumulative hazard for a single tree.
-        
+
         Parameters
         ----------
         tree : SurvTree
@@ -256,9 +267,8 @@ class RandomSurvForest(BaseSurvival):
             tree_risk[i] = val
 
         return tree_risk
-    
-    def predict(self, X):
 
+    def predict(self, X):
         """
         Predict risk scores for the given data.
 
@@ -272,9 +282,11 @@ class RandomSurvForest(BaseSurvival):
         ndarray of shape (n_samples,)
             Aggregated risk score for each sample.
         """
-        
+
         if not self.model:
-            raise ValueError("When calling `predict` with a model, first fit the model.")
+            raise ValueError(
+                "When calling `predict` with a model, first fit the model."
+            )
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
@@ -286,16 +298,15 @@ class RandomSurvForest(BaseSurvival):
         risk = np.mean(tree_risks, axis=0)
 
         return risk
-      
+
     # ----------------------
     # Base Survival methods
     # ----------------------
     @staticmethod
     def _accumulate_trees(trees, X, grid, survival):  # pragma: no cover
-
         """
         Accumulate the predictions of multiple trees for a given dataset.
-        
+
         Parameters
         ----------
         trees : list of SurvTree
@@ -314,7 +325,7 @@ class RandomSurvForest(BaseSurvival):
         ndarray of shape (n_samples, n_times)
             Array of accumulated predictions for each sample and time point.
         """
-        
+
         acc = np.zeros((X.shape[0], grid.shape[0]), dtype=np.float64)
 
         for tree in trees:
@@ -337,7 +348,6 @@ class RandomSurvForest(BaseSurvival):
         return acc
 
     def _compute_cumulative_hazard_function(self, X, survival=False):
-        
         """
         Compute the aggregated cumulative hazard or survival function across the
         forest.
@@ -358,27 +368,37 @@ class RandomSurvForest(BaseSurvival):
         """
 
         if not self.model:
-            raise ValueError("When computing `cumulative_hazard_function` with a model, first fit the model.")
+            raise ValueError(
+                "When computing `cumulative_hazard_function` with a model, first fit the model."
+            )
 
         n_samples = X.shape[0]
-        n_chunks = min(len(self.model), max(1, abs(self.n_jobs) if self.n_jobs != -1 else 8))
+        n_chunks = min(
+            len(self.model), max(1, abs(self.n_jobs) if self.n_jobs != -1 else 8)
+        )
         chunks = np.array_split(np.arange(len(self.model)), n_chunks)
 
         partials = Parallel(n_jobs=self.n_jobs)(
-            delayed(self._accumulate_trees)([self.model[j] for j in c], X, self.grid, survival)
-            for c in chunks if len(c)
+            delayed(self._accumulate_trees)(
+                [self.model[j] for j in c], X, self.grid, survival
+            )
+            for c in chunks
+            if len(c)
         )
 
         mean_curves = np.sum(partials, axis=0) / len(self.model)
 
         functions = np.empty(n_samples, dtype=object)
         for i in range(n_samples):
-            functions[i] = StepFunction(X=self.grid, y=mean_curves[i], is_survival=survival)
+            functions[i] = StepFunction(
+                X=self.grid, y=mean_curves[i], is_survival=survival
+            )
         return functions
-    
-    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
 
-        """ 
+    def predict_survival_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
+        """
         Predict the survival function for the given samples.
 
         Parameters
@@ -401,19 +421,31 @@ class RandomSurvForest(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
-        self.survival_function = self._compute_cumulative_hazard_function(X, survival=True)
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
+        self.survival_function = self._compute_cumulative_hazard_function(
+            X, survival=True
+        )
 
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Random Survival Forest", dataset, "Survival", seed)
+            self._plot_survival_hazard_functions(
+                self.survival_function,
+                index,
+                "Random Survival Forest",
+                dataset,
+                "Survival",
+                seed,
+            )
             plt.show()
 
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
-        
+    def predict_cumulative_hazard_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
         """
         Predict the cumulative hazard function for the given samples.
 
@@ -438,22 +470,42 @@ class RandomSurvForest(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
-        self.cumulative_hazard_function = self._compute_cumulative_hazard_function(X, survival=False)
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
+        self.cumulative_hazard_function = self._compute_cumulative_hazard_function(
+            X, survival=False
+        )
 
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Random Survival Forest", dataset, "CumulativeRisk", seed)
+            self._plot_survival_hazard_functions(
+                self.cumulative_hazard_function,
+                index,
+                "Random Survival Forest",
+                dataset,
+                "CumulativeRisk",
+                seed,
+            )
             plt.show()
-            
+
         return self.cumulative_hazard_function
-    
+
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
-
+    def calculate_xai(
+        self,
+        X,
+        index,
+        scaler,
+        dataset,
+        seed,
+        feature_names,
+        background=False,
+        plot=False,
+    ):
         """
         Compute SHAP-based explainability values for the forest model.
 
@@ -485,23 +537,36 @@ class RandomSurvForest(BaseSurvival):
         try:
             seed = int(seed)
         except (TypeError, ValueError):
-            raise ValueError(f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}")
+            raise ValueError(
+                f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}"
+            )
 
         logging.getLogger("xai").setLevel(logging.WARNING)
 
         # Applying Explainer (model type)
         masker = shap.maskers.Independent(X, max_samples=X.shape[0])
-        explainer_risk = shap.Explainer(self.predict, masker, feature_names=feature_names, seed=seed)
-        
+        explainer_risk = shap.Explainer(
+            self.predict, masker, feature_names=feature_names, seed=seed
+        )
+
         # Background (faster)
         X_background = X.copy()
         if background:
-            X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
+            X_background = pd.DataFrame(
+                shap.kmeans(X, background).data, columns=feature_names
+            )
 
         self.shap_explainer = explainer_risk(X_background)
 
         if plot:
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "Random Survival Forest", dataset, seed)
+            BaseSurvival.plot_shap(
+                self.shap_explainer,
+                index,
+                scaler,
+                "Random Survival Forest",
+                dataset,
+                seed,
+            )
             plt.show()
 
         return self.shap_explainer

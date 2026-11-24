@@ -1,9 +1,8 @@
 import numpy as np
-
-from .survival_metrics import scorerConcordanceIndex
-
 from scipy import stats
 from sklearn.metrics import make_scorer
+
+from .survival_metrics import scorerConcordanceIndex
 
 CLASSIFIERS = [
     "AcceleratedFailureTime",
@@ -13,10 +12,8 @@ CLASSIFIERS = [
     "RandomSurvForest",
     "SurvTree",
     "SurvivalTabPFN",
-
     "CoxRegressionWithTimeVarying",
     "DeepTimeVarying",
-    
     "DeepMultiTask",
 ]
 
@@ -26,6 +23,7 @@ NETS = [
     "DeepSurv",
     "DeepTimeVarying",
 ]
+
 
 class SerializableUniform:
     def __init__(self, loc=0, scale=1):
@@ -38,9 +36,10 @@ class SerializableUniform:
 
     def __str__(self):
         return f"uniform(loc={self.loc}, scale={self.scale})"
-    
+
     def __repr__(self):
         return self.__str__()
+
 
 class SerializableLogUniform:
     def __init__(self, a, b):
@@ -53,21 +52,22 @@ class SerializableLogUniform:
 
     def __str__(self):
         return f"loguniform(a={self.a}, b={self.b})"
-    
+
     def __repr__(self):
         return self.__str__()
-    
-def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False, n_jobs=-1, n_iter=30):
 
+
+def get_estimator(
+    estimator_name, inputs, labels, valid_data, seed, config=False, n_jobs=-1, n_iter=30
+):
     """
     Get estimator (search cv) based on name.
     """
 
     if estimator_name in CLASSIFIERS:
-        from sklearn.experimental import enable_halving_search_cv
-        from sklearn.model_selection import RandomizedSearchCV, HalvingRandomSearchCV
+        from sklearn.model_selection import HalvingRandomSearchCV, RandomizedSearchCV
 
-    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+        # -#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
         if estimator_name == "AcceleratedFailureTime":
             from ..models import AcceleratedFailureTime
@@ -81,7 +81,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
             ]
 
             estimator = AcceleratedFailureTime()
-        
+
         elif estimator_name == "CoxRegression":
             from ..models import CoxRegression
 
@@ -97,11 +97,11 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
 
         elif estimator_name == "DeepHit":
             from ..models import DeepHit
-            
+
             rng = np.random.default_rng(seed=seed)
             param_grid = [
-                {   
-                    #"epochs": [250, 500],
+                {
+                    # "epochs": [250, 500],
                     "hidden_layers_shared": [[8], [16], [32], [16, 16], [32, 32]],
                     "hidden_layers_specific": [[8], [16], [32], [16, 16], [32, 32]],
                     "learn_rate": SerializableLogUniform(1e-5, 1e-1),
@@ -115,14 +115,20 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
                 }
             ]
 
-            estimator = DeepHit(inputs.shape[1], len(np.unique(labels["event"])) - 1, 100, time_threshold=(100 - 20), seed=seed)
+            estimator = DeepHit(
+                inputs.shape[1],
+                len(np.unique(labels["event"])) - 1,
+                100,
+                time_threshold=(100 - 20),
+                seed=seed,
+            )
 
         elif estimator_name == "DeepSurv":
             from ..models import DeepSurv
-               
+
             param_grid = [
                 {
-                    #"epochs": [250, 500],
+                    # "epochs": [250, 500],
                     "hidden_layers": [[8], [16], [32], [16, 16], [32, 32]],
                     "learn_rate": SerializableLogUniform(1e-5, 1e-1),
                     "lr_decay": SerializableLogUniform(1e-6, 1e-3),
@@ -137,16 +143,16 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
 
         elif estimator_name == "SurvivalTabPFN":
             from ..models import SurvivalTabPFN
-               
+
             param_grid = {
-                "n_estimators":[2, 4],
+                "n_estimators": [2, 4],
             }
 
             estimator = SurvivalTabPFN(seed=seed)
 
         elif estimator_name == "RandomSurvForest":
             from ..models import RandomSurvForest
-               
+
             param_grid = [
                 {
                     "n_estimators": [100, 300, 500],
@@ -155,7 +161,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
                     "min_samples_split": [2, 6, 10],
                 }
             ]
-            
+
             estimator = RandomSurvForest(seed=seed)
 
         elif estimator_name == "SurvTree":
@@ -171,7 +177,7 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
 
             estimator = SurvTree(seed=seed)
 
-    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+        # -#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
         elif estimator_name == "CoxRegressionWithTimeVarying":
             from ..models import CoxRegressionWithTimeVarying
@@ -188,10 +194,10 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
 
         elif estimator_name == "DeepTimeVarying":
             from ..models import DeepTimeVarying
-               
+
             param_grid = [
                 {
-                    #"epochs": [250, 500],
+                    # "epochs": [250, 500],
                     "hidden_layers": [[8], [16], [32], [16, 16], [32, 32]],
                     "learn_rate": SerializableLogUniform(1e-5, 1e-1),
                     "lr_decay": SerializableLogUniform(1e-6, 1e-3),
@@ -204,15 +210,15 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
 
             estimator = DeepTimeVarying(inputs.shape[1], seed=seed)
 
-    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+        # -#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
         elif estimator_name == "DeepMultiTask":
             from ..models import DeepMultiTask
-            
+
             rng = np.random.default_rng(seed=seed)
             param_grid = [
                 {
-                    #"epochs": [250, 500],
+                    # "epochs": [250, 500],
                     "hidden_layers": [[8], [16], [32], [16, 16], [32, 32]],
                     "learn_rate": SerializableLogUniform(1e-5, 1e-1),
                     "lr_decay": SerializableLogUniform(1e-6, 1e-3),
@@ -221,13 +227,19 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
                     "l2_reg": SerializableLogUniform(1e-5, 1e-1),
                     "dropout": SerializableUniform(loc=0.0, scale=1.0),
                     "activation": ["relu", "selu", "tanh", "sigmoid"],
-                    "coef_likelihood": np.round(rng.dirichlet(alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]), size=30), 8).tolist(),
+                    "coef_likelihood": np.round(
+                        rng.dirichlet(
+                            alpha=np.ones(1 if labels.ndim == 1 else labels.shape[1]),
+                            size=30,
+                        ),
+                        8,
+                    ).tolist(),
                 }
             ]
 
             estimator = DeepMultiTask(inputs.shape[1], seed=seed)
 
-    #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+        # -#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
         else:
             raise NotImplementedError(
@@ -246,15 +258,17 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
                         return_train_score=True,
                         n_candidates=n_iter,
                         factor=2,
-                        resource='epochs',
-                        min_resources='exhaust',
+                        resource="epochs",
+                        min_resources="exhaust",
                         max_resources=1000,
                         n_jobs=n_jobs,
                         cv=valid_data,
-                        scoring=make_scorer(scorerConcordanceIndex, greater_is_better=True),
+                        scoring=make_scorer(
+                            scorerConcordanceIndex, greater_is_better=True
+                        ),
                         error_score="raise",
                         random_state=seed,
-                        verbose=10
+                        verbose=10,
                     )
                 else:
                     return RandomizedSearchCV(
@@ -265,10 +279,12 @@ def get_estimator(estimator_name, inputs, labels, valid_data, seed, config=False
                         n_iter=n_iter,
                         n_jobs=n_jobs,
                         cv=valid_data,
-                        scoring=make_scorer(scorerConcordanceIndex, greater_is_better=True),
+                        scoring=make_scorer(
+                            scorerConcordanceIndex, greater_is_better=True
+                        ),
                         error_score="raise",
                         random_state=seed,
-                        verbose=10
+                        verbose=10,
                     )
             else:
                 return estimator

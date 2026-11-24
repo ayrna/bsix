@@ -1,28 +1,28 @@
 import logging
+import random
+import time
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import shap
-import torchtuples as tt
-import time
 import torch
-import random
-import warnings
+import torchtuples as tt
+from numba import njit
+from torch.utils.data import DataLoader, TensorDataset
 
+from ...utils.survival_metrics import concordanceIndexHarrel
 from ..base import BaseSurvival
 from ..loggers.deepMultiTaskLogger import DeepMultiTaskLogger
 from ..nets.deepNets import DeepHitFFNN
 from .utils import StepFunction
-from ...utils.survival_metrics import concordanceIndexHarrel
-
-from numba import njit
-from torch.utils.data import TensorDataset, DataLoader
 
 warnings.filterwarnings("ignore")
 
-@njit(fastmath=True, cache=True)
-def _discretize_time_njit(t_ravel, time_grid, number_categories): # pragma: no cover
 
+@njit(fastmath=True, cache=True)
+def _discretize_time_njit(t_ravel, time_grid, number_categories):  # pragma: no cover
     """
     Map continuous times to their discrete bin index.
 
@@ -42,12 +42,14 @@ def _discretize_time_njit(t_ravel, time_grid, number_categories): # pragma: no c
     """
 
     idx = np.searchsorted(time_grid, t_ravel, side="right")
-    
+
     return np.minimum(idx, number_categories - 1)
 
-@njit(fastmath=True, cache=True)
-def _get_fc_mask1_njit(e_ravel, t_bin_ravel, number_events, number_categories): # pragma: no cover
 
+@njit(fastmath=True, cache=True)
+def _get_fc_mask1_njit(
+    e_ravel, t_bin_ravel, number_events, number_categories
+):  # pragma: no cover
     """
     Build the one-hot mask for the event-time likelihood term.
 
@@ -77,9 +79,9 @@ def _get_fc_mask1_njit(e_ravel, t_bin_ravel, number_events, number_categories): 
             mask[i, event - 1, t_bin_ravel[i]] = 1.0
     return mask
 
-@njit(fastmath=True, cache=True)
-def _get_fc_mask2_njit(t_bin_ravel, number_categories): # pragma: no cover
 
+@njit(fastmath=True, cache=True)
+def _get_fc_mask2_njit(t_bin_ravel, number_categories):  # pragma: no cover
     """
     Build the risk-set mask used in the survival ranking terms.
 
@@ -104,8 +106,8 @@ def _get_fc_mask2_njit(t_bin_ravel, number_categories): # pragma: no cover
             mask[i, j] = 1.0
     return mask
 
-class DeepHit(BaseSurvival):
 
+class DeepHit(BaseSurvival):
     """
     DeepHit model for discrete-time survival with competing risks.
 
@@ -209,11 +211,38 @@ class DeepHit(BaseSurvival):
     >>> risk = model.predict(X_test)
     """
 
-    def __init__(self, number_inputs, number_events, number_categories, time_threshold=None, valid_data=None, hidden_layers_shared=None, hidden_layers_specific=None,
-                 epochs=50, learn_rate=1e-4, lr_decay=0.0, alpha=1.0, beta=1.0, gamma=1.0, ranking_sigma=0.1, l2_reg_hidden=1e-4, l1_reg_output=1e-4, momentum=0.9,
-                 activation="relu", dropout=0.0, standardize=True, device=None, validation_frequency=10, patience=2000, improvement_threshold=0.99999,
-                 patience_increase=2, logger=None, verbose=True, seed=None, batch_size=256):
-
+    def __init__(
+        self,
+        number_inputs,
+        number_events,
+        number_categories,
+        time_threshold=None,
+        valid_data=None,
+        hidden_layers_shared=None,
+        hidden_layers_specific=None,
+        epochs=50,
+        learn_rate=1e-4,
+        lr_decay=0.0,
+        alpha=1.0,
+        beta=1.0,
+        gamma=1.0,
+        ranking_sigma=0.1,
+        l2_reg_hidden=1e-4,
+        l1_reg_output=1e-4,
+        momentum=0.9,
+        activation="relu",
+        dropout=0.0,
+        standardize=True,
+        device=None,
+        validation_frequency=10,
+        patience=2000,
+        improvement_threshold=0.99999,
+        patience_increase=2,
+        logger=None,
+        verbose=True,
+        seed=None,
+        batch_size=256,
+    ):
         """
         Initialize the DeepHit model.
 
@@ -287,7 +316,9 @@ class DeepHit(BaseSurvival):
             self.device = device
 
         # Standardization parameters
-        self.offset = torch.zeros(number_inputs, dtype=torch.float32, device=self.device)
+        self.offset = torch.zeros(
+            number_inputs, dtype=torch.float32, device=self.device
+        )
         self.scale = torch.ones(number_inputs, dtype=torch.float32, device=self.device)
         self.standardize = standardize
 
@@ -295,7 +326,11 @@ class DeepHit(BaseSurvival):
         self.number_inputs = number_inputs
         self.number_events = number_events
         self.number_categories = number_categories
-        self.time_threshold = number_categories - 1 if time_threshold is None else max(0, min(time_threshold, number_categories - 1))
+        self.time_threshold = (
+            number_categories - 1
+            if time_threshold is None
+            else max(0, min(time_threshold, number_categories - 1))
+        )
 
         self.momentum = momentum
         self.hidden_layers_shared = hidden_layers_shared
@@ -324,7 +359,7 @@ class DeepHit(BaseSurvival):
         self.verbose = verbose
         self.seed = seed
         self.batch_size = batch_size
-    
+
         # Time discretisation (computed in fit())
         self.time_grid = None
 
@@ -335,7 +370,6 @@ class DeepHit(BaseSurvival):
         self.optimizer = None
 
     def _set_seeds(self):
-
         """
         Initialize random seeds for reproducibility.
 
@@ -348,7 +382,7 @@ class DeepHit(BaseSurvival):
 
         from sklearn.utils import check_random_state
 
-        if isinstance(self.seed, int) or isinstance(self.seed, float):
+        if isinstance(self.seed, (int, float)):
             self.seed = int(self.seed % np.iinfo(np.int32).max)
 
         random_state_obj = check_random_state(self.seed)
@@ -371,7 +405,6 @@ class DeepHit(BaseSurvival):
         torch.backends.cudnn.benchmark = False
 
     def _build_time_grid(self, t):
-
         """
         Build the quantile-based time grid used for discretization.
 
@@ -387,10 +420,13 @@ class DeepHit(BaseSurvival):
         """
 
         quantiles = np.linspace(0, 1, self.number_categories + 1)[1:-1]
-        self.time_grid = np.unique(np.quantile(t, quantiles)) if self.number_categories > 1 else np.array([])
+        self.time_grid = (
+            np.unique(np.quantile(t, quantiles))
+            if self.number_categories > 1
+            else np.array([])
+        )
 
     def _discretize_time(self, t):
-
         """
         Map continuous times to integer-based time bins.
 
@@ -411,7 +447,6 @@ class DeepHit(BaseSurvival):
         return idx.reshape(t.shape).astype(np.int64)
 
     def _get_fc_mask1(self, e, t_bin):
-
         """
         Build the event-time one-hot mask used in the likelihood objective.
 
@@ -431,10 +466,11 @@ class DeepHit(BaseSurvival):
         e_ravel = np.ravel(e).astype(np.int64)
         t_bin_ravel = np.ravel(t_bin).astype(np.int64)
 
-        return _get_fc_mask1_njit(e_ravel, t_bin_ravel, self.number_events, self.number_categories)
+        return _get_fc_mask1_njit(
+            e_ravel, t_bin_ravel, self.number_events, self.number_categories
+        )
 
     def _get_fc_mask2(self, t_bin):
-
         """
         Build the risk-set mask used in the censoring and ranking terms.
 
@@ -454,7 +490,6 @@ class DeepHit(BaseSurvival):
         return _get_fc_mask2_njit(t_bin_ravel, self.number_categories)
 
     def _loss_log_likelihood(self, pmf, mask1, mask2, e):
-
         """
         Compute the log-likelihood loss for the DeepHit model.
 
@@ -489,14 +524,13 @@ class DeepHit(BaseSurvival):
         # Phantom logit
         survival_past_tmax = 1.0 - pmf.sum(dim=(1, 2), keepdim=True)
         survival_past_tmax = torch.clamp(survival_past_tmax, min=0.0)
-        
+
         censored = censored + survival_past_tmax
         censored = (1.0 - e_ocurred) * torch.log(censored + 1e-15)
 
         return -torch.mean(uncensored + censored)
 
     def _loss_ranking(self, pmf, t_bin, e):
-
         """
         Compute the ranking loss used to enforce time-ordering consistency.
 
@@ -514,7 +548,7 @@ class DeepHit(BaseSurvival):
         torch.Tensor
             Scalar ranking loss term.
         """
-        
+
         t_bin = t_bin.view(-1).long()
         e_col = e.view(-1, 1)
         t_col = t_bin.view(-1, 1)
@@ -522,7 +556,7 @@ class DeepHit(BaseSurvival):
         any_event_i = e_col > 0
         earlier = t_col < t_col.t()
         tie_j_censored = (t_col == t_col.t()) & (e_col.t() == 0)
-        
+
         comparable_pairs = (any_event_i & (earlier | tie_j_censored)).float()
 
         # Cumulative distribution function (CDF)
@@ -539,14 +573,21 @@ class DeepHit(BaseSurvival):
             risk_diff = own_risk.view(-1, 1) - cross_risk.t()
 
             cause_mask = (e == k + 1).float().view(-1, 1)
-            loss_k = (comparable_pairs * cause_mask * torch.exp(-risk_diff / self.ranking_sigma)).mean(dim=1, keepdim=True)
+            loss_k = (
+                comparable_pairs
+                * cause_mask
+                * torch.exp(-risk_diff / self.ranking_sigma)
+            ).mean(dim=1, keepdim=True)
             cause_specific_losses.append(loss_k)
 
-        eta = torch.stack(cause_specific_losses, dim=1).reshape(-1, self.number_events).sum(dim=1, keepdim=True)
+        eta = (
+            torch.stack(cause_specific_losses, dim=1)
+            .reshape(-1, self.number_events)
+            .sum(dim=1, keepdim=True)
+        )
         return torch.sum(eta)
 
     def _compute_l2_loss_hidden(self):
-
         """
         Compute the L2 regularization contribution from hidden layers.
 
@@ -558,12 +599,11 @@ class DeepHit(BaseSurvival):
 
         l2_loss = 0.0
         for param in self._l2_reg_params:
-            l2_loss += torch.sum(param ** 2)
+            l2_loss += torch.sum(param**2)
 
         return l2_loss
 
     def _compute_l1_loss_output(self):
-
         """
         Compute the L1 regularization contribution from the output layer.
 
@@ -576,7 +616,6 @@ class DeepHit(BaseSurvival):
         return torch.sum(torch.abs(self.network.output_layer.weight))
 
     def _get_loss(self, x, e, t, mask1, mask2):
-
         """
         Compute the full DeepHit training loss, including regularization.
 
@@ -614,7 +653,6 @@ class DeepHit(BaseSurvival):
         return total_loss
 
     def _get_concordance_index(self, x, t, e):
-
         """
         Compute the concordance index for a given batch of samples.
 
@@ -637,17 +675,17 @@ class DeepHit(BaseSurvival):
         with torch.no_grad():
             pmf = self.network(x).cpu().numpy()
 
-        cumulative_risk = pmf[:, :, :self.time_threshold].sum(axis=2).sum(axis=1)
+        cumulative_risk = pmf[:, :, : self.time_threshold].sum(axis=2).sum(axis=1)
 
-        e_occurred = e > 0
 
-        y_true = np.rec.fromarrays([e, t], dtype=[('event', np.bool_), ('time', np.float32)]).view(np.ndarray)
+        y_true = np.rec.fromarrays(
+            [e, t], dtype=[("event", np.bool_), ("time", np.float32)]
+        ).view(np.ndarray)
         c_index = concordanceIndexHarrel([y_true, y_true], cumulative_risk)
 
         return torch.tensor(c_index, dtype=torch.float32, device=self.device)
 
     def _standardize_x(self, x):
-
         """
         Standardize input features using the training-time offset and scale.
 
@@ -665,7 +703,6 @@ class DeepHit(BaseSurvival):
         return (x - self.offset) / (self.scale + 1e-15)
 
     def _validate_input(self, X, y):
-
         """
         Validate the input data for fitting the DeepHit model.
 
@@ -688,8 +725,14 @@ class DeepHit(BaseSurvival):
         if len(X) == 0 or len(y) == 0:
             raise ValueError("Input data X and y cannot be empty.")
 
-        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
-                    raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+        if (
+            y.dtype.names is None
+            or "event" not in y.dtype.names
+            or "time" not in y.dtype.names
+        ):
+            raise ValueError(
+                "y must be a structured array with 'event' and 'time' fields."
+            )
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
@@ -702,9 +745,8 @@ class DeepHit(BaseSurvival):
 
         if len(X) <= 1:
             raise ValueError("At least two samples are required to fit the model.")
-        
-    def fit(self, X_train, y_train, **kwargs):
 
+    def fit(self, X_train, y_train, **kwargs):
         """
         Fit the DeepHit model to the training data.
 
@@ -729,7 +771,9 @@ class DeepHit(BaseSurvival):
         # Set random seeds
         self._set_seeds()
 
-        logger = self.logger if self.logger is not None else DeepMultiTaskLogger("DeepHit")
+        logger = (
+            self.logger if self.logger is not None else DeepMultiTaskLogger("DeepHit")
+        )
 
         # Build network
         self.network = DeepHitFFNN(
@@ -744,21 +788,18 @@ class DeepHit(BaseSurvival):
 
         # Cache the parameters subject to L2 regularization.
         self._l2_reg_params = [
-            param for name, param in self.network.named_parameters()
+            param
+            for name, param in self.network.named_parameters()
             if "output_layer" not in name and param.dim() > 1
         ]
 
         # Set standardization parameters
         if self.standardize:
             self.offset = torch.tensor(
-                X_train.mean(axis=0),
-                dtype=torch.float32,
-                device=self.device
+                X_train.mean(axis=0), dtype=torch.float32, device=self.device
             )
             self.scale = torch.tensor(
-                X_train.std(axis=0),
-                dtype=torch.float32,
-                device=self.device
+                X_train.std(axis=0), dtype=torch.float32, device=self.device
             )
 
         # Events and Times
@@ -786,18 +827,34 @@ class DeepHit(BaseSurvival):
         # Convert to tensors
         x_train_tensor = torch.tensor(X_train, dtype=torch.float32, device=self.device)
         e_train_tensor = torch.tensor(e_train, dtype=torch.float32, device=self.device)
-        #t_train_tensor = torch.tensor(t_train, dtype=torch.float32, device=self.device)
-        tb_train_tensor = torch.tensor(tb_train, dtype=torch.float32, device=self.device)
-        m1_train_tensor = torch.tensor(mask1_train, dtype=torch.float32, device=self.device)
-        m2_train_tensor = torch.tensor(mask2_train, dtype=torch.float32, device=self.device)
+        # t_train_tensor = torch.tensor(t_train, dtype=torch.float32, device=self.device)
+        tb_train_tensor = torch.tensor(
+            tb_train, dtype=torch.float32, device=self.device
+        )
+        m1_train_tensor = torch.tensor(
+            mask1_train, dtype=torch.float32, device=self.device
+        )
+        m2_train_tensor = torch.tensor(
+            mask2_train, dtype=torch.float32, device=self.device
+        )
 
         if self.valid_data:
-            x_valid_tensor = torch.tensor(X_val, dtype=torch.float32, device=self.device)
-            e_valid_tensor = torch.tensor(e_val, dtype=torch.float32, device=self.device)
-            #t_valid_tensor = torch.tensor(t_val, dtype=torch.float32, device=self.device)
-            tb_valid_tensor = torch.tensor(tb_valid, dtype=torch.float32, device=self.device)
-            m1_valid_tensor = torch.tensor(mask1_valid, dtype=torch.float32, device=self.device)
-            m2_valid_tensor = torch.tensor(mask2_valid, dtype=torch.float32, device=self.device)
+            x_valid_tensor = torch.tensor(
+                X_val, dtype=torch.float32, device=self.device
+            )
+            e_valid_tensor = torch.tensor(
+                e_val, dtype=torch.float32, device=self.device
+            )
+            # t_valid_tensor = torch.tensor(t_val, dtype=torch.float32, device=self.device)
+            tb_valid_tensor = torch.tensor(
+                tb_valid, dtype=torch.float32, device=self.device
+            )
+            m1_valid_tensor = torch.tensor(
+                mask1_valid, dtype=torch.float32, device=self.device
+            )
+            m2_valid_tensor = torch.tensor(
+                mask2_valid, dtype=torch.float32, device=self.device
+            )
 
         if self.standardize:
             x_train_tensor = self._standardize_x(x_train_tensor)
@@ -806,8 +863,16 @@ class DeepHit(BaseSurvival):
                 x_valid_tensor = self._standardize_x(x_valid_tensor)
 
         # Dataloader for training
-        train_dataset = TensorDataset(x_train_tensor, e_train_tensor, tb_train_tensor, m1_train_tensor, m2_train_tensor)
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        train_dataset = TensorDataset(
+            x_train_tensor,
+            e_train_tensor,
+            tb_train_tensor,
+            m1_train_tensor,
+            m2_train_tensor,
+        )
+        train_loader = DataLoader(
+            train_dataset, batch_size=self.batch_size, shuffle=True
+        )
 
         # Initialize optimizer
         self.optimizer = tt.optim.Adam(
@@ -821,7 +886,7 @@ class DeepHit(BaseSurvival):
         best_params_idx = -1
 
         start = time.time()
-        
+
         patience = self.patience
         for epoch in range(self.epochs):
             # Learning rate decay
@@ -834,7 +899,7 @@ class DeepHit(BaseSurvival):
             # Batches
             self.network.train()
             epoch_loss = 0.0
-            
+
             for b_x, b_e, b_t, b_m1, b_m2 in train_loader:
                 self.optimizer.zero_grad()
                 loss = self._get_loss(b_x, b_e, b_t, b_m1, b_m2)
@@ -855,8 +920,11 @@ class DeepHit(BaseSurvival):
                     self.network.eval()
                     with torch.no_grad():
                         validation_loss = self._get_loss(
-                            x_valid_tensor, e_valid_tensor, tb_valid_tensor, 
-                            m1_valid_tensor, m2_valid_tensor
+                            x_valid_tensor,
+                            e_valid_tensor,
+                            tb_valid_tensor,
+                            m1_valid_tensor,
+                            m2_valid_tensor,
                         )
                         logger.logValue("valid_loss", validation_loss.item(), epoch)
 
@@ -864,29 +932,43 @@ class DeepHit(BaseSurvival):
                     logger.logValue("valid_c-index", ci_valid, epoch)
 
                     if validation_loss.item() < best_validation_loss:
-                        if validation_loss.item() < best_validation_loss * self.improvement_threshold:
+                        if (
+                            validation_loss.item()
+                            < best_validation_loss * self.improvement_threshold
+                        ):
                             patience = max(patience, epoch * self.patience_increase)
 
                         # Save best parameters
                         best_params = {
                             "model_state_dict": self.network.state_dict(),
-                            "optimizer_state_dict": self.optimizer.state_dict()
+                            "optimizer_state_dict": self.optimizer.state_dict(),
                         }
                         best_params_idx = epoch
                         best_validation_loss = validation_loss.item()
 
                 if self.verbose:
                     if self.valid_data:
-                        logger.print_progress_bar(epoch, self.epochs, avg_epoch_loss, validation_loss.item(), ci_train, ci_valid)
+                        logger.print_progress_bar(
+                            epoch,
+                            self.epochs,
+                            avg_epoch_loss,
+                            validation_loss.item(),
+                            ci_train,
+                            ci_valid,
+                        )
                     else:
-                        logger.print_progress_bar(epoch, self.epochs, loss=avg_epoch_loss, ci=ci_train)
+                        logger.print_progress_bar(
+                            epoch, self.epochs, loss=avg_epoch_loss, ci=ci_train
+                        )
 
             if patience <= epoch:
-                print("Early stopping at epoch %d" % epoch)
+                print(f"Early stopping at epoch {epoch}")
                 break
 
         if self.verbose:
-            logger.logMessage(f"Finished Training with {epoch + 1} iterations in {time.time() - start:.2f}s")
+            logger.logMessage(
+                f"Finished Training with {epoch + 1} iterations in {time.time() - start:.2f}s"
+            )
 
         logger.shutdown()
 
@@ -899,7 +981,6 @@ class DeepHit(BaseSurvival):
         return self
 
     def predict(self, X):
-
         """
         Predict the overall risk for the given data.
 
@@ -916,7 +997,7 @@ class DeepHit(BaseSurvival):
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
-    
+
         self.network.eval()
         with torch.no_grad():
             x_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
@@ -924,15 +1005,16 @@ class DeepHit(BaseSurvival):
                 x_tensor = self._standardize_x(x_tensor)
             pmf = self.network(x_tensor).cpu().numpy()
 
-        cumulative_risk = pmf[:, :, :self.time_threshold].sum(axis=2).sum(axis=1)
-        
+        cumulative_risk = pmf[:, :, : self.time_threshold].sum(axis=2).sum(axis=1)
+
         return cumulative_risk
 
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
-
+    def predict_survival_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
         """
         Predict the overall survival function for the given samples.
 
@@ -957,8 +1039,10 @@ class DeepHit(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
         self.network.eval()
         with torch.no_grad():
             x_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
@@ -969,16 +1053,24 @@ class DeepHit(BaseSurvival):
         cumulative_incidence = np.cumsum(pmf.sum(axis=1), axis=1)
 
         survival_function = 1.0 - cumulative_incidence
-        self.survival_function = np.array([StepFunction(X=self.time_grid, y=individual_survival, is_survival=True) for individual_survival in survival_function])
+        self.survival_function = np.array(
+            [
+                StepFunction(X=self.time_grid, y=individual_survival, is_survival=True)
+                for individual_survival in survival_function
+            ]
+        )
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "DeepHit", dataset, "Survival", seed)
+            self._plot_survival_hazard_functions(
+                self.survival_function, index, "DeepHit", dataset, "Survival", seed
+            )
             plt.show()
 
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, event=None, plot=False):
-
+    def predict_cumulative_hazard_function(
+        self, X, index=None, dataset=None, seed=None, event=None, plot=False
+    ):
         """
         Predict the cumulative incidence or cumulative hazard function.
 
@@ -1006,8 +1098,10 @@ class DeepHit(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
         self.network.eval()
         with torch.no_grad():
             x_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
@@ -1022,7 +1116,14 @@ class DeepHit(BaseSurvival):
 
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "DeepHit", dataset, "CumulativeRisk", seed)
+            self._plot_survival_hazard_functions(
+                self.cumulative_hazard_function,
+                index,
+                "DeepHit",
+                dataset,
+                "CumulativeRisk",
+                seed,
+            )
             plt.show()
 
         return self.cumulative_hazard_function
@@ -1030,8 +1131,18 @@ class DeepHit(BaseSurvival):
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, event=1, background=False, plot=False):
-
+    def calculate_xai(
+        self,
+        X,
+        index,
+        scaler,
+        dataset,
+        seed,
+        feature_names,
+        event=1,
+        background=False,
+        plot=False,
+    ):
         """
         Compute SHAP-based explainability values for the model.
 
@@ -1063,23 +1174,31 @@ class DeepHit(BaseSurvival):
         try:
             seed = int(seed)
         except (TypeError, ValueError):
-            raise ValueError(f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}")
+            raise ValueError(
+                f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}"
+            )
 
         logging.getLogger("xai").setLevel(logging.WARNING)
 
         # Applying Explainer (model type)
         masker = shap.maskers.Independent(X, max_samples=X.shape[0])
-        explainer_risk = shap.Explainer(self.predict, masker, feature_names=feature_names, seed=seed)
+        explainer_risk = shap.Explainer(
+            self.predict, masker, feature_names=feature_names, seed=seed
+        )
 
         # Background (faster)
         X_background = X.copy()
         if background:
-            X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
+            X_background = pd.DataFrame(
+                shap.kmeans(X, background).data, columns=feature_names
+            )
 
         self.shap_explainer = explainer_risk(X_background)
 
         if plot:
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "DeepHit", dataset, seed)
+            BaseSurvival.plot_shap(
+                self.shap_explainer, index, scaler, "DeepHit", dataset, seed
+            )
             plt.show()
 
         return self.shap_explainer

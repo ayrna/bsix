@@ -1,13 +1,21 @@
 import argparse
 import json
-import numpy as np
 import time
 
-from bsix.models import BaseSurvival
-from bsix.utils import get_data, get_estimator, compute_metrics, load_data_hdf, load_data_arff, load_data_csv, format_predictions
-
+import numpy as np
 from remayn.result import make_result
 from remayn.result_set import ResultFolder
+
+from bsix.models import BaseSurvival
+from bsix.utils import (
+    compute_metrics,
+    format_predictions,
+    get_data,
+    get_estimator,
+    load_data_arff,
+    load_data_csv,
+    load_data_hdf,
+)
 
 ESTIMATOR_TO_BLOCK = {
     "AcceleratedFailureTime": "standard",
@@ -17,21 +25,20 @@ ESTIMATOR_TO_BLOCK = {
     "RandomSurvForest": "standard",
     "SurvTree": "standard",
     "SurvivalTabPFN": "standard",
-
     "CoxRegressionWithTimeVarying": "time_varying",
     "DeepTimeVarying": "time_varying",
-    
     "DeepMultiTask": "multitask",
 }
 
-def _set_global_seed(seed):
 
+def _set_global_seed(seed):
     """
     Set global seeds and deterministic flags like benchmark runner.
     """
 
     import os
     import random
+
     import torch
 
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -46,12 +53,13 @@ def _set_global_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+
 def _get_config(estimator, estimator_name, dataset, seed):
     if estimator is not None:
         config = estimator.get_params().copy()
     else:
         config = {}
-        
+
     config["estimator_name"] = estimator_name
     config["random_state"] = seed
     config["dataset"] = dataset
@@ -74,20 +82,19 @@ def _get_config(estimator, estimator_name, dataset, seed):
             del config[key]
 
     return config
-        
+
+
 def _build_time_varying_dataframe(data_dir, dataset_name, seed):
-	
     """
     Create the time-varying dataframe.
     """
 
-    try:
-        df = load_data_csv(data_dir, dataset_name)
-    except:
+    for loader in (load_data_csv, load_data_arff, load_data_hdf):
         try:
-            df = load_data_arff(data_dir, dataset_name)
-        except:
-            df = load_data_hdf(data_dir, dataset_name)
+            df = loader(data_dir, dataset_name)
+            break
+        except (FileNotFoundError, OSError, ValueError):
+            continue
 
     df = df[df["time"] > 0]
     df = df.dropna()
@@ -113,11 +120,13 @@ def _build_time_varying_dataframe(data_dir, dataset_name, seed):
         time="time",
         event="event",
     )
-    
+
     return df
 
-def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_size, seed):
-	
+
+def _load_block_data(
+    block_name, data_dir, dataset_name, test_size, validation_size, seed
+):
     """
     Load data for one model block: standard, multitask or time-varying.
     """
@@ -155,8 +164,8 @@ def _load_block_data(block_name, data_dir, dataset_name, test_size, validation_s
 
     raise ValueError(f"Unknown block '{block_name}'")
 
+
 def _get_validation(X_train, y_train, X_validation, y_validation):
-	
     """
     Return validation split.
     """
@@ -175,6 +184,7 @@ def _get_validation(X_train, y_train, X_validation, y_validation):
     validation_split = PredefinedSplit(validation_fold)
 
     return X_train_val, y_train_val, validation_split
+
 
 def run_survival_flow(
     *,
@@ -201,11 +211,23 @@ def run_survival_flow(
         return
 
     _set_global_seed(seed)
-    
+
     block_name = ESTIMATOR_TO_BLOCK[estimator_name]
     print(f"\n=== Running block: {block_name} ({dataset}, seed={seed}) ===")
 
-    X_train, y_train, X_validation, y_validation, X_test, y_test, train_idx, val_idx, test_idx, feature_names, scaler = _load_block_data(
+    (
+        X_train,
+        y_train,
+        X_validation,
+        y_validation,
+        X_test,
+        y_test,
+        train_idx,
+        val_idx,
+        test_idx,
+        _feature_names,
+        scaler,
+    ) = _load_block_data(
         block_name=block_name,
         data_dir=data_dir,
         dataset_name=dataset,
@@ -213,14 +235,14 @@ def run_survival_flow(
         validation_size=validation_size,
         seed=seed,
     )
-    
+
     print(f"\n-> Estimator: {estimator_name}")
 
     X_train_val, y_train_val, validation_split = _get_validation(
         X_train=X_train,
         y_train=y_train,
         X_validation=X_validation,
-        y_validation=y_validation
+        y_validation=y_validation,
     )
 
     estimator = get_estimator(
@@ -240,7 +262,7 @@ def run_survival_flow(
         if config in results:
             print("Experiment already run. Skipping...")
             return
-    
+
     start = time.time()
     estimator.fit(X_train_val, y_train_val)
     total_time = time.time() - start
@@ -250,12 +272,24 @@ def run_survival_flow(
     estimator.best_estimator_.val_idx_ = val_idx
     estimator.best_estimator_.test_idx_ = test_idx
 
-    survival_function_train_val = estimator.best_estimator_.predict_survival_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
-    cumulative_hazard_function_train_val = estimator.best_estimator_.predict_cumulative_hazard_function(X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed)
+    survival_function_train_val = estimator.best_estimator_.predict_survival_function(
+        X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed
+    )
+    (
+        estimator.best_estimator_.predict_cumulative_hazard_function(
+            X_train_val, np.concatenate([train_idx, val_idx]), dataset, seed
+        )
+    )
     # xai_train_val = estimator.best_estimator_.calculate_xai(X_train_val, np.concatenate([train_idx, val_idx]), scaler, dataset, seed, feature_names, background=25)
 
-    survival_function_test = estimator.best_estimator_.predict_survival_function(X_test, test_idx, dataset, seed)
-    cumulative_hazard_function_test = estimator.best_estimator_.predict_cumulative_hazard_function(X_test, test_idx, dataset, seed)
+    survival_function_test = estimator.best_estimator_.predict_survival_function(
+        X_test, test_idx, dataset, seed
+    )
+    (
+        estimator.best_estimator_.predict_cumulative_hazard_function(
+            X_test, test_idx, dataset, seed
+        )
+    )
     # xai_test = estimator.best_estimator_.calculate_xai(X_test, test_idx, scaler, dataset, seed, feature_names, background=25)
 
     y_train_val = np.squeeze(y_train_val)
@@ -264,8 +298,15 @@ def run_survival_flow(
     train_pred = estimator.predict(X_train_val)
     test_pred = estimator.predict(X_test)
 
-    train_metrics = compute_metrics(y_train_val, y_train_val, format_predictions(train_pred), survival_function_train_val)
-    test_metrics = compute_metrics(y_train_val, y_test, format_predictions(test_pred), survival_function_test)
+    train_metrics = compute_metrics(
+        y_train_val,
+        y_train_val,
+        format_predictions(train_pred),
+        survival_function_train_val,
+    )
+    test_metrics = compute_metrics(
+        y_train_val, y_test, format_predictions(test_pred), survival_function_test
+    )
 
     config = _get_config(estimator, estimator_name, dataset, seed)
     best_params = estimator.best_params_ if hasattr(estimator, "best_params_") else {}
@@ -274,36 +315,53 @@ def run_survival_flow(
         result = make_result(
             base_path=results_dir,
             config=config,
-            predictions=np.array([format_predictions(test_pred)], dtype=object), # np.array([dict]) -> array 1-D
+            predictions=np.array(
+                [format_predictions(test_pred)], dtype=object
+            ),  # np.array([dict]) -> array 1-D
             targets=np.array([y_train_val, y_test], dtype=object),
-            train_predictions=np.array([format_predictions(train_pred)], dtype=object), # np.array([dict]) -> array 1-D
+            train_predictions=np.array(
+                [format_predictions(train_pred)], dtype=object
+            ),  # np.array([dict]) -> array 1-D
             train_targets=np.array([y_train_val, y_train_val]),
             time=total_time,
             best_params=best_params,
-            best_model=estimator.best_estimator_
+            best_model=estimator.best_estimator_,
         )
         result.save()
     else:
         print("Train Metrics")
         print(json.dumps(train_metrics, indent=4))
-        print(f"Test Metrics")
+        print("Test Metrics")
         print(json.dumps(test_metrics, indent=4))
 
         if hasattr(estimator, "best_params_"):
             print("Best Params")
             print(json.dumps(estimator.best_params_, indent=4))
 
+
 def _build_arg_parser():
     parser = argparse.ArgumentParser(description="Run BSIX")
-    parser.add_argument("--data_dir", default="bsix.datasets", help="Directorio de datasets")
-    parser.add_argument("--results_dir", default="./results", help="Directorio de salida")
+    parser.add_argument(
+        "--data_dir", default="bsix.datasets", help="Directorio de datasets"
+    )
+    parser.add_argument(
+        "--results_dir", default="./results", help="Directorio de salida"
+    )
     parser.add_argument("--dataset", default="colon.csv", help="Nombre de dataset")
     parser.add_argument("--test_size", type=float, default=0.25, help="Tamaño de test")
-    parser.add_argument("--validation_size", type=float, default=0.2, help="Tamaño de validación")
+    parser.add_argument(
+        "--validation_size", type=float, default=0.2, help="Tamaño de validación"
+    )
     parser.add_argument("--seed", type=int, default=0, help="Número de semilla")
-    parser.add_argument("--estimator_name", default="CoxRegression", help="Nombre del estimador")
-    parser.add_argument("--n_iter", type=int, default=30, help="Iteraciones búsqueda de hiperparámetros")
-    parser.add_argument("--n_jobs", type=int, default=-1, help="Número de trabajos en paralelo")
+    parser.add_argument(
+        "--estimator_name", default="CoxRegression", help="Nombre del estimador"
+    )
+    parser.add_argument(
+        "--n_iter", type=int, default=30, help="Iteraciones búsqueda de hiperparámetros"
+    )
+    parser.add_argument(
+        "--n_jobs", type=int, default=-1, help="Número de trabajos en paralelo"
+    )
 
     return parser
 
@@ -331,4 +389,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

@@ -1,19 +1,20 @@
-from bsix.utils import from_results_to_metrics
-from typing import Optional, List, Union
-from pathlib import Path
-from remayn.result_set import ResultFolder
 from datetime import datetime
+from pathlib import Path
+
+from remayn.result_set import ResultFolder
+
+from bsix.utils import from_results_to_metrics
 
 
 def collect_results(
-    results_path: Union[Path, str],
-    output_path: Union[Path, str] = "prepared_results",
+    results_path: Path | str,
+    output_path: Path | str = "prepared_results",
     appendix: str = "",
-    datasets: Optional[List[str]] = None,
-    methods: Optional[List[str]] = None,
-    seeds: Optional[List[int]] = None,
-    config_columns_to_include: Optional[List[str]] = None,
-    best_params_columns_to_include: Optional[List[str]] = None,
+    datasets: list[str] | None = None,
+    methods: list[str] | None = None,
+    seeds: list[int] | None = None,
+    config_columns_to_include: list[str] | None = None,
+    best_params_columns_to_include: list[str] | None = None,
     include_train: bool = True,
     include_val: bool = False,
     skip_zip: bool = False,
@@ -22,7 +23,11 @@ def collect_results(
 ):
 
     if config_columns_to_include is None:
-        config_columns_to_include = ["dataset", "estimator_name", "random_state",]
+        config_columns_to_include = [
+            "dataset",
+            "estimator_name",
+            "random_state",
+        ]
 
     if best_params_columns_to_include is None:
         best_params_columns_to_include = []
@@ -37,22 +42,15 @@ def collect_results(
         if seeds is not None and result.config["random_state"] not in seeds:
             return False
 
-        if external_cv:
-            # Get only final results
-            if (
-                "search_n_iter" not in result.config
-                or result.config["search_n_iter"] is None
-            ):
-                if (
-                    result.config["n_folds"] is not None
-                    and result.config["n_folds"] > 1
-                ):
-                    return False
-                if (
-                    result.config["validation_size"] is not None
-                    and result.config["validation_size"] > 0
-                ):
-                    return False
+        # Get only final results
+        if external_cv and result.config.get("search_n_iter") is None:
+            n_folds = result.config["n_folds"]
+            val_size = result.config["validation_size"]
+            has_internal_split = (n_folds is not None and n_folds > 1) or (
+                val_size is not None and val_size > 0
+            )
+            if has_internal_split:
+                return False
 
         return True
 
@@ -80,7 +78,7 @@ def collect_results(
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
     output_file_wo_ext = (
-        output_path / f'{datetime.now().strftime(r"%Y%m%d_%H%M%S")}{appendix}'
+        output_path / f"{datetime.now().strftime(r'%Y%m%d_%H%M%S')}{appendix}"
     )
 
     df.to_excel(f"{output_file_wo_ext}.xlsx", index=False)

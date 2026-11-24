@@ -6,19 +6,19 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'bsix'
-copyright = '2026, Francisco Moreno Cano'
-author = 'Francisco Moreno Cano'
+project = "bsix"
+copyright = "2026, Francisco Moreno Cano"
+author = "Francisco Moreno Cano"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
     "sphinx_design",
-    'sphinx.ext.autodoc',     # Generate documentation from the code
-    'sphinx.ext.napoleon',    # Supports Google/NumPy style docstrings
-    'sphinx.ext.viewcode',    # Adds links to the source code
-    'sphinx.ext.intersphinx',
+    "sphinx.ext.autodoc",  # Generate documentation from the code
+    "sphinx.ext.napoleon",  # Supports Google/NumPy style docstrings
+    "sphinx.ext.viewcode",  # Adds links to the source code
+    "sphinx.ext.intersphinx",
 ]
 
 autodoc_mock_imports = [
@@ -43,40 +43,42 @@ autodoc_mock_imports = [
 ]
 
 autodoc_default_options = {
-    'members': True,
-    'undoc-members': True,
-    'show-inheritance': True,
-    'exclude-members': 'set_fit_request, set_score_request, set_predict_request',
+    "members": True,
+    "undoc-members": True,
+    "show-inheritance": True,
+    "exclude-members": "set_fit_request, set_score_request, set_predict_request",
 }
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 exclude_patterns = []
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+html_theme = "sphinx_rtd_theme"
+html_static_path = ["_static"]
 
 html_theme_options = {
-    'navigation_depth': 5,
-    'collapse_navigation': True, 
+    "navigation_depth": 5,
+    "collapse_navigation": True,
 }
 
 html_css_files = [
-    'custom.css',
+    "custom.css",
 ]
 
 # Intersphinx mapping to link to external documentation
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-    'sklearn': ('https://scikit-learn.org/stable/', None),
-    'numpy': ('https://numpy.org/doc/stable/', None),
-    'pandas': ('https://pandas.pydata.org/docs/', None),
+    "python": ("https://docs.python.org/3", None),
+    "sklearn": ("https://scikit-learn.org/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
 }
 
 import os
 import sys
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(current_dir, '../../src/'))) # Local path to bsix/src
+sys.path.insert(
+    0, os.path.abspath(os.path.join(current_dir, "../../src/"))
+)  # Local path to bsix/src

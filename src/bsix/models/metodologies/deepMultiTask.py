@@ -6,26 +6,27 @@ survival prediction API.
 """
 
 import logging
+import random
+import time
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import shap
-import torchtuples as tt
-import time
 import torch
-import random
-import warnings
+import torchtuples as tt
 
+from ...utils.survival_metrics import concordanceIndexHarrel
 from ..base import BaseSurvival
 from ..loggers.deepMultiTaskLogger import DeepMultiTaskLogger
 from ..nets.deepNets import DeepMultiTaskFFNN
 from .utils import BreslowEstimator
-from ...utils.survival_metrics import concordanceIndexHarrel
 
 warnings.filterwarnings("ignore")
 
-class DeepMultiTask(BaseSurvival):
 
+class DeepMultiTask(BaseSurvival):
     """
     Multi-task deep survival model for competing-risk learning.
 
@@ -118,11 +119,33 @@ class DeepMultiTask(BaseSurvival):
     >>> model.fit(X_train, y_train)
     >>> risk = model.predict(X_test)
     """
-    
-    def __init__(self, number_inputs, valid_data=None, hidden_layers=None, epochs=500, learn_rate=0.0, lr_decay=0.0, l1_reg=0.0, l2_reg=0.0, cox_reg=0.0,
-                 momentum=0.9, activation="relu", dropout=0.0, standardize=True, ties="cox", device=None, validation_frequency=10, 
-                 patience=500, improvement_threshold=0.99999, patience_increase=25, logger=None, verbose=True, seed=None, coef_likelihood=[1.0]):
-        
+
+    def __init__(
+        self,
+        number_inputs,
+        valid_data=None,
+        hidden_layers=None,
+        epochs=500,
+        learn_rate=0.0,
+        lr_decay=0.0,
+        l1_reg=0.0,
+        l2_reg=0.0,
+        cox_reg=0.0,
+        momentum=0.9,
+        activation="relu",
+        dropout=0.0,
+        standardize=True,
+        ties="cox",
+        device=None,
+        validation_frequency=10,
+        patience=500,
+        improvement_threshold=0.99999,
+        patience_increase=25,
+        logger=None,
+        verbose=True,
+        seed=None,
+        coef_likelihood=None,
+    ):
         """
         Initialize the multi-task deep survival model.
 
@@ -175,18 +198,22 @@ class DeepMultiTask(BaseSurvival):
         coef_likelihood : list of float, default=[1.0]
             Weight of the likelihood term for each risk channel.
         """
-        
+
         # Set device
+        if coef_likelihood is None:
+            coef_likelihood = [1.0]
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = device
-        
+
         # Standardization parameters
-        self.offset = torch.zeros(number_inputs, dtype=torch.float32, device=self.device)
+        self.offset = torch.zeros(
+            number_inputs, dtype=torch.float32, device=self.device
+        )
         self.scale = torch.ones(number_inputs, dtype=torch.float32, device=self.device)
         self.standardize = standardize
-        
+
         # Parameters
         self.number_inputs = number_inputs
         self.learn_rate = learn_rate
@@ -208,11 +235,11 @@ class DeepMultiTask(BaseSurvival):
         self.improvement_threshold = improvement_threshold
 
         self.logger = logger
-        
+
         self.verbose = verbose
 
         self.seed = seed
-    
+
         # Loss coefficients
         self.coef_likelihood = coef_likelihood
 
@@ -221,9 +248,8 @@ class DeepMultiTask(BaseSurvival):
 
         # Optimizer (will be initialized in train())
         self.optimizer = None
-    
-    def _set_seeds(self):
 
+    def _set_seeds(self):
         """
         Initialize random seeds for reproducibility.
 
@@ -236,7 +262,7 @@ class DeepMultiTask(BaseSurvival):
 
         from sklearn.utils import check_random_state
 
-        if isinstance(self.seed, int) or isinstance(self.seed, float):
+        if isinstance(self.seed, (int, float)):
             self.seed = int(self.seed % np.iinfo(np.int32).max)
 
         random_state_obj = check_random_state(self.seed)
@@ -257,9 +283,8 @@ class DeepMultiTask(BaseSurvival):
 
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-    
-    def _negative_log_likelihood(self, risk, t, e):
 
+    def _negative_log_likelihood(self, risk, t, e):
         """
         Compute the negative partial log-likelihood for a Cox-type risk head.
 
@@ -277,7 +302,7 @@ class DeepMultiTask(BaseSurvival):
         torch.Tensor
             Scalar negative partial log-likelihood for the supplied risk head.
         """
-        
+
         risk, t, e = self._sort_multitask(risk, t, e)
 
         t_i = t.view(-1, 1)
@@ -287,22 +312,23 @@ class DeepMultiTask(BaseSurvival):
             log_risk = torch.logcumsumexp(risk, dim=0)
         elif self.ties == "breslow":
             mask = t_i <= t_j
-            risk_mask = torch.where(mask, risk.view(1, -1), torch.tensor(-float('inf'), device=risk.device))
+            risk_mask = torch.where(
+                mask, risk.view(1, -1), torch.tensor(-float("inf"), device=risk.device)
+            )
 
             log_risk = torch.logsumexp(risk_mask, dim=1)
-        
+
         uncensored_likelihood = risk.view(-1) - log_risk.view(-1)
         censored_likelihood = uncensored_likelihood * e.view(-1)
         num_observed_events = torch.sum(e)
-        
+
         if num_observed_events == 0:
             return torch.tensor(0.0, device=risk.device, requires_grad=True)
-        neg_likelihood = - (torch.sum(censored_likelihood) / num_observed_events)
+        neg_likelihood = -(torch.sum(censored_likelihood) / num_observed_events)
 
         return neg_likelihood
-    
-    def _compute_l1_loss(self):
 
+    def _compute_l1_loss(self):
         """
         Compute the L1 regularization penalty over the network weights.
 
@@ -317,9 +343,8 @@ class DeepMultiTask(BaseSurvival):
             l1_loss += torch.sum(torch.abs(param))
 
         return l1_loss
-    
-    def _compute_l2_loss(self):
 
+    def _compute_l2_loss(self):
         """
         Compute the L2 regularization penalty over the network weights.
 
@@ -331,12 +356,11 @@ class DeepMultiTask(BaseSurvival):
 
         l2_loss = 0.0
         for param in self.network.parameters():
-            l2_loss += torch.sum(param ** 2)
+            l2_loss += torch.sum(param**2)
 
         return l2_loss
-    
-    def _get_loss(self, x, e, t):
 
+    def _get_loss(self, x, e, t):
         """
         Compute the total training loss for the multi-task survival model.
 
@@ -355,22 +379,28 @@ class DeepMultiTask(BaseSurvival):
             Scalar total loss value, including Cox terms and regularization.
         """
 
-        risk = self.network(x)[1][:, :self.number_events]
+        risk = self.network(x)[1][:, : self.number_events]
 
         cox_loss = []
         for k in range(self.number_events):
-            cox_loss.append(self._negative_log_likelihood(risk[:, k], t[:, k], e[:, k]) * self.coef_likelihood[k])
+            cox_loss.append(
+                self._negative_log_likelihood(risk[:, k], t[:, k], e[:, k])
+                * self.coef_likelihood[k]
+            )
         cox_loss = torch.stack(cox_loss)
-        
+
         l1_loss = self._compute_l1_loss() if self.l1_reg > 0.0 else 0.0
         l2_loss = self._compute_l2_loss() if self.l2_reg > 0.0 else 0.0
-        
-        total_loss = (self.cox_reg * torch.sum(cox_loss)) + (self.l1_reg * l1_loss) + (self.l2_reg * l2_loss)
+
+        total_loss = (
+            (self.cox_reg * torch.sum(cox_loss))
+            + (self.l1_reg * l1_loss)
+            + (self.l2_reg * l2_loss)
+        )
 
         return total_loss
-    
-    def _get_concordance_index(self, x, t, e, **kwargs):
 
+    def _get_concordance_index(self, x, t, e, **kwargs):
         """
         Compute the concordance index for each risk head.
 
@@ -393,18 +423,25 @@ class DeepMultiTask(BaseSurvival):
 
         self.network.eval()
         with torch.no_grad():
-            risk = self.network(x)[1][:, :self.number_events].cpu().numpy()
-            
+            risk = self.network(x)[1][:, : self.number_events].cpu().numpy()
+
         c_index_censored = []
         for k in range(self.number_events):
-            y_true = np.rec.fromarrays([e[:, k], t[:, k]], dtype=[('event', np.bool_), ('time', np.float32)]).view(np.ndarray)
-            c_index_censored.append(torch.tensor(concordanceIndexHarrel([y_true, y_true], risk[:, k]), dtype=torch.float32, device=self.device))
+            y_true = np.rec.fromarrays(
+                [e[:, k], t[:, k]], dtype=[("event", np.bool_), ("time", np.float32)]
+            ).view(np.ndarray)
+            c_index_censored.append(
+                torch.tensor(
+                    concordanceIndexHarrel([y_true, y_true], risk[:, k]),
+                    dtype=torch.float32,
+                    device=self.device,
+                )
+            )
         c_index_censored = torch.stack(c_index_censored)
-        
-        return c_index_censored
-    
-    def _standardize_x(self, x):
 
+        return c_index_censored
+
+    def _standardize_x(self, x):
         """
         Standardize input features using the training-time offset and scale.
 
@@ -422,7 +459,6 @@ class DeepMultiTask(BaseSurvival):
         return (x - self.offset) / (self.scale + 1e-15)
 
     def _validate_input(self, X, y):
-
         """
         Validate the input data for fitting the DeepMultiTask model.
 
@@ -445,8 +481,14 @@ class DeepMultiTask(BaseSurvival):
         if len(X) == 0 or len(y) == 0:
             raise ValueError("Input data X and y cannot be empty.")
 
-        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
-            raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+        if (
+            y.dtype.names is None
+            or "event" not in y.dtype.names
+            or "time" not in y.dtype.names
+        ):
+            raise ValueError(
+                "y must be a structured array with 'event' and 'time' fields."
+            )
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
@@ -459,9 +501,8 @@ class DeepMultiTask(BaseSurvival):
 
         if len(X) <= 1:
             raise ValueError("At least two samples are required to fit the model.")
-        
+
     def fit(self, X_train, y_train, **kwargs):
-        
         """
         Fit the model to the training data.
 
@@ -480,7 +521,7 @@ class DeepMultiTask(BaseSurvival):
         """
 
         self._validate_input(X_train, y_train)
-        
+
         # Set random seeds
         self._set_seeds()
 
@@ -492,7 +533,7 @@ class DeepMultiTask(BaseSurvival):
 
         if self.logger is None:
             logger = DeepMultiTaskLogger("DeepMultiTask")
-        
+
         # Build network
         self.network = DeepMultiTaskFFNN(
             number_inputs=self.number_inputs,
@@ -505,16 +546,12 @@ class DeepMultiTask(BaseSurvival):
         # Set standardization parameters
         if self.standardize:
             self.offset = torch.tensor(
-                X_train.mean(axis=0), 
-                dtype=torch.float32, 
-                device=self.device
+                X_train.mean(axis=0), dtype=torch.float32, device=self.device
             )
             self.scale = torch.tensor(
-                X_train.std(axis=0),
-                dtype=torch.float32,
-                device=self.device
+                X_train.std(axis=0), dtype=torch.float32, device=self.device
             )
-        
+
         # Events and Times
         e_train = []
         t_train = []
@@ -523,27 +560,31 @@ class DeepMultiTask(BaseSurvival):
             t_train.append(y_train["time"][:, k].astype(np.float32))
         e_train = np.array(e_train, np.bool_).T
         t_train = np.array(t_train, np.float32).T
-        
+
         if self.valid_data:
             X_valid = np.array(self.valid_data["x"], np.float32)
             e_valid = []
             t_valid = []
-            
+
             for k in range(self.number_events):
                 e_valid.append(np.array(self.valid_data["e"][:, k], np.bool_))
                 t_valid.append(np.array(self.valid_data["t"][:, k], np.float32))
             e_valid = np.array(e_valid, np.bool_).T
             t_valid = np.array(t_valid, np.float32).T
-        
+
         # Convert to tensors
         x_train_tensor = torch.tensor(X_train, dtype=torch.float32, device=self.device)
         e_train_tensor = torch.tensor(e_train, dtype=torch.long, device=self.device)
         t_train_tensor = torch.tensor(t_train, dtype=torch.float32, device=self.device)
 
         if self.valid_data:
-            x_valid_tensor = torch.tensor(X_valid, dtype=torch.float32, device=self.device)
+            x_valid_tensor = torch.tensor(
+                X_valid, dtype=torch.float32, device=self.device
+            )
             e_valid_tensor = torch.tensor(e_valid, dtype=torch.long, device=self.device)
-            t_valid_tensor = torch.tensor(t_valid, dtype=torch.float32, device=self.device)
+            t_valid_tensor = torch.tensor(
+                t_valid, dtype=torch.float32, device=self.device
+            )
 
         if self.standardize:
             x_train_tensor = self._standardize_x(x_train_tensor)
@@ -556,12 +597,12 @@ class DeepMultiTask(BaseSurvival):
             lr=self.learn_rate,
             momentum=self.momentum,
         )
-        
+
         # Training metrics
         best_validation_loss = np.inf
         best_params = None
         best_params_idx = -1
-        
+
         start = time.time()
 
         patience = self.patience
@@ -570,78 +611,97 @@ class DeepMultiTask(BaseSurvival):
             lr = self.learn_rate / (1 + epoch * self.lr_decay)
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = lr
-            
+
             logger.logValue("lr", lr, epoch)
-            
+
             # Training step
             self.network.train()
             self.optimizer.zero_grad()
-            
+
             loss = self._get_loss(x_train_tensor, e_train_tensor, t_train_tensor)
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
-            
+
             self.optimizer.step()
-            
+
             logger.logValue("loss", loss.item(), epoch)
 
             if epoch % self.validation_frequency == 0:
                 # Calculate training C-index
                 ci_train = self._get_concordance_index(x_train_tensor, t_train, e_train)
                 logger.logValue("c-index", ci_train, epoch)
-                
+
                 # Validation
                 if self.valid_data:
                     self.network.eval()
                     with torch.no_grad():
-                        validation_loss = self._get_loss(x_valid_tensor, e_valid_tensor, t_valid_tensor)
+                        validation_loss = self._get_loss(
+                            x_valid_tensor, e_valid_tensor, t_valid_tensor
+                        )
                         logger.logValue("valid_loss", validation_loss.item(), epoch)
-                    
-                    ci_valid = self._get_concordance_index(x_valid_tensor, t_valid, e_valid)
+
+                    ci_valid = self._get_concordance_index(
+                        x_valid_tensor, t_valid, e_valid
+                    )
                     logger.logValue("valid_c-index", ci_valid, epoch)
-                    
+
                     if validation_loss.item() < best_validation_loss:
-                        if validation_loss.item() < best_validation_loss * self.improvement_threshold:
+                        if (
+                            validation_loss.item()
+                            < best_validation_loss * self.improvement_threshold
+                        ):
                             patience = max(patience, epoch * self.patience_increase)
-                        
+
                         # Save best parameters
                         best_params = {
                             "model_state_dict": self.network.state_dict(),
-                            "optimizer_state_dict": self.optimizer.state_dict()
+                            "optimizer_state_dict": self.optimizer.state_dict(),
                         }
                         best_params_idx = epoch
                         best_validation_loss = validation_loss.item()
-            
+
             if self.verbose and (epoch % self.validation_frequency == 0):
                 if self.valid_data:
-                    logger.print_progress_bar(epoch, self.epochs, loss.item(), validation_loss.item(), ci_train, ci_valid)
+                    logger.print_progress_bar(
+                        epoch,
+                        self.epochs,
+                        loss.item(),
+                        validation_loss.item(),
+                        ci_train,
+                        ci_valid,
+                    )
                 else:
-                    logger.print_progress_bar(epoch, self.epochs, loss=loss.item(), ci=ci_train)
-            
+                    logger.print_progress_bar(
+                        epoch, self.epochs, loss=loss.item(), ci=ci_train
+                    )
+
             if patience <= epoch:
-                print("Early stopping at epoch %d" % epoch)
+                print(f"Early stopping at epoch {epoch}")
                 break
-        
+
         if self.verbose:
-            logger.logMessage(f"Finished Training with {epoch + 1} iterations in {time.time() - start:.2f}s")
-        
+            logger.logMessage(
+                f"Finished Training with {epoch + 1} iterations in {time.time() - start:.2f}s"
+            )
+
         # Compute baseline hazards with training data
         for k in range(self.number_events):
-            self.breslow[k].fit(self.predict(X_train)[:, k], e_train[:, k], t_train[:, k])
+            self.breslow[k].fit(
+                self.predict(X_train)[:, k], e_train[:, k], t_train[:, k]
+            )
 
         logger.shutdown()
-        
+
         logger.history["best_val_loss"] = best_validation_loss
         logger.history["best_params"] = best_params
         logger.history["best_params_idx"] = best_params_idx
-        
-        self.history = logger.history
-        
-        return self
-    
-    def predict(self, X):
 
+        self.history = logger.history
+
+        return self
+
+    def predict(self, X):
         """
         Predict risk scores for the given data.
 
@@ -658,18 +718,17 @@ class DeepMultiTask(BaseSurvival):
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
-    
+
         self.network.eval()
         with torch.no_grad():
             x_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
             if self.standardize:
                 x_tensor = self._standardize_x(x_tensor)
-            risk = self.network(x_tensor)[1][:, :self.number_events].cpu().numpy()
-            
-        return risk
-    
-    def predict_outputs(self, x):
+            risk = self.network(x_tensor)[1][:, : self.number_events].cpu().numpy()
 
+        return risk
+
+    def predict_outputs(self, x):
         """
         Predict the raw model outputs for the given data.
 
@@ -690,15 +749,16 @@ class DeepMultiTask(BaseSurvival):
             if self.standardize:
                 x_tensor = self._standardize_x(x_tensor)
             outputs = self.network(x_tensor)[0].cpu().numpy()
-            
+
         return outputs
-    
+
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
-
-        """ 
+    def predict_survival_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
+        """
         Predict the survival function for the given data.
 
         Parameters
@@ -722,8 +782,10 @@ class DeepMultiTask(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
         risk = self.predict(X)
 
         self.survival_functions = []
@@ -733,15 +795,28 @@ class DeepMultiTask(BaseSurvival):
 
             if plot:
                 seed = int(seed)
-                figure, ax = self._plot_survival_hazard_functions(survival_function, index, "DeepSurv Multi-Task", dataset, "Survival", seed, k)
+                self._plot_survival_hazard_functions(
+                    survival_function,
+                    index,
+                    "DeepSurv Multi-Task",
+                    dataset,
+                    "Survival",
+                    seed,
+                    k,
+                )
                 plt.show()
-        
-        self.survival_functions = self.survival_functions[0] if self.number_events == 1 else self.survival_functions
+
+        self.survival_functions = (
+            self.survival_functions[0]
+            if self.number_events == 1
+            else self.survival_functions
+        )
 
         return self.survival_functions
 
-    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
-        
+    def predict_cumulative_hazard_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
         """
         Predict the cumulative hazard function for the given data.
 
@@ -766,29 +841,54 @@ class DeepMultiTask(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
         risk = self.predict(X)
-        
+
         self.cumulative_hazard_functions = []
         for k in range(self.number_events):
-            cumulative_hazard_function = self.breslow[k].get_cumulative_hazard_function(risk[:, k])
+            cumulative_hazard_function = self.breslow[k].get_cumulative_hazard_function(
+                risk[:, k]
+            )
             self.cumulative_hazard_functions.append(cumulative_hazard_function)
 
             if plot:
                 seed = int(seed)
-                figure, ax = self._plot_survival_hazard_functions(cumulative_hazard_function, index, "DeepSurv Multi-Task", dataset, "CumulativeRisk", seed, k)
+                self._plot_survival_hazard_functions(
+                    cumulative_hazard_function,
+                    index,
+                    "DeepSurv Multi-Task",
+                    dataset,
+                    "CumulativeRisk",
+                    seed,
+                    k,
+                )
                 plt.show()
 
-        self.cumulative_hazard_functions = self.cumulative_hazard_functions[0] if self.number_events == 1 else self.cumulative_hazard_functions
+        self.cumulative_hazard_functions = (
+            self.cumulative_hazard_functions[0]
+            if self.number_events == 1
+            else self.cumulative_hazard_functions
+        )
 
         return self.cumulative_hazard_functions
 
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
-
+    def calculate_xai(
+        self,
+        X,
+        index,
+        scaler,
+        dataset,
+        seed,
+        feature_names,
+        background=False,
+        plot=False,
+    ):
         """
         Compute SHAP-based explainability values for the model.
 
@@ -820,25 +920,39 @@ class DeepMultiTask(BaseSurvival):
         try:
             seed = int(seed)
         except (TypeError, ValueError):
-            raise ValueError(f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}")
-        
+            raise ValueError(
+                f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}"
+            )
+
         logging.getLogger("xai").setLevel(logging.WARNING)
 
         self.shap_explainer = [None] * self.number_events
         for k in range(self.number_events):
             # Applying Explainer (model type)
             masker = shap.maskers.Independent(X, max_samples=X.shape[0])
-            explainer_risk = shap.Explainer(self.predict, masker, feature_names=feature_names, seed=seed)
-            
+            explainer_risk = shap.Explainer(
+                self.predict, masker, feature_names=feature_names, seed=seed
+            )
+
             # Background (faster)
             X_background = X.copy()
             if background:
-                X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
+                X_background = pd.DataFrame(
+                    shap.kmeans(X, background).data, columns=feature_names
+                )
 
             self.shap_explainer[k] = explainer_risk(X_background)
 
             if plot:
-                figure, ax = BaseSurvival.plot_shap(self.shap_explainer[k], index, scaler, "DeepSurv Multi-Task", dataset, seed, k)
+                BaseSurvival.plot_shap(
+                    self.shap_explainer[k],
+                    index,
+                    scaler,
+                    "DeepSurv Multi-Task",
+                    dataset,
+                    seed,
+                    k,
+                )
                 plt.show()
 
         return self.shap_explainer

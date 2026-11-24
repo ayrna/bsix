@@ -11,6 +11,7 @@ config_path = os.path.abspath(CONFIG.__file__)
 
 import submitit
 
+from bsix.utils.estimators import get_estimator
 from execution.flows import REGISTRY
 from execution.paramsearch import get_randomizedsearch_params
 from execution.workers import (
@@ -19,7 +20,6 @@ from execution.workers import (
     run_experiment_with_best_config,
     run_results_collector,
 )
-from bsix.utils.estimators import get_estimator
 
 #################################################################
 # HELPER FUNCTIONS
@@ -164,7 +164,9 @@ def clear_old_logs():
 ########################################################################
 
 
-def submit_experiments(flow_function, step: str, timestamp, additional_params={}):
+def submit_experiments(flow_function, step: str, timestamp, additional_params=None):
+    if additional_params is None:
+        additional_params = {}
     if step not in ["paramsearch", "final", "full"]:
         raise ValueError(
             f"Invalid mode: {step}. Must be one of 'paramsearch', 'final' or 'full'."
@@ -241,7 +243,9 @@ def submit_experiments(flow_function, step: str, timestamp, additional_params={}
     return all_jobs
 
 
-def submit_aggregator(timestamp, additional_params={}):
+def submit_aggregator(timestamp, additional_params=None):
+    if additional_params is None:
+        additional_params = {}
     logs_dir = (
         Path(CONFIG.logs_output_dir) / CONFIG.experiment_name / timestamp / "aggregator"
     )
@@ -269,7 +273,9 @@ def submit_aggregator(timestamp, additional_params={}):
     return job
 
 
-def submit_results_collector(timestamp, external_cv, additional_params={}):
+def submit_results_collector(timestamp, external_cv, additional_params=None):
+    if additional_params is None:
+        additional_params = {}
     logs_dir = (
         Path(CONFIG.logs_output_dir)
         / CONFIG.experiment_name
@@ -332,7 +338,7 @@ def submit_external_cv_pipeline(
         )
         jobs["paramsearch"] = ps_jobs
 
-        dependency_ids = set([job.job_id.split("_")[0] for job in ps_jobs])
+        dependency_ids = {job.job_id.split("_")[0] for job in ps_jobs}
         dependency_str = ":".join(dependency_ids)
         additional_params = {"dependency": f"afterok:{dependency_str}"}
     else:
@@ -354,7 +360,7 @@ def submit_external_cv_pipeline(
 
     if step in ["results_collector", "all"]:
         if "final" in jobs:
-            dependency_ids = set([job.job_id.split("_")[0] for job in jobs["final"]])
+            dependency_ids = {job.job_id.split("_")[0] for job in jobs["final"]}
         else:
             dependency_ids = set()
 
@@ -411,7 +417,7 @@ def submit_internal_cv_pipeline(
         )
         jobs["full"] = internal_cv_jobs
 
-        dependency_ids = set([job.job_id.split("_")[0] for job in internal_cv_jobs])
+        dependency_ids = {job.job_id.split("_")[0] for job in internal_cv_jobs}
         dependency_str = ":".join(dependency_ids)
         additional_params = {"dependency": f"afterok:{dependency_str}"}
     else:

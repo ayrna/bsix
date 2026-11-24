@@ -1,21 +1,23 @@
 import logging
-import numpy as np
+import warnings
+
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import shap
-import warnings
+from numba import njit
+from sklearn.utils.validation import check_random_state
 
 from ..base import BaseSurvival
 from .utils import StepFunction
 
-from numba import njit
-from sklearn.utils.validation import check_random_state
-
 warnings.filterwarnings("ignore")
 
-@njit(fastmath=True, cache=True, nogil=True)
-def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_samples_leaf): # pragma: no cover
 
+@njit(fastmath=True, cache=True, nogil=True)
+def _best_split_njit(
+    X, events, times, unique_times, n_j, d_j, features, min_samples_leaf
+):  # pragma: no cover
     """
     Find the best split for a survival-tree node.
 
@@ -104,7 +106,11 @@ def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_sam
 
             num_right = n_samples - num_left
 
-            if j < n_samples and num_left >= min_samples_leaf and num_right >= min_samples_leaf:
+            if (
+                j < n_samples
+                and num_left >= min_samples_leaf
+                and num_right >= min_samples_leaf
+            ):
                 acc = 0.0
                 for k in range(n_unique_t - 1, -1, -1):
                     acc += count_left[k]
@@ -123,14 +129,13 @@ def _best_split_njit(X, events, times, unique_times, n_j, d_j, features, min_sam
 
     return best_feature, best_threshold
 
-class LeafEstimator:
 
+class LeafEstimator:
     """
     Local estimator for leaf nodes in the survival tree.
     """
 
     def __init__(self):
-
         """
         Initialize the leaf estimator state.
         """
@@ -141,7 +146,6 @@ class LeafEstimator:
         self.cumulative_hazard = None
 
     def fit(self, events, times, global_times):
-
         """
         Fit the leaf node hazard and survival estimates.
 
@@ -160,12 +164,12 @@ class LeafEstimator:
             The estimator updates its internal ``times``, ``survival`` and
             ``cumulative_hazard`` attributes in-place.
         """
-                
+
         self.times = global_times
- 
+
         # Risk set (n_i) at each global time point
         risk_set = len(times) - np.searchsorted(times, self.times, side="left")
- 
+
         # Count the exact number of events (d_i) at each global time point
         d_events = np.zeros(len(self.times), dtype=np.float32)
         event_times = times[events]
@@ -175,22 +179,31 @@ class LeafEstimator:
             idx = np.searchsorted(self.times, event_times)
             # Counts multiple events happening at the same time
             np.add.at(d_events, idx, 1)
- 
+
         safe_risk = np.where(risk_set > 0, risk_set, 1.0)
         # Calculate discrete hazards (d_i / n_i)
         hazards = np.where(risk_set > 0, d_events / safe_risk, 0.0)
- 
+
         self.cumulative_hazard = np.cumsum(hazards)
         self.survival = np.cumprod(1.0 - hazards)
 
-class TreeNode:
 
+class TreeNode:
     """
     Node in the survival tree.
     """
- 
-    def __init__(self, feature=None, threshold=None, left=None, right=None, *, is_leaf=False, risk_value=None, estimator=None):
-        
+
+    def __init__(
+        self,
+        feature=None,
+        threshold=None,
+        left=None,
+        right=None,
+        *,
+        is_leaf=False,
+        risk_value=None,
+        estimator=None,
+    ):
         """
         Initialize a tree node.
 
@@ -211,7 +224,7 @@ class TreeNode:
         estimator : LeafEstimator, optional
             Leaf estimator storing survival and hazard information.
         """
-                
+
         self.feature = feature
         self.threshold = threshold
         self.left = left
@@ -220,8 +233,8 @@ class TreeNode:
         self.risk_value = risk_value
         self.estimator = estimator
 
-class SurvTree(BaseSurvival):
 
+class SurvTree(BaseSurvival):
     """
     Survival tree model for time-to-event data.
 
@@ -268,7 +281,6 @@ class SurvTree(BaseSurvival):
     """
 
     def __init__(self, max_depth=None, min_samples_split=6, min_samples_leaf=3, seed=0):
-
         """
         Initialize the survival tree model.
 
@@ -289,13 +301,12 @@ class SurvTree(BaseSurvival):
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
         self.seed = seed
-        
+
         self.root = None
         self.unique_times = None
         self.labels_covariables = ["event", "time"]
-    
-    def _best_split(self, X, events, times, n_features):
 
+    def _best_split(self, X, events, times, n_features):
         """
         Find the optimal split according to the log-rank criterion.
 
@@ -324,24 +335,27 @@ class SurvTree(BaseSurvival):
         # If no events occurred in this node, it cannot be split
         if len(unique_times) == 0:
             return None, None
- 
+
         # Pre-compute parent at-risk counts (n_j) and events (d_j).
-        n_j = (len(times) - np.searchsorted(times, unique_times, side="left")).astype(np.float32)
+        n_j = (len(times) - np.searchsorted(times, unique_times, side="left")).astype(
+            np.float32
+        )
         d_j = d_j_int.astype(np.float32)
 
         # Shuffle features to ensure random, reproducible tie-breaking
         features = np.arange(n_features)
         self.rng.shuffle(features)
-        
-        best_feature, best_threshold = _best_split_njit(X, events, times, unique_times, n_j, d_j, features, self.min_samples_leaf)
+
+        best_feature, best_threshold = _best_split_njit(
+            X, events, times, unique_times, n_j, d_j, features, self.min_samples_leaf
+        )
 
         if best_feature == -1:
             return None, None
-        
+
         return best_feature, best_threshold
 
     def _create_leaf(self, events, times):
-
         """
         Create a terminal node with empirical hazard and survival estimates.
 
@@ -360,14 +374,13 @@ class SurvTree(BaseSurvival):
 
         estimator = LeafEstimator()
         estimator.fit(events, times, self.unique_times)
-        
+
         # Risk value defined as the area under the cumulative hazard curve
         risk_value = float(np.sum(estimator.cumulative_hazard))
-        
-        return TreeNode(is_leaf=True, risk_value=risk_value, estimator=estimator)
-    
-    def _build_tree(self, X, events, times, depth):
 
+        return TreeNode(is_leaf=True, risk_value=risk_value, estimator=estimator)
+
+    def _build_tree(self, X, events, times, depth):
         """
         Recursively build the survival tree.
 
@@ -389,7 +402,7 @@ class SurvTree(BaseSurvival):
         """
 
         n_samples, n_features = X.shape
-        
+
         stop = (
             (self.max_depth is not None and depth >= self.max_depth)
             or n_samples < self.min_samples_split
@@ -411,10 +424,18 @@ class SurvTree(BaseSurvival):
         left_mask = X[:, best_feature] <= best_threshold
 
         # Recursively construct left and right branches
-        return TreeNode(feature=best_feature, threshold=best_threshold, left=self._build_tree(X[left_mask], events[left_mask], times[left_mask], depth + 1), right=self._build_tree(X[~left_mask], events[~left_mask], times[~left_mask], depth + 1))
+        return TreeNode(
+            feature=best_feature,
+            threshold=best_threshold,
+            left=self._build_tree(
+                X[left_mask], events[left_mask], times[left_mask], depth + 1
+            ),
+            right=self._build_tree(
+                X[~left_mask], events[~left_mask], times[~left_mask], depth + 1
+            ),
+        )
 
     def _validate_input(self, X, y):
-
         """
         Validate the input data for fitting the SurvTree model.
 
@@ -437,8 +458,14 @@ class SurvTree(BaseSurvival):
         if len(X) == 0 or len(y) == 0:
             raise ValueError("Input data X and y cannot be empty.")
 
-        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
-                    raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+        if (
+            y.dtype.names is None
+            or "event" not in y.dtype.names
+            or "time" not in y.dtype.names
+        ):
+            raise ValueError(
+                "y must be a structured array with 'event' and 'time' fields."
+            )
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
@@ -451,9 +478,8 @@ class SurvTree(BaseSurvival):
 
         if len(X) <= 1:
             raise ValueError("At least two samples are required to fit the model.")
-        
-    def fit(self, X, y):
 
+    def fit(self, X, y):
         """
         Fit the survival tree model to the training data.
 
@@ -471,24 +497,23 @@ class SurvTree(BaseSurvival):
         """
 
         self._validate_input(X, y)
-        
+
         X, y = self._sort(X, y, descending=False)
-        
+
         events = y["event"]
         times = y["time"]
 
-        if isinstance(self.seed, int) or isinstance(self.seed, float):
+        if isinstance(self.seed, (int, float)):
             self.seed = int(self.seed % np.iinfo(np.int32).max)
-        
+
         self.rng = check_random_state(self.seed)
 
         self.unique_times = np.unique(times)
         self.root = self._build_tree(X, events, times, depth=0)
-        
+
         return self
 
     def predict(self, X):
-
         """
         Predict risk scores for the given samples.
 
@@ -505,17 +530,16 @@ class SurvTree(BaseSurvival):
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
-    
+
         leaves = self._get_leaves(X)
-        
+
         risks = np.empty(len(leaves), dtype=np.float32)
         for i, node in enumerate(leaves):
             risks[i] = node.risk_value
-            
-        return risks
-    
-    def _get_leaves(self, X):
 
+        return risks
+
+    def _get_leaves(self, X):
         """
         Return the terminal node reached by each sample.
 
@@ -529,7 +553,7 @@ class SurvTree(BaseSurvival):
         ndarray of shape (n_samples,)
             Array of terminal ``TreeNode`` objects corresponding to each sample.
         """
-        
+
         leaves = np.empty(X.shape[0], dtype=object)
         for i in range(X.shape[0]):
             node = self.root
@@ -541,14 +565,13 @@ class SurvTree(BaseSurvival):
                     node = node.right
 
             leaves[i] = node
-            
+
         return leaves
-    
+
     # ----------------------
     # Base Survival methods
     # ----------------------
     def _compute_survival_hazard_functions(self, X, survival=True):
-        
         """
         Compute the survival or cumulative hazard function for each sample.
 
@@ -567,22 +590,37 @@ class SurvTree(BaseSurvival):
         """
 
         if not self.root:
-            raise ValueError(f"When computing `cumulative_hazard_function` with a model, first fit the model.")
-            
+            raise ValueError(
+                "When computing `cumulative_hazard_function` with a model, first fit the model."
+            )
+
         leaves = self._get_leaves(X)
-        
+
         functions = []
         for node in leaves:
             if survival:
-                functions.append(StepFunction(node.estimator.times, np.exp(-node.estimator.cumulative_hazard), is_survival=survival))
+                functions.append(
+                    StepFunction(
+                        node.estimator.times,
+                        np.exp(-node.estimator.cumulative_hazard),
+                        is_survival=survival,
+                    )
+                )
             else:
-                functions.append(StepFunction(node.estimator.times, node.estimator.cumulative_hazard, is_survival=survival))           
-            
-        return np.array(functions, dtype=object)
-    
-    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
+                functions.append(
+                    StepFunction(
+                        node.estimator.times,
+                        node.estimator.cumulative_hazard,
+                        is_survival=survival,
+                    )
+                )
 
-        """ 
+        return np.array(functions, dtype=object)
+
+    def predict_survival_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
+        """
         Predict the survival function for the given samples.
 
         Parameters
@@ -605,19 +643,31 @@ class SurvTree(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
-        self.survival_function = self._compute_survival_hazard_functions(X, survival=True)
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
+        self.survival_function = self._compute_survival_hazard_functions(
+            X, survival=True
+        )
 
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "Survival Tree", dataset, "Survival", seed)
+            self._plot_survival_hazard_functions(
+                self.survival_function,
+                index,
+                "Survival Tree",
+                dataset,
+                "Survival",
+                seed,
+            )
             plt.show()
-            
+
         return self.survival_function
 
-    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
-
+    def predict_cumulative_hazard_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
         """
         Predict the cumulative hazard function for the given samples.
 
@@ -642,22 +692,42 @@ class SurvTree(BaseSurvival):
         """
 
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
-        self.cumulative_hazard_function = self._compute_survival_hazard_functions(X, survival=False)
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
+        self.cumulative_hazard_function = self._compute_survival_hazard_functions(
+            X, survival=False
+        )
 
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "Survival Tree", dataset, "CumulativeRisk", seed)
+            self._plot_survival_hazard_functions(
+                self.cumulative_hazard_function,
+                index,
+                "Survival Tree",
+                dataset,
+                "CumulativeRisk",
+                seed,
+            )
             plt.show()
-        
+
         return self.cumulative_hazard_function
-    
+
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=False, plot=False):
-
+    def calculate_xai(
+        self,
+        X,
+        index,
+        scaler,
+        dataset,
+        seed,
+        feature_names,
+        background=False,
+        plot=False,
+    ):
         """
         Compute SHAP-based explainability values for the tree model.
 
@@ -689,23 +759,31 @@ class SurvTree(BaseSurvival):
         try:
             seed = int(seed)
         except (TypeError, ValueError):
-            raise ValueError(f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}")
-        
+            raise ValueError(
+                f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}"
+            )
+
         logging.getLogger("xai").setLevel(logging.WARNING)
 
         # Applying Explainer (model type)
         masker = shap.maskers.Independent(X, max_samples=X.shape[0])
-        explainer_risk = shap.Explainer(self.predict, masker, feature_names=feature_names, seed=seed)
-        
+        explainer_risk = shap.Explainer(
+            self.predict, masker, feature_names=feature_names, seed=seed
+        )
+
         # Background (faster)
         X_background = X.copy()
         if background:
-            X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
+            X_background = pd.DataFrame(
+                shap.kmeans(X, background).data, columns=feature_names
+            )
 
         self.shap_explainer = explainer_risk(X_background)
 
         if plot:
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "Survival Tree", dataset, seed)
+            BaseSurvival.plot_shap(
+                self.shap_explainer, index, scaler, "Survival Tree", dataset, seed
+            )
             plt.show()
 
         return self.shap_explainer

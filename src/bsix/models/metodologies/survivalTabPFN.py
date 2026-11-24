@@ -1,18 +1,17 @@
 import logging
+import os
 import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import pandas as pd
 import shap
- 
+from scipy.stats import rankdata
+from sklearn.utils.validation import check_random_state
+from tabpfn import TabPFNClassifier, TabPFNRegressor
+
 from ..base import BaseSurvival
 from .utils import BreslowEstimator
-
-from scipy.stats import rankdata
-from tabpfn import TabPFNClassifier, TabPFNRegressor
-from sklearn.utils.validation import check_random_state
 
 warnings.filterwarnings("ignore")
 
@@ -21,8 +20,8 @@ ruta_relativa_reg = "src/bsix/models/metodologies/tabpfn-v2-regressor.ckpt"
 ruta_absoluta_clf = os.path.abspath(ruta_relativa_clf)
 ruta_absoluta_reg = os.path.abspath(ruta_relativa_reg)
 
+
 class SurvivalTabPFN(BaseSurvival):
- 
     """
     Probabilistic survival ensemble based on TabPFN models.
 
@@ -71,9 +70,10 @@ class SurvivalTabPFN(BaseSurvival):
     >>> model.fit(X_train, y_train)
     >>> risk = model.predict(X_test)
     """
- 
-    def __init__(self, n_estimators=1, classifier=None, regressor=None, seed=0, n_jobs=-1):
- 
+
+    def __init__(
+        self, n_estimators=1, classifier=None, regressor=None, seed=0, n_jobs=-1
+    ):
         """
         Initialize the SurvivalTabPFN model.
 
@@ -92,19 +92,18 @@ class SurvivalTabPFN(BaseSurvival):
         n_jobs : int, default=-1
             Number of jobs used by TabPFN for preprocessing and fitting.
         """
- 
+
         # Parameters for the ensemble
         self.n_estimators = n_estimators
         self.classifier = classifier
         self.regressor = regressor
- 
+
         self.seed = seed
         self.n_jobs = n_jobs
- 
+
         self.labels_covariables = ["event", "time"]
 
     def _validate_input(self, X, y):
-
         """
         Validate the input data for fitting the SurvivalTabPFN model.
 
@@ -127,8 +126,14 @@ class SurvivalTabPFN(BaseSurvival):
         if len(X) == 0 or len(y) == 0:
             raise ValueError("Input data X and y cannot be empty.")
 
-        if y.dtype.names is None or "event" not in y.dtype.names or "time" not in y.dtype.names:
-                    raise ValueError("y must be a structured array with 'event' and 'time' fields.")
+        if (
+            y.dtype.names is None
+            or "event" not in y.dtype.names
+            or "time" not in y.dtype.names
+        ):
+            raise ValueError(
+                "y must be a structured array with 'event' and 'time' fields."
+            )
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
@@ -141,9 +146,8 @@ class SurvivalTabPFN(BaseSurvival):
 
         if len(X) <= 1:
             raise ValueError("At least two samples are required to fit the model.")
-        
+
     def fit(self, X, y):
- 
         """
         Fit the SurvivalTabPFN ensemble to the training data.
 
@@ -161,44 +165,59 @@ class SurvivalTabPFN(BaseSurvival):
         """
 
         self._validate_input(X, y)
-        
+
         # Sort by time
         X, y = self._sort(X, y)
-        
+
         event = y["event"].astype(bool)
         time = y["time"].astype(np.float32)
 
         # Generate random state object
-        if isinstance(self.seed, int) or isinstance(self.seed, float):
+        if isinstance(self.seed, (int, float)):
             self.seed = int(self.seed % np.iinfo(np.int32).max)
-        
+
         random_state_obj = check_random_state(self.seed)
         self.seed = random_state_obj.randint(0, np.iinfo(np.int32).max)
 
         if self.classifier is None:
             # Model
-            self.classifier = TabPFNClassifier(n_estimators=self.n_estimators, random_state=self.seed, ignore_pretraining_limits=True, model_path=ruta_absoluta_clf, show_progress_bar=True, n_preprocessing_jobs=self.n_jobs)
+            self.classifier = TabPFNClassifier(
+                n_estimators=self.n_estimators,
+                random_state=self.seed,
+                ignore_pretraining_limits=True,
+                model_path=ruta_absoluta_clf,
+                show_progress_bar=True,
+                n_preprocessing_jobs=self.n_jobs,
+            )
 
         self.classifier.fit(X, event)
-        
+
         X_event = X[event]
         y_time_event = time[event]
-        reversed_y_time_event = - y_time_event
-        y_ranked_risk = (rankdata(reversed_y_time_event) - 1) / (reversed_y_time_event.shape[0] - 1)
+        reversed_y_time_event = -y_time_event
+        y_ranked_risk = (rankdata(reversed_y_time_event) - 1) / (
+            reversed_y_time_event.shape[0] - 1
+        )
 
         if self.regressor is None:
             # Model
-            self.regressor = TabPFNRegressor(n_estimators=self.n_estimators ,random_state=self.seed, ignore_pretraining_limits=True, model_path=ruta_absoluta_reg, show_progress_bar=True, n_preprocessing_jobs=self.n_jobs)
+            self.regressor = TabPFNRegressor(
+                n_estimators=self.n_estimators,
+                random_state=self.seed,
+                ignore_pretraining_limits=True,
+                model_path=ruta_absoluta_reg,
+                show_progress_bar=True,
+                n_preprocessing_jobs=self.n_jobs,
+            )
 
         self.regressor.fit(X_event, y_ranked_risk)
 
         self.breslow = BreslowEstimator()
         self.breslow.fit(self.predict(X), event, time)
- 
+
         return self
- 
+
     def predict(self, X):
- 
         """
         Predict risk scores for the given input data.
 
@@ -215,18 +234,19 @@ class SurvivalTabPFN(BaseSurvival):
 
         if not np.all(np.isfinite(X)):
             raise ValueError("Input data X contains infinite or NaN values.")
-    
+
         p_a = self.classifier.predict_proba(X)[:, 1]
         p_b = self.regressor.predict(X)
         risk = p_a * p_b
 
         return risk
- 
+
     # ----------------------
     # Base Survival methods
     # ----------------------
-    def predict_survival_function(self, X, index=None, dataset=None, seed=None, plot=False):
- 
+    def predict_survival_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
         """
         Predict the survival function for the given samples.
 
@@ -248,23 +268,33 @@ class SurvivalTabPFN(BaseSurvival):
         ndarray of shape (n_samples, n_times)
             Estimated survival function for each sample.
         """
- 
+
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
         risk = self.predict(X)
- 
+
         self.survival_function = self.breslow.get_survival_function(risk)
- 
+
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.survival_function, index, "SurvivalTabPFN", dataset, "Survival", seed)
+            self._plot_survival_hazard_functions(
+                self.survival_function,
+                index,
+                "SurvivalTabPFN",
+                dataset,
+                "Survival",
+                seed,
+            )
             plt.show()
- 
+
         return self.survival_function
- 
-    def predict_cumulative_hazard_function(self, X, index=None, dataset=None, seed=None, plot=False):
- 
+
+    def predict_cumulative_hazard_function(
+        self, X, index=None, dataset=None, seed=None, plot=False
+    ):
         """
         Predict the cumulative hazard function for the given samples.
 
@@ -286,26 +316,46 @@ class SurvivalTabPFN(BaseSurvival):
         ndarray of shape (n_samples, n_times)
             Estimated cumulative hazard function for each sample.
         """
- 
+
         if plot and (index is None or dataset is None or seed is None):
-            raise ValueError("The 'index', 'dataset' and 'seed' parameters are required when plot=True.")
-        
+            raise ValueError(
+                "The 'index', 'dataset' and 'seed' parameters are required when plot=True."
+            )
+
         risk = self.predict(X)
- 
-        self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(risk)
- 
+
+        self.cumulative_hazard_function = self.breslow.get_cumulative_hazard_function(
+            risk
+        )
+
         if plot:
             seed = int(seed)
-            figure, ax = self._plot_survival_hazard_functions(self.cumulative_hazard_function, index, "SurvivalTabPFN", dataset, "CumulativeRisk", seed)
+            self._plot_survival_hazard_functions(
+                self.cumulative_hazard_function,
+                index,
+                "SurvivalTabPFN",
+                dataset,
+                "CumulativeRisk",
+                seed,
+            )
             plt.show()
- 
+
         return self.cumulative_hazard_function
- 
+
     # ----------------------
     # XAI
     # ----------------------
-    def calculate_xai(self, X, index, scaler, dataset, seed, feature_names, background=None, plot=False):
- 
+    def calculate_xai(
+        self,
+        X,
+        index,
+        scaler,
+        dataset,
+        seed,
+        feature_names,
+        background=None,
+        plot=False,
+    ):
         """
         Compute SHAP-based explainability values for the model.
 
@@ -335,27 +385,35 @@ class SurvivalTabPFN(BaseSurvival):
             SHAP explainer containing the explanations computed for the input
             samples.
         """
- 
+
         try:
             seed = int(seed)
         except (TypeError, ValueError):
-            raise ValueError(f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}")
- 
+            raise ValueError(
+                f"When using `calculate_xai` with a model, the seed must be an integer. Value received: {seed}"
+            )
+
         logging.getLogger("xai").setLevel(logging.WARNING)
- 
+
         # Applying Explainer (model type)
         masker = shap.maskers.Independent(X, max_samples=X.shape[0])
-        explainer_risk = shap.Explainer(self.predict, masker, feature_names=feature_names, seed=seed)
- 
+        explainer_risk = shap.Explainer(
+            self.predict, masker, feature_names=feature_names, seed=seed
+        )
+
         # Background (faster)
         X_background = X.copy()
         if background:
-            X_background = pd.DataFrame(shap.kmeans(X, background).data, columns=feature_names)
- 
+            X_background = pd.DataFrame(
+                shap.kmeans(X, background).data, columns=feature_names
+            )
+
         self.shap_explainer = explainer_risk(X_background)
- 
+
         if plot:
-            figure, ax = BaseSurvival.plot_shap(self.shap_explainer, index, scaler, "SurvivalTabPFN", dataset, seed)
+            BaseSurvival.plot_shap(
+                self.shap_explainer, index, scaler, "SurvivalTabPFN", dataset, seed
+            )
             plt.show()
- 
+
         return self.shap_explainer

@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 
-def load_config(*, config_name: str = None, config_path: str = None):
+def load_config(*, config_name: str | None = None, config_path: str | None = None):
     if not (config_name or config_path):
         raise ValueError("Either config_name or config_path must be provided.")
 
