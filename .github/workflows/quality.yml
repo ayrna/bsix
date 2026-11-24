@@ -43,3 +43,6 @@ jobs:
 
       - name: Run mypy
         run: mypy
+
+      - name: Run mypy on tests
+        run: mypy tests
