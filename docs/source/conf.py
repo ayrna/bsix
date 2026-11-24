@@ -30,7 +30,6 @@ autodoc_mock_imports = [
     "numba",
     "numpy",
     "pandas",
-    "pycox",
     "remayn",
     "scikit-learn",
     "scikit-survival",

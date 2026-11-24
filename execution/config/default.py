@@ -103,9 +103,9 @@ memory_override = {
         "*": 50,
     },
 }
-gpu_type_override = {}
-batch_size_override = {}
-max_time_override = {}
+gpu_type_override: dict[str, str | None] = {}
+batch_size_override: dict[str, str | None] = {}
+max_time_override: dict[str, str | None] = {}
 
 ############ Output directories ############
 # Remayn results path

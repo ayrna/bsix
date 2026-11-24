@@ -17,12 +17,20 @@ def load_config(*, config_name: str | None = None, config_path: str | None = Non
         path = Path("execution/config") / f"{config_name}.py"
 
     if not path.exists():
-        raise FileNotFoundError(f"❌ File not found: {path}")
+        raise FileNotFoundError(f"File not found: {path}")
 
     spec = importlib.util.spec_from_file_location("config", path)
+
+    if spec is None:
+        raise ImportError(f"Cannot import: {path}")
+
     config_module = importlib.util.module_from_spec(spec)
 
     sys.modules["config"] = config_module
+
+    if spec.loader is None:
+        raise ImportError(f"Cannot import: {path}")
+
     spec.loader.exec_module(config_module)
 
     return config_module

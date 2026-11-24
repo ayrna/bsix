@@ -7,7 +7,6 @@ mplcursors==0.7
 numba==0.68.0
 numpy==2.3.0
 pandas==2.3.0
-pycox==0.3.0
 remayn==1.0.9
 scikit-learn==1.7.0
 scikit-survival==0.28.0
